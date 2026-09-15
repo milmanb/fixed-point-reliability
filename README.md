@@ -124,7 +124,14 @@ noise levels: the divergence $\mathrm{div} = \tfrac{1}{D}\mathrm{tr}\,J_f(y)$ (H
 estimate with forward-mode AD), the linearized residual $\lvert J_f(y)(f(y) - y) \rvert$, and
 Stein's unbiased risk estimate $\mathrm{SURE} = d_{mse} - \sigma^2 + 2\sigma^2\,\mathrm{div}$.
 Signals are scored per corruption level, pooled per family, and pooled over all levels.
-Pooled scores are compared with a severity-only baseline (`<signal>@level`).
+Two baselines guard against scores that do not reflect model failures:
+
+- `b`, the mean brightness of $y$. Under masking and strong blur the error grows with the
+  amount of content in the image, so brightness alone ranks errors well (Spearman up to
+  0.96 within a pixel-mask level). Partial Spearman correlations given $b$ show what each
+  signal adds beyond brightness.
+- `<signal>@level`, the median of a signal over its corruption level. In pooled scores it
+  measures how much of the ranking is severity detection.
 
 ## Repository layout
 
@@ -151,7 +158,8 @@ results/           small result tables and figures (per-image dumps are git-igno
 
 - [x] Evaluation pipeline and exact-projector smoke check
 - [x] Training and evaluation pipeline for the autoencoders, first-order signals
-- [ ] Convolutional denoising autoencoders, $\lambda_{id} = 0$ (3 seeds)
+- [x] Convolutional denoising autoencoders, $\lambda_{id} = 0$ (3 seeds), evaluated
+- [x] Brightness baseline and partial correlations in the evaluation
 - [ ] Idempotence loss and $\lambda_{id} = 1$ models (3 seeds)
 - [ ] Evaluation on held-out noise levels, blur and masks
 - [ ] Report (LaTeX, 2-3 pages)

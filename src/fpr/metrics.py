@@ -2,7 +2,10 @@
 
 A signal s is useful when it orders images like the true error e. We report
   * Spearman rank correlation rho(s, e);
-  * AUROC of s for detecting the worst-error quartile, e >= q_0.75(e).
+  * AUROC of s for detecting the worst-error quartile, e >= q_0.75(e);
+  * optionally, the partial Spearman correlation of s and e given a control variable z.
+    It removes the part of the ranking that z already explains. With z = image brightness,
+    a signal that only tracks how much content an image has gets a partial correlation near 0.
 
 Bootstrap. Resampling n items with replacement is the same as drawing a count
 vector w ~ Multinomial(n, uniform). Every statistic here is a weighted rank
@@ -50,28 +53,48 @@ class _TieGroups:
 class _Resamples:
     """Weights and error-side quantities shared by every signal scored on the same draws."""
 
-    def __init__(self, weights, error_groups, labels):
+    def __init__(self, weights, error_groups, labels, control_groups=None):
         self.w = weights
         self.total = weights.sum(1, keepdims=True)
-        error_ranks = error_groups.ranks(weights)
-        self.b = error_ranks - (weights * error_ranks).sum(1, keepdims=True) / self.total
-        self.wbb = (weights * self.b * self.b).sum(1)
+        self.err = self._centered(error_groups.ranks(weights))
+        self.err_ss = self._dot(self.err, self.err)
         self.w_labels = weights * labels
         self.n_pos = self.w_labels.sum(1)
         self.n_neg = weights.sum(1) - self.n_pos
+        self.ctrl = None
+        if control_groups is not None:
+            self.ctrl = self._centered(control_groups.ranks(weights))
+            self.ctrl_ss = self._dot(self.ctrl, self.ctrl)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                self.r_err_ctrl = self._dot(self.err, self.ctrl) / np.sqrt(self.err_ss * self.ctrl_ss)
+
+    def _centered(self, ranks):
+        return ranks - (self.w * ranks).sum(1, keepdims=True) / self.total
+
+    def _dot(self, a, b):
+        return (self.w * a * b).sum(1)
 
     def score(self, groups):
-        """Weighted Spearman rho with the error and Mann-Whitney AUROC for the worst quartile.
+        """Weighted Spearman rho, Mann-Whitney AUROC for the worst quartile, and partial rho.
 
-        In the AUROC, ties between a positive and a negative count as 1/2.
+        In the AUROC, ties between a positive and a negative count as 1/2. The partial
+        correlation uses r_se.z = (r_se - r_sz r_ez) / sqrt((1 - r_sz^2)(1 - r_ez^2)) on the
+        ranks; it is NaN without a control, or when the signal is a monotone function of it.
         """
         ranks = groups.ranks(self.w)
-        a = ranks - (self.w * ranks).sum(1, keepdims=True) / self.total
+        a = self._centered(ranks)
+        a_ss = self._dot(a, a)
+        partial = np.full(len(a), np.nan)
         with np.errstate(invalid="ignore", divide="ignore"):
-            rho = (self.w * a * self.b).sum(1) / np.sqrt((self.w * a * a).sum(1) * self.wbb)
+            rho = self._dot(a, self.err) / np.sqrt(a_ss * self.err_ss)
             u = (self.w_labels * ranks).sum(1) - self.n_pos * (self.n_pos + 1.0) / 2.0
             auc = u / (self.n_pos * self.n_neg)
-        return rho, auc
+            if self.ctrl is not None:
+                r_sz = self._dot(a, self.ctrl) / np.sqrt(a_ss * self.ctrl_ss)
+                spread = (1.0 - r_sz ** 2) * (1.0 - self.r_err_ctrl ** 2)
+                value = (rho - r_sz * self.r_err_ctrl) / np.sqrt(spread)
+                partial = np.where(spread > 1e-12, value, np.nan)
+        return rho, auc, partial
 
 
 def bootstrap_counts(n_clusters, n_boot, rng):
@@ -83,7 +106,7 @@ def bootstrap_counts(n_clusters, n_boot, rng):
 
 
 def rank_metrics(signals, error, clusters=None, n_boot=1000, seed=0, quantile=0.75,
-                 atol=1e-9, max_cells=2e7):
+                 atol=1e-9, max_cells=2e7, control=None):
     """Spearman rho and worst-quartile AUROC for each signal, with 95% percentile CIs.
 
     signals : dict name -> (n,) array
@@ -91,6 +114,8 @@ def rank_metrics(signals, error, clusters=None, n_boot=1000, seed=0, quantile=0.
     clusters: optional (n,) int array in [0, C); rows sharing a cluster are resampled together
     atol    : a signal whose range is below atol is treated as exactly constant. This keeps
               round-off (e.g. g ~ 1e-17 for exact projectors) from being ranked as if it were data.
+    control : optional (n,) array z; adds the partial Spearman correlation given z
+              (keys partial, partial_lo, partial_hi)
 
     Returns a list of dicts, one per signal.
     """
@@ -105,37 +130,37 @@ def rank_metrics(signals, error, clusters=None, n_boot=1000, seed=0, quantile=0.
         constant = bool(np.ptp(values) <= atol)
         prepared[name] = (_TieGroups(np.zeros(n) if constant else values), constant)
     error_groups = _TieGroups(error)
+    control_groups = None if control is None else _TieGroups(np.asarray(control, dtype=np.float64))
 
     def evaluate(weights):
-        resamples = _Resamples(weights, error_groups, labels)
+        resamples = _Resamples(weights, error_groups, labels, control_groups)
         return {name: resamples.score(groups) for name, (groups, _) in prepared.items()}
 
     point = evaluate(np.ones((1, n)))
-    boot = {name: ([], []) for name in prepared}
+    boot = {name: ([], [], []) for name in prepared}
     rng = np.random.default_rng(seed)
     per_chunk = max(1, int(max_cells // n))
     for start in range(0, n_boot, per_chunk):
         counts = bootstrap_counts(n_clusters, min(per_chunk, n_boot - start), rng)
         weights = counts if clusters is None else counts[:, clusters]
-        for name, (rho, auc) in evaluate(weights.astype(np.float64)).items():
-            boot[name][0].append(rho)
-            boot[name][1].append(auc)
+        for name, stats in evaluate(weights.astype(np.float64)).items():
+            for store, values in zip(boot[name], stats):
+                store.append(values)
+
+    def interval(name, k):
+        values = np.concatenate(boot[name][k]) if n_boot else np.array([np.nan])
+        return _percentile(values, 2.5), _percentile(values, 97.5)
 
     rows = []
     for name, (_, constant) in prepared.items():
-        rho_boot = np.concatenate(boot[name][0]) if n_boot else np.array([np.nan])
-        auc_boot = np.concatenate(boot[name][1]) if n_boot else np.array([np.nan])
-        rows.append({
-            "signal": name,
-            "constant": constant,
-            "spearman": float(point[name][0][0]),
-            "spearman_lo": _percentile(rho_boot, 2.5),
-            "spearman_hi": _percentile(rho_boot, 97.5),
-            "auroc": float(point[name][1][0]),
-            "auroc_lo": _percentile(auc_boot, 2.5),
-            "auroc_hi": _percentile(auc_boot, 97.5),
-            "n": n,
-        })
+        row = {"signal": name, "constant": constant}
+        for k, key in enumerate(("spearman", "auroc", "partial")):
+            if key == "partial" and control is None:
+                continue
+            lo, hi = interval(name, k)
+            row |= {key: float(point[name][k][0]), f"{key}_lo": lo, f"{key}_hi": hi}
+        row["n"] = n
+        rows.append(row)
     return rows
 
 

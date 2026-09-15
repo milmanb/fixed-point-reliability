@@ -10,6 +10,12 @@ Zeroth-order signals, per-image mean absolute values over pixels, (1/|Omega|) ||
 
 plus the per-pixel squared versions d_mse and e_mse. For denoising (A = I), r_A and d coincide.
 
+    b    input brightness        mean(y)            uses y only
+
+b is a model-free baseline, not a reliability signal. Under masking and strong blur the error
+grows with the amount of content in the image, so any signal that tracks brightness ranks
+images well there without detecting model failures.
+
 First-order signals (`jacobian_signals`), from Jacobian-vector products:
 
     div    (1/D) tr J_f(y)               Hutchinson estimate with Rademacher probes
@@ -49,6 +55,7 @@ def compute_signals(f, x, y, A, batch_size=2048):
         "r_A": _mean_abs(A(fy) - y),
         "e": _mean_abs(fy - x),
         "e_in": _mean_abs(y - x),
+        "b": y.flatten(1).mean(1).detach().cpu().numpy(),
         "d_mse": _mean_sq(fy - y),
         "e_mse": _mean_sq(fy - x),
     }
