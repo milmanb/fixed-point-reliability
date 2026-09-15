@@ -17,7 +17,6 @@ import argparse
 import json
 import platform
 import time
-import zlib
 from pathlib import Path
 
 import matplotlib
@@ -30,17 +29,11 @@ import torch  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 
 from fpr.data import REPO_ROOT, load_fashion_mnist  # noqa: E402
-from fpr.degradations import BoxMask, GaussianBlur, GaussianNoise, PixelMask  # noqa: E402
+from fpr.evaluation import CONDITIONS, observe  # noqa: E402
 from fpr.metrics import rank_metrics  # noqa: E402
 from fpr.projectors import PCA, Identity, NearestNeighbor, Radial, principal_components  # noqa: E402
 from fpr.signals import SIGNALS, compute_signals  # noqa: E402
 
-CONDITIONS = [
-    *(GaussianNoise(sigma) for sigma in (0.1, 0.2, 0.3, 0.5)),
-    *(GaussianBlur(std) for std in (0.5, 1.0, 1.5, 2.0)),
-    *(PixelMask(drop) for drop in (0.25, 0.5, 0.75)),
-    *(BoxMask(size) for size in (8, 14)),
-]
 EXAMPLE_CONDITIONS = ["noise(sigma=0.3)", "blur(std=1.5)", "pixel_mask(drop=0.5)", "box_mask(size=14)"]
 SCATTER_CONDITIONS = ["noise(sigma=0.3)", "box_mask(size=14)"]
 
@@ -79,8 +72,7 @@ def build_projectors(x_train, pca_ks):
 def run_conditions(projectors, x, labels, example_index, seed):
     frames, examples = [], {}
     for condition in CONDITIONS:
-        gen = torch.Generator().manual_seed(seed + zlib.crc32(condition.label.encode()))
-        y, A = condition(x, gen)
+        y, A = observe(condition, x, seed)
         if condition.label in EXAMPLE_CONDITIONS:
             examples[condition.label] = {"x": x[example_index, 0].numpy(),
                                          "y": y[example_index, 0].numpy(), "outputs": {}}

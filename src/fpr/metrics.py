@@ -27,6 +27,7 @@ class _TieGroups:
         new_group[1:] = sorted_values[1:] != sorted_values[:-1]
         self.starts = np.flatnonzero(new_group)
         self.group_of_sorted = np.cumsum(new_group) - 1
+        self.has_ties = len(self.starts) < len(values)
 
     def ranks(self, weights):
         """Average rank of every item within each weighted resample (rows of `weights`).
@@ -35,28 +36,42 @@ class _TieGroups:
         positions before+1 .. before+T, so each copy gets before + (T + 1) / 2.
         """
         w_sorted = weights[:, self.order]
+        ranks = np.empty(weights.shape, dtype=np.float64)
+        if not self.has_ties:
+            # Groups of one item: before + (T + 1) / 2 = cumsum - (w - 1) / 2, exactly.
+            ranks[:, self.order] = np.cumsum(w_sorted, axis=1) - (w_sorted - 1.0) / 2.0
+            return ranks
         totals = np.add.reduceat(w_sorted, self.starts, axis=1)
         before = np.cumsum(totals, axis=1) - totals
-        ranks = np.empty(weights.shape, dtype=np.float64)
         ranks[:, self.order] = (before + (totals + 1.0) / 2.0)[:, self.group_of_sorted]
         return ranks
 
 
-def _weighted_pearson(a, b, w):
-    total = w.sum(1, keepdims=True)
-    a = a - (w * a).sum(1, keepdims=True) / total
-    b = b - (w * b).sum(1, keepdims=True) / total
-    with np.errstate(invalid="ignore", divide="ignore"):
-        return (w * a * b).sum(1) / np.sqrt((w * a * a).sum(1) * (w * b * b).sum(1))
+class _Resamples:
+    """Weights and error-side quantities shared by every signal scored on the same draws."""
 
+    def __init__(self, weights, error_groups, labels):
+        self.w = weights
+        self.total = weights.sum(1, keepdims=True)
+        error_ranks = error_groups.ranks(weights)
+        self.b = error_ranks - (weights * error_ranks).sum(1, keepdims=True) / self.total
+        self.wbb = (weights * self.b * self.b).sum(1)
+        self.w_labels = weights * labels
+        self.n_pos = self.w_labels.sum(1)
+        self.n_neg = weights.sum(1) - self.n_pos
 
-def _weighted_auroc(ranks, labels, w):
-    """Mann-Whitney AUROC; ties between a positive and a negative count as 1/2."""
-    n_pos = (w * labels).sum(1)
-    n_neg = w.sum(1) - n_pos
-    u = (w * labels * ranks).sum(1) - n_pos * (n_pos + 1.0) / 2.0
-    with np.errstate(invalid="ignore", divide="ignore"):
-        return u / (n_pos * n_neg)
+    def score(self, groups):
+        """Weighted Spearman rho with the error and Mann-Whitney AUROC for the worst quartile.
+
+        In the AUROC, ties between a positive and a negative count as 1/2.
+        """
+        ranks = groups.ranks(self.w)
+        a = ranks - (self.w * ranks).sum(1, keepdims=True) / self.total
+        with np.errstate(invalid="ignore", divide="ignore"):
+            rho = (self.w * a * self.b).sum(1) / np.sqrt((self.w * a * a).sum(1) * self.wbb)
+            u = (self.w_labels * ranks).sum(1) - self.n_pos * (self.n_pos + 1.0) / 2.0
+            auc = u / (self.n_pos * self.n_neg)
+        return rho, auc
 
 
 def bootstrap_counts(n_clusters, n_boot, rng):
@@ -82,8 +97,7 @@ def rank_metrics(signals, error, clusters=None, n_boot=1000, seed=0, quantile=0.
     error = np.asarray(error, dtype=np.float64)
     n = error.shape[0]
     labels = (error >= np.quantile(error, quantile)).astype(np.float64)[None, :]
-    clusters = np.arange(n) if clusters is None else np.asarray(clusters)
-    n_clusters = int(clusters.max()) + 1
+    n_clusters = n if clusters is None else int(np.max(clusters)) + 1
 
     prepared = {}
     for name, values in signals.items():
@@ -93,13 +107,8 @@ def rank_metrics(signals, error, clusters=None, n_boot=1000, seed=0, quantile=0.
     error_groups = _TieGroups(error)
 
     def evaluate(weights):
-        error_ranks = error_groups.ranks(weights)
-        out = {}
-        for name, (groups, _) in prepared.items():
-            ranks = groups.ranks(weights)
-            out[name] = (_weighted_pearson(ranks, error_ranks, weights),
-                         _weighted_auroc(ranks, labels, weights))
-        return out
+        resamples = _Resamples(weights, error_groups, labels)
+        return {name: resamples.score(groups) for name, (groups, _) in prepared.items()}
 
     point = evaluate(np.ones((1, n)))
     boot = {name: ([], []) for name in prepared}
@@ -107,7 +116,8 @@ def rank_metrics(signals, error, clusters=None, n_boot=1000, seed=0, quantile=0.
     per_chunk = max(1, int(max_cells // n))
     for start in range(0, n_boot, per_chunk):
         counts = bootstrap_counts(n_clusters, min(per_chunk, n_boot - start), rng)
-        for name, (rho, auc) in evaluate(counts[:, clusters].astype(np.float64)).items():
+        weights = counts if clusters is None else counts[:, clusters]
+        for name, (rho, auc) in evaluate(weights.astype(np.float64)).items():
             boot[name][0].append(rho)
             boot[name][1].append(auc)
 
