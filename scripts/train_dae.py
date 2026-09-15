@@ -36,6 +36,7 @@ def parse_args():
     parser.add_argument("--width", type=int, default=32)
     parser.add_argument("--latent", type=int, default=64)
     parser.add_argument("--val-size", type=int, default=5000)
+    parser.add_argument("--device", default=None, help="cpu or cuda (default: cuda if available)")
     parser.add_argument("--checkpoints", type=str, default="checkpoints",
                         help="checkpoint directory, relative to the repository")
     parser.add_argument("--logs", type=str, default="results/train",
@@ -62,7 +63,7 @@ def validate(model, x_val, seed):
 def main():
     args = parse_args()
     name = f"dae_lam{args.lambda_id:g}_seed{args.seed}"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
     torch.manual_seed(args.seed)
 
     images, _ = load_fashion_mnist("train")
