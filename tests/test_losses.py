@@ -1,7 +1,4 @@
-"""Checks that any of the three gradient routings in fpr.losses.idempotence_loss must pass.
-
-The tests skip while the function is still a TODO.
-"""
+"""Checks that any of the three gradient routings in fpr.losses.idempotence_loss must pass."""
 
 import pytest
 import torch
@@ -36,10 +33,7 @@ class Shrink(nn.Module):
 
 
 def _loss(model, y):
-    try:
-        return idempotence_loss(model, model(y))
-    except NotImplementedError:
-        pytest.skip("fpr.losses.idempotence_loss is not implemented yet")
+    return idempotence_loss(model, model(y))
 
 
 def _images():

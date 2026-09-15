@@ -34,7 +34,8 @@ def parse_args():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--checkpoints", type=str, default="checkpoints",
                         help="checkpoint directory, relative to the repository")
-    parser.add_argument("--pattern", type=str, default="dae_*.pt")
+    parser.add_argument("--pattern", nargs="+", default=["dae_*.pt"],
+                        help="one or more checkpoint globs, e.g. dae_lam0_*.pt dae_lam1w5_*.pt")
     parser.add_argument("--projectors", nargs="*", default=["radial", "pca64"])
     parser.add_argument("--n-eval", type=int, default=10_000)
     parser.add_argument("--n-boot", type=int, default=1000)
@@ -43,6 +44,11 @@ def parse_args():
                         help="corruption families that get the first-order signals div, g_lin, sure")
     parser.add_argument("--device", type=str, default=None,
                         help="device for the networks (default: cuda if available)")
+    parser.add_argument("--jobs", type=int, default=1,
+                        help="worker processes: one model per worker for signals, one group per "
+                             "worker for scores (CPU only)")
+    parser.add_argument("--threads", type=int, default=None,
+                        help="PyTorch threads per signal worker (default: PyTorch's choice)")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=str, default="results/models",
                         help="output directory, relative to the repository")
@@ -62,7 +68,8 @@ def build_models(args):
                 models[name] = PCA.from_components(mean, eigvecs, int(name[3:]))
             else:
                 raise ValueError(f"unknown projector {name!r}")
-    for path in sorted((REPO_ROOT / args.checkpoints).glob(args.pattern)):
+    paths = {path for pattern in args.pattern for path in (REPO_ROOT / args.checkpoints).glob(pattern)}
+    for path in sorted(paths):
         restorer, checkpoint = load_restorer(path, device=args.device)
         models[restorer.name] = restorer
         train_args[restorer.name] = checkpoint["train_args"]
@@ -113,6 +120,8 @@ def print_report(summary, metrics, per_image):
 
 def main():
     args = parse_args()
+    if args.jobs > 1 and args.device != "cpu":
+        raise SystemExit("--jobs > 1 needs --device cpu: CUDA models cannot be sent to worker processes")
     out = REPO_ROOT / args.out
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
@@ -123,10 +132,13 @@ def main():
     print(f"Evaluating {len(x)} test images, {len(CONDITIONS)} conditions, models: {list(models)}")
 
     per_image = per_image_signals(models, x, labels, seed=args.seed, probes=args.probes,
-                                  jacobian_families=tuple(args.jacobian_families))
+                                  jacobian_families=tuple(args.jacobian_families),
+                                  jobs=args.jobs, threads=args.threads)
     t_signals = time.perf_counter()
-    metrics = pd.concat([score(per_image, SIGNALS, target="e", n_boot=args.n_boot, seed=args.seed),
-                         score(per_image, SIGNALS, target="e_mse", n_boot=0, seed=args.seed)],
+    metrics = pd.concat([score(per_image, SIGNALS, target="e", n_boot=args.n_boot, seed=args.seed,
+                               jobs=args.jobs),
+                         score(per_image, SIGNALS, target="e_mse", n_boot=0, seed=args.seed,
+                               jobs=args.jobs)],
                         ignore_index=True)
     t_metrics = time.perf_counter()
     summary = summarize(per_image)

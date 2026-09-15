@@ -7,7 +7,13 @@ noise at sigma = 0.1 and 0.2 is in distribution, sigma = 0.3 and 0.5 are held-ou
 and blur and masks are unseen operators. The last 5,000 training images are held out
 for validation; the test set is used only by the evaluation scripts.
 
+With lambda_id = 1 from the first step, the network collapses within one epoch to a
+constant output, the per-pixel median image: g = 0 and validation error 0.21 for every
+seed. --lambda-warmup ramps lambda_id linearly from 0 over the given number of epochs,
+so the network learns to denoise before the idempotence term reaches full weight.
+
     python scripts/train_dae.py --lambda-id 0 --seed 0
+    python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --seed 0
 """
 
 import argparse
@@ -27,6 +33,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--lambda-id", type=float, default=0.0)
+    parser.add_argument("--lambda-warmup", type=float, default=0.0,
+                        help="epochs over which lambda_id rises linearly from 0 (default: no warm-up)")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--batch-size", type=int, default=256)
@@ -37,6 +45,8 @@ def parse_args():
     parser.add_argument("--latent", type=int, default=64)
     parser.add_argument("--val-size", type=int, default=5000)
     parser.add_argument("--device", default=None, help="cpu or cuda (default: cuda if available)")
+    parser.add_argument("--threads", type=int, default=None,
+                        help="CPU threads for PyTorch; 3 per run suits three parallel runs on 8 cores")
     parser.add_argument("--checkpoints", type=str, default="checkpoints",
                         help="checkpoint directory, relative to the repository")
     parser.add_argument("--logs", type=str, default="results/train",
@@ -60,10 +70,20 @@ def validate(model, x_val, seed):
     return row
 
 
+def lambda_at(step, lambda_id, warmup_steps):
+    """Weight of the idempotence term at a training step: a linear ramp, then constant."""
+    if warmup_steps <= 0:
+        return lambda_id
+    return lambda_id * min(1.0, step / warmup_steps)
+
+
 def main():
     args = parse_args()
-    name = f"dae_lam{args.lambda_id:g}_seed{args.seed}"
+    warmup = f"w{args.lambda_warmup:g}" if args.lambda_warmup > 0 else ""
+    name = f"dae_lam{args.lambda_id:g}{warmup}_seed{args.seed}"
     device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    if args.threads:
+        torch.set_num_threads(args.threads)
     torch.manual_seed(args.seed)
 
     images, _ = load_fashion_mnist("train")
@@ -75,9 +95,15 @@ def main():
     steps_per_epoch = -(-len(x_train) // args.batch_size)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs * steps_per_epoch)
     gen = torch.Generator(device=device).manual_seed(args.seed)
+    warmup_steps = round(args.lambda_warmup * steps_per_epoch)
+    checkpoint_dir = REPO_ROOT / args.checkpoints
+    log_dir = REPO_ROOT / args.logs
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
     print(f"{name}: {n_params:,} parameters, {len(x_train)} training images, device {device}")
 
     history = []
+    step = 0
     for epoch in range(1, args.epochs + 1):
         start = time.perf_counter()
         rec_sum = torch.zeros((), device=device)
@@ -90,28 +116,28 @@ def main():
             fy = model(y)
             loss = reconstruction_loss(fy, x)
             rec_sum += loss.detach()
+            lam = lambda_at(step, args.lambda_id, warmup_steps)
             if args.lambda_id > 0:
                 idem = idempotence_loss(model, fy)
                 idem_sum += idem.detach()
-                loss = loss + args.lambda_id * idem
+                loss = loss + lam * idem
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
             scheduler.step()
-        row = {"epoch": epoch, "train_rec": rec_sum.item() / steps_per_epoch,
+            step += 1
+        row = {"epoch": epoch, "lambda": lam, "train_rec": rec_sum.item() / steps_per_epoch,
                "train_idem": idem_sum.item() / steps_per_epoch if args.lambda_id > 0 else float("nan"),
                **validate(model, x_val, args.seed), "seconds": time.perf_counter() - start}
         history.append(row)
-        print(f"  epoch {epoch:>3}  rec {row['train_rec']:.4f}  val e@0.2 {row['val_e@0.2']:.4f}  "
-              f"val g@0.2 {row['val_g@0.2']:.4f}  ({row['seconds']:.1f}s)", flush=True)
+        # Written every epoch, so an interrupted run keeps its training curve.
+        pd.DataFrame(history).to_csv(log_dir / f"{name}.csv", index=False, float_format="%.6g")
+        print(f"  epoch {epoch:>3}  lambda {lam:.2f}  rec {row['train_rec']:.4f}  "
+              f"val e@0.2 {row['val_e@0.2']:.4f}  val g@0.2 {row['val_g@0.2']:.4f}  "
+              f"({row['seconds']:.1f}s)", flush=True)
 
-    checkpoint_dir = REPO_ROOT / args.checkpoints
-    log_dir = REPO_ROOT / args.logs
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    log_dir.mkdir(parents=True, exist_ok=True)
     save_checkpoint(checkpoint_dir / f"{name}.pt", model.cpu(), vars(args), history)
-    pd.DataFrame(history).to_csv(log_dir / f"{name}.csv", index=False, float_format="%.6g")
-    print(f"Saved {checkpoint_dir / f'{name}.pt'}")
+    print(f"Saved {name}.pt")
 
 
 if __name__ == "__main__":
