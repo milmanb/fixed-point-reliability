@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Datasets are downloaded on demand
+data/
+
+# Large per-image dumps and checkpoints
+results/**/per_image*
+*.pt
+*.ckpt
+
+# LaTeX build products
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fdb_latexmk
+*.fls
