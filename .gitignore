@@ -20,3 +20,6 @@ results/**/per_image*
 *.synctex.gz
 *.fdb_latexmk
 *.fls
+
+# Local scratch comparisons
+.cache/

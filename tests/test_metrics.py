@@ -3,8 +3,7 @@ import pytest
 from scipy.stats import spearmanr
 from sklearn.metrics import roc_auc_score
 
-from fpr.metrics import (_TieGroups, _weighted_auroc, _weighted_pearson, bootstrap_counts,
-                         rank_metrics)
+from fpr.metrics import _Resamples, _TieGroups, bootstrap_counts, rank_metrics
 
 
 def test_point_estimates_match_scipy_and_sklearn():
@@ -25,14 +24,22 @@ def test_weighted_ranks_equal_explicit_resamples():
     s = np.round(e + rng.normal(size=n), 1)  # many ties
     labels = (e >= np.quantile(e, 0.75)).astype(float)[None, :]
     counts = bootstrap_counts(n, 5, rng)
-    w = counts.astype(float)
-    s_ranks = _TieGroups(s).ranks(w)
-    rho = _weighted_pearson(s_ranks, _TieGroups(e).ranks(w), w)
-    auc = _weighted_auroc(s_ranks, labels, w)
+    rho, auc = _Resamples(counts.astype(float), _TieGroups(e), labels).score(_TieGroups(s))
     for b in range(len(counts)):
         idx = np.repeat(np.arange(n), counts[b])
         assert rho[b] == pytest.approx(spearmanr(s[idx], e[idx]).statistic, abs=1e-10)
         assert auc[b] == pytest.approx(roc_auc_score(labels[0, idx] > 0, s[idx]), abs=1e-10)
+
+
+def test_no_tie_fast_path_is_bitwise_identical():
+    rng = np.random.default_rng(7)
+    values = rng.normal(size=500)
+    weights = bootstrap_counts(500, 20, rng).astype(float)
+    groups = _TieGroups(values)
+    assert not groups.has_ties
+    fast = groups.ranks(weights)
+    groups.has_ties = True
+    assert np.array_equal(fast, groups.ranks(weights))
 
 
 def test_roundoff_sized_signal_is_treated_as_constant():
