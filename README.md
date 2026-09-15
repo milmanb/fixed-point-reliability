@@ -168,6 +168,12 @@ setting in which the corruption is unknown. These results predate the brightness
 
 ![Stable but wrong outputs](results/models/figures/failures_dae_lam0_seed0.png)
 
+### 4. Build the report
+
+```bash
+cd report && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex
+```
+
 ## Repository layout
 
 ```
