@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from scipy.stats import spearmanr
+from scipy.stats import rankdata, spearmanr
 from sklearn.metrics import roc_auc_score
 
 from fpr.metrics import _Resamples, _TieGroups, bootstrap_counts, rank_metrics
@@ -23,12 +23,57 @@ def test_weighted_ranks_equal_explicit_resamples():
     e = rng.normal(size=n)
     s = np.round(e + rng.normal(size=n), 1)  # many ties
     labels = (e >= np.quantile(e, 0.75)).astype(float)[None, :]
+    z = np.round(e + rng.normal(size=n), 1)
     counts = bootstrap_counts(n, 5, rng)
-    rho, auc = _Resamples(counts.astype(float), _TieGroups(e), labels).score(_TieGroups(s))
+    resamples = _Resamples(counts.astype(float), _TieGroups(e), labels, _TieGroups(z))
+    rho, auc, partial = resamples.score(_TieGroups(s))
     for b in range(len(counts)):
         idx = np.repeat(np.arange(n), counts[b])
         assert rho[b] == pytest.approx(spearmanr(s[idx], e[idx]).statistic, abs=1e-10)
         assert auc[b] == pytest.approx(roc_auc_score(labels[0, idx] > 0, s[idx]), abs=1e-10)
+        assert partial[b] == pytest.approx(_partial_by_residuals(s[idx], e[idx], z[idx]), abs=1e-10)
+
+
+def _partial_by_residuals(s, e, z):
+    """Partial Spearman as the correlation of rank residuals after regressing out rank(z)."""
+    rs, re, rz = rankdata(s), rankdata(e), rankdata(z)
+    design = np.c_[np.ones_like(rz), rz]
+
+    def residual(v):
+        return v - design @ np.linalg.lstsq(design, v, rcond=None)[0]
+
+    return np.corrcoef(residual(rs), residual(re))[0, 1]
+
+
+def test_partial_spearman_matches_residualization():
+    rng = np.random.default_rng(8)
+    z = rng.normal(size=400)
+    e = z + rng.normal(size=400)
+    s = np.round(0.5 * z + e + rng.normal(size=400), 1)
+    row = rank_metrics({"s": s}, e, control=z, n_boot=100)[0]
+    assert row["partial"] == pytest.approx(_partial_by_residuals(s, e, z), abs=1e-12)
+    assert row["partial_lo"] <= row["partial"] <= row["partial_hi"]
+
+
+def test_partial_spearman_removes_a_confound():
+    """A signal that only tracks the control has rho > 0 with e but partial rho near 0."""
+    rng = np.random.default_rng(9)
+    z = rng.normal(size=5000)
+    e = z + 0.5 * rng.normal(size=5000)
+    rows = rank_metrics({"proxy": z + 0.1 * rng.normal(size=5000), "control": z}, e,
+                        control=z, n_boot=0)
+    proxy, control = rows
+    assert proxy["spearman"] > 0.8
+    assert abs(proxy["partial"]) < 0.05
+    assert np.isnan(control["partial"])
+
+
+def test_no_control_keeps_the_output_schema():
+    rng = np.random.default_rng(10)
+    e = rng.normal(size=100)
+    row = rank_metrics({"s": e + rng.normal(size=100)}, e, n_boot=10)[0]
+    assert list(row) == ["signal", "constant", "spearman", "spearman_lo", "spearman_hi",
+                         "auroc", "auroc_lo", "auroc_hi", "n"]
 
 
 def test_no_tie_fast_path_is_bitwise_identical():
