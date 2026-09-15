@@ -1,0 +1,97 @@
+{
+  "args": {
+    "checkpoints": "checkpoints",
+    "pattern": "dae_*.pt",
+    "projectors": [
+      "radial",
+      "pca64"
+    ],
+    "n_eval": 10000,
+    "n_boot": 1000,
+    "probes": 4,
+    "jacobian_families": [
+      "noise"
+    ],
+    "device": "cpu",
+    "seed": 0,
+    "out": "results/models",
+    "no_per_image": false
+  },
+  "conditions": [
+    "noise(sigma=0.1)",
+    "noise(sigma=0.2)",
+    "noise(sigma=0.3)",
+    "noise(sigma=0.5)",
+    "blur(std=0.5)",
+    "blur(std=1)",
+    "blur(std=1.5)",
+    "blur(std=2)",
+    "pixel_mask(drop=0.25)",
+    "pixel_mask(drop=0.5)",
+    "pixel_mask(drop=0.75)",
+    "box_mask(size=8)",
+    "box_mask(size=14)"
+  ],
+  "models": [
+    "radial",
+    "pca64",
+    "dae_lam0_seed0",
+    "dae_lam0_seed1",
+    "dae_lam0_seed2"
+  ],
+  "train_args": {
+    "dae_lam0_seed0": {
+      "lambda_id": 0.0,
+      "seed": 0,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam0_seed1": {
+      "lambda_id": 0.0,
+      "seed": 1,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam0_seed2": {
+      "lambda_id": 0.0,
+      "seed": 2,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    }
+  },
+  "seconds": {
+    "signals": 3086.0,
+    "metrics": 749.2,
+    "total": 3856.0
+  },
+  "versions": {
+    "python": "3.13.14",
+    "torch": "2.12.0+cu130",
+    "numpy": "2.4.4",
+    "pandas": "3.0.5"
+  }
+}
