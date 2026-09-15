@@ -31,16 +31,16 @@ from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 from fpr.data import REPO_ROOT, load_fashion_mnist  # noqa: E402
 from fpr.evaluation import CONDITIONS, observe  # noqa: E402
 from fpr.metrics import rank_metrics  # noqa: E402
+from fpr.plotting import INK, INK_SECONDARY, NA_FILL, SERIES, style_axes  # noqa: E402
 from fpr.projectors import PCA, Identity, NearestNeighbor, Radial, principal_components  # noqa: E402
 from fpr.signals import SIGNALS, compute_signals  # noqa: E402
 
 EXAMPLE_CONDITIONS = ["noise(sigma=0.3)", "blur(std=1.5)", "pixel_mask(drop=0.5)", "box_mask(size=14)"]
 SCATTER_CONDITIONS = ["noise(sigma=0.3)", "box_mask(size=14)"]
 
-# Chart tokens (validated categorical slots 1-3; diverging blue <-> red around a gray midpoint).
-SIGNAL_COLORS = {"g": "#2a78d6", "d": "#eb6834", "r_A": "#1baf7a"}
-INK, INK_SECONDARY, AXIS, GRID, NA_FILL = "#0b0b0b", "#52514e", "#c3c2b7", "#e1e0d9", "#f0efec"
-DIVERGING = LinearSegmentedColormap.from_list("rho", ["#e34948", "#f0efec", "#2a78d6"])
+# Validated categorical slots 1-3; diverging blue <-> red around a gray midpoint.
+SIGNAL_COLORS = dict(zip(SIGNALS, SERIES))
+DIVERGING = LinearSegmentedColormap.from_list("rho", ["#e34948", NA_FILL, SERIES[0]])
 
 
 def parse_args():
@@ -125,17 +125,6 @@ def summarize(per_image):
     return summary.reset_index()
 
 
-def _style(ax):
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    for side in ("left", "bottom"):
-        ax.spines[side].set_color(AXIS)
-        ax.spines[side].set_linewidth(0.8)
-    ax.tick_params(colors=INK_SECONDARY, labelsize=8, width=0.8, length=3)
-    ax.grid(color=GRID, linewidth=0.6)
-    ax.set_axisbelow(True)
-
-
 def plot_examples(examples, projector_names, path):
     shown = [p for p in projector_names if p != "identity"]  # identity output equals y
     rows = ["clean x", "observed y", *shown]
@@ -174,7 +163,7 @@ def plot_scatter(per_image, projector_names, path, max_points=2000, seed=0):
         signals = ("g", "d") if condition.startswith("noise") else SIGNALS  # r_A = d when A = I
         for j, name in enumerate(projector_names):
             ax = axes[i, j]
-            _style(ax)
+            style_axes(ax)
             frame = per_image[(per_image["condition"] == condition) & (per_image["projector"] == name)]
             frame = frame.sample(min(max_points, len(frame)), random_state=seed)
             for signal in signals:
