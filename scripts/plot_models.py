@@ -22,14 +22,12 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import torch  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
-from scipy.stats import spearmanr  # noqa: E402
 
 from fpr.data import REPO_ROOT, load_fashion_mnist  # noqa: E402
 from fpr.evaluation import CONDITIONS, observe  # noqa: E402
 from fpr.models import load_restorer  # noqa: E402
-from fpr.plotting import CONTEXT, INK, INK_SECONDARY, SEQUENTIAL, SERIES, style_axes  # noqa: E402
+from fpr.plotting import INK, INK_SECONDARY, SEQUENTIAL, family_scatter  # noqa: E402
 
-FAMILIES = ("noise", "blur", "pixel_mask", "box_mask")
 SIGNAL_LABELS = {"g": "g  idempotence residual", "d": "d  displacement", "r_A": "r_A  measurement residual"}
 
 
@@ -46,37 +44,6 @@ def parse_args():
 
 def rho(a, b):
     return spearmanr(a, b).statistic
-
-
-def plot_signal_vs_error(frame, model, path, per_condition=600, seed=0):
-    sample = frame.groupby("condition", group_keys=False).sample(n=per_condition, random_state=seed)
-    signals = list(SIGNAL_LABELS)
-    fig, axes = plt.subplots(len(signals), len(FAMILIES), figsize=(10.5, 7.4), sharex=True, sharey="row")
-    for i, signal in enumerate(signals):
-        pooled = rho(frame[signal], frame["e"])
-        for j, family in enumerate(FAMILIES):
-            ax = axes[i, j]
-            style_axes(ax)
-            ax.scatter(sample["e"], sample[signal], s=3, color=CONTEXT, alpha=0.35, linewidths=0,
-                       rasterized=True)
-            highlighted = sample[sample["family"] == family]
-            ax.scatter(highlighted["e"], highlighted[signal], s=4, color=SERIES[0], alpha=0.55,
-                       linewidths=0, rasterized=True)
-            within = frame[frame["family"] == family]
-            ax.text(0.97, 0.95, rf"$\rho$ in family = {rho(within[signal], within['e']):+.2f}",
-                    transform=ax.transAxes, ha="right", va="top", fontsize=7.5, color=INK_SECONDARY)
-            if i == 0:
-                ax.set_title(family, fontsize=9, color=INK)
-            if j == 0:
-                ax.set_ylabel(f"{SIGNAL_LABELS[signal]}\n" + rf"pooled $\rho$ = {pooled:+.2f}",
-                              fontsize=8, color=INK_SECONDARY)
-            if i == len(signals) - 1:
-                ax.set_xlabel("true error e", fontsize=8, color=INK_SECONDARY)
-    fig.suptitle(f"{model}: signal vs. true error per image; family in blue, all other conditions in gray",
-                 fontsize=9, color=INK, x=0.01, ha="left")
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
-    fig.savefig(path, dpi=200)
-    plt.close(fig)
 
 
 def select_failures(frame, count, seed):
@@ -143,7 +110,10 @@ def main():
     figures = results / "figures"
     figures.mkdir(exist_ok=True)
 
-    plot_signal_vs_error(frame, args.model, figures / f"signal_vs_error_{args.model}.png", seed=args.seed)
+    family_scatter([(label, frame, signal) for signal, label in SIGNAL_LABELS.items()],
+                   figures / f"signal_vs_error_{args.model}.png",
+                   f"{args.model}: signal vs. true error per image; family in blue, all conditions in gray",
+                   seed=args.seed)
 
     eval_seed = int(run_info["args"]["seed"])
     x_test, _ = load_fashion_mnist("test", dtype=torch.float64)
