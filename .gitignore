@@ -23,3 +23,8 @@ results/**/per_image*
 
 # Local scratch comparisons
 .cache/
+
+# LaTeX build products in report/
+report/main.pdf
+*.bbl
+*.blg
