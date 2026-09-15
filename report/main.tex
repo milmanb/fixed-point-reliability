@@ -81,7 +81,11 @@ Huang et al.~\cite{huang2023cycle} estimate the uncertainty of deblurring and su
 networks from forward-backward cycle residuals, which include $\norm{A f(y) - y}$. Classical
 reference-free error estimates include Stein's unbiased risk estimate
 (SURE)~\cite{stein1981sure} and its Monte-Carlo version for black-box
-denoisers~\cite{ramani2008mcsure}. Data-consistency checks cannot detect errors in the null
+denoisers~\cite{ramani2008mcsure}. Self-supervised losses estimate the error under a
+$J$-invariance assumption~\cite{batson2019noise2self}, and for a minimum mean squared error
+denoiser the posterior covariance equals the Jacobian of the denoiser times the noise
+variance~\cite{manor2024posterior}, which is why we also report the divergence.
+Data-consistency checks cannot detect errors in the null
 space of the forward operator~\cite{bhadra2021hallucinations}, and restorations with perfect
 perceptual quality pay a price in distortion~\cite{blau2018perception}. Our scope is narrower:
 we measure what the fixed-point residual tells about the error of each image, for exact and
