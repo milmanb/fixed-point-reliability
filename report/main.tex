@@ -1,0 +1,242 @@
+\documentclass[10pt,twocolumn,a4paper]{article}
+\usepackage[margin=18mm,columnsep=6mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{../results/}}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\norm}[1]{\lVert #1 \rVert}
+\newcommand{\lid}{\lambda_{\mathrm{id}}}
+
+% Draft. Every number below comes from the committed result files; numbers marked
+% "final run" must be re-checked against the combined evaluation of all models.
+
+\title{Calibrating Reference-Free Reliability Signals\\for Learned Image Projectors}
+\author{Itay Shorian \and Michael Bazkor \and Boaz Cohen \and Bar Milman\\[2pt]
+  \small Modern Computer Vision, final project\\
+  \small\url{https://github.com/milmanb/fixed-point-reliability}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A learned restoration model does not signal when its output is wrong. Idempotent networks
+are trained so that $f(f(y)) = f(y)$, and recent work reads a small idempotence residual as a
+sign of a reliable prediction. We test this reading in a controlled denoising setting on
+Fashion-MNIST. We compare three reference-free signals, the idempotence residual, the
+displacement and the measurement residual, with the true per-image error under noise, blur
+and masking. For exact projectors the residual is zero by construction. For learned denoisers
+it ranks errors within a known corruption (Spearman $\rho \approx 0.7$) and ranks them better
+than the other signals when corruptions are mixed. It still misses the largest failures: under
+random pixel masks the model outputs dim, plausible images that are near fixed points, with
+top-decile error and typical residuals. Training for idempotence with our loss collapses the
+model to a constant image with zero residual. \todo{warm-up result}. Simple brightness and
+severity baselines show how evaluations of such signals can be inflated.
+\end{abstract}
+
+\section{Introduction}
+
+Restoration networks are often applied where the clean image is unknown. When such a network
+fails, its output can still look plausible, so the failure cannot be seen in the image alone.
+A signal that flags unreliable outputs without ground truth would therefore be useful.
+
+Idempotent Generative Networks (IGN)~\cite{shocher2024ign} train a network $f$ to map inputs
+onto a target manifold, so that $f(f(y)) = f(y)$. Related methods use the deviation from this
+property as a confidence score. ZigZag~\cite{durasov2024zigzag} and
+IT$^3$~\cite{durasov2025it3} report that a self-consistency residual correlates strongly with
+prediction error, and NAIGN~\cite{aljaff2025naign} proposes the drift for out-of-distribution
+detection. It is tempting to conclude that an output which is a fixed point is also a correct
+output.
+
+This conclusion does not hold in general. An exact projector satisfies $P(P(y)) = P(y)$ for
+every input, including inputs that it maps to a wrong image. The open question is how the
+residual behaves for learned models, which are only approximately idempotent, and whether
+training for idempotence changes this behaviour.
+
+We study the question in a small, controlled setting with known corruptions, where the true
+error is available offline. Our contributions are:
+(i)~an evaluation protocol for reference-free signals that separates ranking within a
+corruption level from ranking across levels, with baselines for image brightness and severity;
+(ii)~evidence that the idempotence residual of a learned denoiser is informative for familiar
+corruptions but blind to its main failure under an unseen operator;
+(iii)~an ablation of explicit idempotence training, which collapses the model to a constant
+output unless the loss weight is ramped up \todo{and what the ramped models show}.
+
+\paragraph{Related work.}
+Idempotence has been used to train one-step generative
+models~\cite{shocher2024ign,aljaff2025naign} and to distill diffusion
+models~\cite{zaman2025sign}. In supervised prediction, self-consistency residuals serve as
+uncertainty estimates~\cite{durasov2024zigzag,durasov2025it3}. The Pearson correlation of
+$-0.94$ that IT$^3$ reports on ImageNet-C is computed per inference batch, not per image;
+aggregate correlations of this kind can hide weak per-image ranking. Closest to our setting,
+Huang et al.~\cite{huang2023cycle} estimate the uncertainty of deblurring and super-resolution
+networks from forward-backward cycle residuals, which include $\norm{A f(y) - y}$. Classical
+reference-free error estimates include Stein's unbiased risk estimate
+(SURE)~\cite{stein1981sure} and its Monte-Carlo version for black-box
+denoisers~\cite{ramani2008mcsure}. Data-consistency checks cannot detect errors in the null
+space of the forward operator~\cite{bhadra2021hallucinations}, and restorations with perfect
+perceptual quality pay a price in distortion~\cite{blau2018perception}. Our scope is narrower:
+we measure what the fixed-point residual tells about the error of each image, for exact and
+learned projectors.
+
+\section{Method}
+
+\paragraph{Setting.}
+Let $x$ be a clean image and $y = A_s x + n$ an observation, with a known linear operator $A_s$
+and Gaussian noise $n$. A model $f$ returns an estimate $f(y)$, and $x$ is not available at test
+time. We use four corruption families with 13 levels: additive Gaussian noise ($A_s = I$,
+$\sigma \in \{0.1, 0.2, 0.3, 0.5\}$), Gaussian blur (kernel standard deviation 0.5, 1, 1.5 or 2
+pixels), random pixel masks (25\%, 50\% or 75\% of the pixels set to zero) and one random square
+mask with a side of 8 or 14 pixels. Blur and masks add weak noise ($\sigma = 0.02$).
+
+\paragraph{Signals.}
+With $|\Omega|$ the number of pixels, we compare
+\begin{align*}
+  g(y) &= \tfrac{1}{|\Omega|}\norm{f(f(y)) - f(y)}_1, & d(y) &= \tfrac{1}{|\Omega|}\norm{f(y) - y}_1,\\
+  r_A(y) &= \tfrac{1}{|\Omega|}\norm{A_s f(y) - y}_1, & e(y) &= \tfrac{1}{|\Omega|}\norm{f(y) - x}_1.
+\end{align*}
+The idempotence residual $g$ and the displacement $d$ need only $f$ and $y$. The measurement
+residual $r_A$ also needs $A_s$, and equals $d$ for denoising. The true error $e$ is used only
+for evaluation. For Gaussian noise we also compute
+$\mathrm{SURE}(y) = \tfrac{1}{|\Omega|}\norm{f(y)-y}_2^2 - \sigma^2
++ \tfrac{2\sigma^2}{|\Omega|}\operatorname{div} f(y)$, an unbiased estimate of the mean squared
+error of each image~\cite{stein1981sure}. We estimate the divergence with four Rademacher probes
+and forward-mode differentiation, following the Monte-Carlo approach of~\cite{ramani2008mcsure}.
+
+\paragraph{Models.}
+The denoiser $f$ is a convolutional autoencoder with 602k parameters: three convolutions down
+to $7\times7$, a 64-dimensional bottleneck, a mirrored decoder and a sigmoid output. It has no
+normalization layers, so applying $f$ to its own output is not affected by batch statistics.
+We train on 55{,}000 Fashion-MNIST~\cite{xiao2017fashion} training images with Gaussian noise,
+$\sigma \sim \mathcal{U}[0.05, 0.25]$, for 15 epochs with Adam (learning rate $10^{-3}$, cosine
+decay, batch size 256). The loss, averaged over pixels, is
+\begin{equation}
+  \mathcal{L} = \norm{f(y) - x}_1 + \lid\,\norm{f(f(y)) - f(y)}_1,
+  \label{eq:loss}
+\end{equation}
+with gradients through both applications of $f$. We train $\lid \in \{0, 1\}$ with three seeds
+each and keep the other 5{,}000 training images for validation. As exact references we use two
+projectors fitted to the training set: onto a sphere around the training mean (radial), and onto
+the top-$k$ principal subspace (PCA-$k$).
+
+\paragraph{Evaluation.}
+We use the 10{,}000 test images. For each signal we report Spearman's $\rho$ with $e$ within each
+corruption level, and pooled over all 13 levels, which corresponds to an unknown corruption. We
+also report the AUROC for detecting the worst quartile of $e$. Two confounds need care. Under
+masking, the error grows with the amount of content in an image, so we add the brightness
+$b(y) = \operatorname{mean}(y)$ as a model-free baseline and report partial correlations
+given~$b$. In pooled scores, a signal can rank images mostly by severity, so we compare it with
+the same signal replaced by its median over each level. Confidence intervals (95\%) come from
+1000 bootstrap resamples of the test images; in pooled scores all levels of an image are
+resampled together. With 10{,}000 images, the intervals on $\rho$ are about $\pm 0.01$.
+
+\section{Results}
+
+\subsection{Exact projectors have zero residual}
+For the radial and PCA projectors, $g < 2\cdot10^{-15}$ on every image and level, while the mean
+error lies between 0.04 and 0.23. A constant signal cannot rank images. The displacement behaves
+differently: it ranks errors well when the fixed-point set is tight (PCA-16, median within-level
+$\rho = 0.91$) and can reverse when it is not (radial projector at $\sigma = 0.2$,
+$\rho(d, e) = -0.46$).
+
+\subsection{Learned denoisers: informative, but blind to one failure}
+
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Spearman $\rho$ between each signal and the true error for the $\lid = 0$ denoisers
+    (mean over three seeds). The first three columns are within one level; the last two pool all
+    13 levels. \todo{add the $\lid = 1$ models from the final run}}
+  \label{tab:rank}
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}lccccc@{}}
+    \toprule
+    & \multicolumn{2}{c}{noise $\sigma$} & pixel mask & \multicolumn{2}{c}{pooled} \\
+    \cmidrule(lr){2-3} \cmidrule(lr){4-4} \cmidrule(l){5-6}
+    signal & 0.1 & 0.5 & 75\% & $\rho$ & AUROC \\
+    \midrule
+    $g$    & 0.75 & 0.72 & 0.67 & 0.55 & 0.69 \\
+    $d$    & 0.93 & 0.28 & 0.97 & 0.12 & 0.58 \\
+    $r_A$  & 0.93 & 0.28 & 0.98 & 0.02 & 0.53 \\
+    SURE   & 0.91 & 0.40 & --   & --   & --   \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:rank} summarizes the three $\lid = 0$ models. Within a noise level, $g$ ranks
+errors with $\rho$ between 0.72 and 0.75, and it does not degrade as the noise grows. The
+displacement falls from 0.93 at $\sigma = 0.1$ to 0.28 at the held-out $\sigma = 0.5$, and SURE
+falls from 0.91 to 0.40. When all 13 levels are pooled, $g$ reaches $\rho = 0.55$, against 0.12
+for $d$ and 0.02 for $r_A$, whose scales differ between noise, blur and masks.
+
+The pooled score hides a systematic failure (Fig.~\ref{fig:scatter}). Under pixel masks with 75\%
+of the pixels dropped, the mean error is 0.234, five times the error at $\sigma = 0.1$ (0.043).
+The mean residual barely changes (0.013 against 0.011). The model turns sparse dots into a dim
+garment that it treats as a fixed point (Fig.~\ref{fig:failures}). Among images with top-10\%
+error and below-median $g$, 97--98\% come from pixel masks, in all three models. Box masks behave
+differently: their worst outputs have large residuals.
+
+The high within-level scores of $d$ and $r_A$ under pixel masks ($\rho \geq 0.97$) are largely a
+brightness effect. The brightness $b$ alone reaches $\rho = 0.96$ at 50\% and 75\% dropped.
+\todo{partial correlations given $b$ from the final run}.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{models/figures/signal_vs_error_dae_lam0_seed0.png}
+  \caption{Signals against the true error for one $\lid = 0$ denoiser. Each column highlights one
+    corruption family (blue) over all other levels (gray). Under pixel masks, $g$ stays flat
+    while the error grows. \todo{replace with the $\lid = 0$ vs.\ $\lid = 1$ comparison}}
+  \label{fig:scatter}
+\end{figure*}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{models/figures/failures_dae_lam0_seed0.png}
+  \caption{Stable but wrong: random test images with error in the top 10\% and $g$ below its
+    median ($\lid = 0$, seed 0). Percentiles are over all 13 levels. \todo{compact version}}
+  \label{fig:failures}
+\end{figure*}
+
+\subsection{Training for idempotence}
+With $\lid = 1$ from the first step, all three seeds collapse within one epoch to a constant
+output. The validation error is 0.2107, the error of the per-pixel median training image
+(0.2106), and $g$ is zero. The collapsed model is exactly idempotent and useless as a denoiser.
+The loss at this point is about 0.21, far above its value at the $\lid = 0$ solution (about
+0.06), so the collapse is a failure of optimization rather than the minimum of
+Eq.~\eqref{eq:loss}. A likely cause is that a network at initialization is nearly constant, and
+any input dependence first raises the residual. When $\lid$ is ramped linearly from 0 to 1 over
+five epochs, training does not collapse. \todo{error, residual and ranking of the ramped models}.
+
+\section{Discussion}
+A small idempotence residual is weak evidence of a correct restoration. For exact projectors it
+carries no information. For learned denoisers it ranks errors usefully within familiar
+corruptions, and it is more robust to the noise level than the displacement. Its low values,
+however, include the largest failures under an unseen operator. There the model maps the input
+to an image that it reproduces, and the residual cannot tell this image from the correct one.
+Explicit idempotence training shows the same effect in the extreme: a constant map has zero
+residual. \todo{update with the ramped models}.
+
+The baselines matter as much as the signals. Brightness explains most of the within-level
+ranking under masks, and pooling over levels inflates correlations, as in batch-level analyses.
+When evaluating a reference-free reliability signal, we recommend reporting per-level scores
+together with severity and content baselines.
+
+\paragraph{Limitations.}
+We use one small dataset, one architecture and synthetic corruptions. The models are trained on
+noise only, so blur and masks test unseen operators. We tested one gradient routing for the
+idempotence term and one warm-up schedule; stop-gradient variants as in IGN may behave
+differently.
+
+\small
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+
+\end{document}
