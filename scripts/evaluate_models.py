@@ -1,8 +1,10 @@
 """Evaluate trained autoencoders and reference projectors on the shared corruption grid.
 
-Signals: g, d, r_A (proposal); div and g_lin (first-order); sure (Gaussian noise only).
+Signals: g, d, r_A (proposal); div and g_lin (first-order); sure (Gaussian noise only);
+b, the brightness of y, as a model-free baseline.
 Every signal is scored against the L1 error e, as in the proposal, with bootstrap CIs,
 and against the per-pixel MSE e_mse, the quantity SURE estimates (point estimates only).
+Partial Spearman correlations given b show what each signal adds beyond image brightness.
 
     python scripts/evaluate_models.py                                # all checkpoints/dae_*.pt
     python scripts/evaluate_models.py --n-eval 2000 --n-boot 200     # quick run
@@ -23,8 +25,8 @@ from fpr.evaluation import CONDITIONS, per_image_signals, score
 from fpr.models import load_restorer
 from fpr.projectors import PCA, Radial, principal_components
 
-SIGNALS = ("g", "d", "r_A", "div", "g_lin", "sure")
-SUMMARY_COLUMNS = ("e", "e_mse", "e_in", "g", "d", "r_A", "div", "g_lin", "sure")
+SIGNALS = ("b", "g", "d", "r_A", "div", "g_lin", "sure")
+SUMMARY_COLUMNS = ("e", "e_mse", "e_in", "b", "g", "d", "r_A", "div", "g_lin", "sure")
 
 
 def parse_args():
@@ -90,10 +92,13 @@ def print_report(summary, metrics, per_image):
     by_level = metrics[(metrics["scope"] == "condition") & (metrics["target"] == "e")].copy()
     by_level["model_group"] = by_level["model"].map(model_group)
     noise = by_level["group"].str.startswith("noise")
-    for title, rows in (("all levels", by_level), ("noise levels", by_level[noise])):
-        print(f"\nSpearman rho(signal, e) within level: median over {title} (seeds pooled; "
+    for stat, title, rows in (("spearman", "all levels", by_level),
+                              ("spearman", "noise levels", by_level[noise]),
+                              ("partial", "all levels", by_level)):
+        name = "Spearman rho(signal, e)" if stat == "spearman" else "Partial rho(signal, e | b)"
+        print(f"\n{name} within level: median over {title} (seeds pooled; "
               f"div, g_lin and sure exist only where first-order signals were computed)")
-        pivot = rows.groupby(["model_group", "signal"])["spearman"].median().unstack()
+        pivot = rows.groupby(["model_group", "signal"])[stat].median().unstack()
         print(pivot.reindex(columns=[s for s in SIGNALS if s in pivot]).to_string(float_format="%+.2f"))
 
     print("\nTaylor check: Spearman rho(g, g_lin) within level, median over levels")

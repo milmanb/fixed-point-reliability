@@ -66,13 +66,14 @@ def per_image_signals(models, x, labels, seed=0, probes=0, jacobian_families=("n
     return pd.concat(frames, ignore_index=True)
 
 
-def score(per_image, signals, target="e", n_boot=1000, seed=0, severity_baseline=True):
+def score(per_image, signals, target="e", n_boot=1000, seed=0, severity_baseline=True, control="b"):
     """Rank metrics per condition, pooled per corruption family, and pooled over all conditions.
 
     A signal enters a group only if it is defined on every row of the group (`sure` exists for
     noise only). In pooled groups, `<signal>@level` replaces each value by the median of the
     signal over its corruption level. It keeps the differences between levels and removes all
     per-image information, so it measures how much of a pooled score is severity detection.
+    If the column `control` exists, partial Spearman correlations given it are added.
     """
     rows = []
 
@@ -81,12 +82,13 @@ def score(per_image, signals, target="e", n_boot=1000, seed=0, severity_baseline
         if not present:
             return
         error = frame[target].to_numpy()
+        z = frame[control].to_numpy() if control in frame else None
         results = rank_metrics({s: frame[s].to_numpy() for s in present}, error,
-                               clusters=clusters, n_boot=n_boot, seed=seed)
+                               clusters=clusters, n_boot=n_boot, seed=seed, control=z)
         if severity_baseline and scope != "condition":
             medians = frame.groupby("condition")[present].transform("median")
             results += rank_metrics({f"{s}@level": medians[s].to_numpy() for s in present}, error,
-                                    clusters=clusters, n_boot=0, seed=seed)
+                                    clusters=clusters, n_boot=0, seed=seed, control=z)
         base = {"scope": scope, "group": group, "model": frame["model"].iat[0], "target": target}
         rows.extend(base | result for result in results)
 
