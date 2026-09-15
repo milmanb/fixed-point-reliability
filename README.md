@@ -133,6 +133,41 @@ Two baselines guard against scores that do not reflect model failures:
 - `<signal>@level`, the median of a signal over its corruption level. In pooled scores it
   measures how much of the ranking is severity detection.
 
+```bash
+python scripts/plot_models.py --model dae_lam0_seed0   # figures in results/models/figures
+```
+
+#### Interim results: $\lambda_{id} = 0$ (3 seeds)
+
+Spearman $\rho$ between each signal and the true error, averaged over three seeds. The
+first three columns are within one corruption level. "Pooled" mixes all 13 levels, the
+setting in which the corruption is unknown. These results predate the brightness baseline.
+
+| signal | noise $\sigma = 0.1$ | noise $\sigma = 0.5$ (held out) | pixel mask, 75% dropped | pooled, all 13 levels | pooled AUROC |
+|---|---|---|---|---|---|
+| $g$ | +0.75 | +0.72 | +0.67 | +0.55 | 0.69 |
+| $d$ | +0.93 | +0.28 | +0.97 | +0.12 | 0.58 |
+| $r_A$ | +0.93 | +0.28 | +0.98 | +0.02 | 0.53 |
+| SURE | +0.91 | +0.40 | - | - | - |
+
+1. On a trained model, $g$ is informative. Within a level it ranks errors with
+   $\rho \approx 0.7$, and unlike $d$ it does not degrade as the noise grows. It is the
+   best signal when all corruptions are pooled.
+2. $g$ has a blind spot. Under pixel masks with 75% dropped, the mean error is 0.234,
+   five times the error at noise $\sigma = 0.1$ (0.043). Mean $g$ barely changes (0.013
+   vs. 0.011). The model turns sparse dots into a dim, plausible garment and treats it as
+   a fixed point. Of the images with top-10% error and below-median $g$, 83% come from
+   this condition (seed 0).
+3. The high within-level scores of $d$ and $r_A$ under pixel masks mostly reflect
+   brightness: the mean of $y$ alone reaches $\rho = 0.96$ there (exploratory analysis;
+   the next evaluation run reports partial correlations).
+4. Known structure helps. $r_A$ ranks blur errors best, and SURE is the best per-image
+   MSE estimate at the training noise levels.
+
+![Signals vs. true error by family](results/models/figures/signal_vs_error_dae_lam0_seed0.png)
+
+![Stable but wrong outputs](results/models/figures/failures_dae_lam0_seed0.png)
+
 ## Repository layout
 
 ```
@@ -143,12 +178,14 @@ src/fpr/
   models.py        convolutional denoising autoencoder and checkpoint loading
   losses.py        reconstruction and idempotence losses
   signals.py       g, d, r_A, the offline error e, and first-order signals (div, g_lin)
-  metrics.py       Spearman / AUROC with clustered bootstrap CIs
+  metrics.py       Spearman / AUROC / partial Spearman with clustered bootstrap CIs
   evaluation.py    shared corruption grid, per-image signals, scoring
+  plotting.py      shared figure style
 scripts/
   smoke_projectors.py
   train_dae.py
   evaluate_models.py
+  plot_models.py
   explore_sure.py  SURE vs. displacement on exact projectors (exploration)
 tests/             unit tests (pytest)
 results/           small result tables and figures (per-image dumps are git-ignored)
