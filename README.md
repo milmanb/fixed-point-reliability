@@ -99,6 +99,33 @@ bootstrap.
 
 ![Spearman heatmap](results/smoke_projectors/spearman_heatmap.png)
 
+### 2. Train the denoising autoencoders
+
+```bash
+python scripts/train_dae.py --lambda-id 0 --seed 0     # repeat for seeds 1, 2
+python scripts/train_dae.py --lambda-id 1 --seed 0     # needs fpr.losses.idempotence_loss (open TODO)
+```
+
+`ConvAutoencoder` (602k parameters, 64-unit bottleneck, no normalization layers) is
+trained with $\lvert f(y) - x \rvert_1 + \lambda_{id} L_{idem}$ on Gaussian noise with
+$\sigma \sim U[0.05, 0.25]$, for 15 epochs. The last 5,000 training images are used for
+validation. At test time, $\sigma = 0.1, 0.2$ are in distribution, $\sigma = 0.3, 0.5$ are
+held-out noise levels, and blur and masks are unseen operators. Checkpoints go to
+`checkpoints/` (git-ignored) and training curves to `results/train/`.
+
+### 3. Evaluate models
+
+```bash
+python scripts/evaluate_models.py --device cpu     # all checkpoints, plus radial and pca64
+```
+
+In addition to $g$, $d$ and $r_A$, the evaluation computes first-order signals on the
+noise levels: the divergence $\mathrm{div} = \tfrac{1}{D}\mathrm{tr}\,J_f(y)$ (Hutchinson
+estimate with forward-mode AD), the linearized residual $\lvert J_f(y)(f(y) - y) \rvert$, and
+Stein's unbiased risk estimate $\mathrm{SURE} = d_{mse} - \sigma^2 + 2\sigma^2\,\mathrm{div}$.
+Signals are scored per corruption level, pooled per family, and pooled over all levels.
+Pooled scores are compared with a severity-only baseline (`<signal>@level`).
+
 ## Repository layout
 
 ```
@@ -106,10 +133,16 @@ src/fpr/
   data.py          Fashion-MNIST loading
   degradations.py  operators A_s: noise, blur, pixel mask, box mask
   projectors.py    exact projectors: identity, radial, PCA, nearest neighbour
-  signals.py       g, d, r_A and the offline error e
+  models.py        convolutional denoising autoencoder and checkpoint loading
+  losses.py        reconstruction and idempotence losses
+  signals.py       g, d, r_A, the offline error e, and first-order signals (div, g_lin)
   metrics.py       Spearman / AUROC with clustered bootstrap CIs
+  evaluation.py    shared corruption grid, per-image signals, scoring
 scripts/
   smoke_projectors.py
+  train_dae.py
+  evaluate_models.py
+  explore_sure.py  SURE vs. displacement on exact projectors (exploration)
 tests/             unit tests (pytest)
 results/           small result tables and figures (per-image dumps are git-ignored)
 ```
@@ -117,7 +150,9 @@ results/           small result tables and figures (per-image dumps are git-igno
 ## Status
 
 - [x] Evaluation pipeline and exact-projector smoke check
-- [ ] Convolutional denoising autoencoders, $\lambda_{id} \in \{0, 1\}$
+- [x] Training and evaluation pipeline for the autoencoders, first-order signals
+- [ ] Convolutional denoising autoencoders, $\lambda_{id} = 0$ (3 seeds)
+- [ ] Idempotence loss and $\lambda_{id} = 1$ models (3 seeds)
 - [ ] Evaluation on held-out noise levels, blur and masks
 - [ ] Report (LaTeX, 2-3 pages) and 5-minute talk
 
