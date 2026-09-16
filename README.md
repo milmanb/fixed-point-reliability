@@ -102,8 +102,9 @@ bootstrap.
 ### 2. Train the denoising autoencoders
 
 ```bash
-python scripts/train_dae.py --lambda-id 0 --seed 0     # repeat for seeds 1, 2
-python scripts/train_dae.py --lambda-id 1 --seed 0     # needs fpr.losses.idempotence_loss (open TODO)
+python scripts/train_dae.py --lambda-id 0 --seed 0                      # repeat for seeds 1, 2
+python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --seed 0    # repeat for seeds 1, 2
+python scripts/train_dae.py --lambda-id 1 --seed 0                      # collapses, see below
 ```
 
 `ConvAutoencoder` (602k parameters, 64-unit bottleneck, no normalization layers) is
@@ -113,6 +114,11 @@ validation. At test time, $\sigma = 0.1, 0.2$ are in distribution, $\sigma = 0.3
 held-out noise levels, and blur and masks are unseen operators. Checkpoints go to
 `checkpoints/` (git-ignored) and training curves to `results/train/`.
 
+With $\lambda_{id} = 1$ from the first step, every seed collapses within one epoch to a
+constant output, the per-pixel median image: validation error 0.2107 against 0.2106 for that
+image, and $g = 0$. The collapse held for all 15 epochs. `--lambda-warmup 5` ramps
+$\lambda_{id}$ from 0 over five epochs and avoids it.
+
 ### 3. Evaluate models
 
 ```bash
@@ -121,7 +127,7 @@ python scripts/evaluate_models.py --device cpu     # all checkpoints, plus radia
 
 In addition to $g$, $d$ and $r_A$, the evaluation computes first-order signals on the
 noise levels: the divergence $\mathrm{div} = \tfrac{1}{D}\mathrm{tr}\,J_f(y)$ (Hutchinson
-estimate with forward-mode AD), the linearized residual $\lvert J_f(y)(f(y) - y) \rvert$, and
+estimate with finite differences), the linearized residual $\lvert J_f(y)(f(y) - y) \rvert$, and
 Stein's unbiased risk estimate $\mathrm{SURE} = d_{mse} - \sigma^2 + 2\sigma^2\,\mathrm{div}$.
 Signals are scored per corruption level, pooled per family, and pooled over all levels.
 Two baselines guard against scores that do not reflect model failures:
@@ -137,34 +143,50 @@ Two baselines guard against scores that do not reflect model failures:
 python scripts/plot_models.py --model dae_lam0_seed0   # figures in results/models/figures
 ```
 
-#### Interim results: $\lambda_{id} = 0$ (3 seeds)
+```bash
+python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1
+```
 
-Spearman $\rho$ between each signal and the true error, averaged over three seeds. The
-first three columns are within one corruption level. "Pooled" mixes all 13 levels, the
-setting in which the corruption is unknown. These results predate the brightness baseline.
+#### Results
 
-| signal | noise $\sigma = 0.1$ | noise $\sigma = 0.5$ (held out) | pixel mask, 75% dropped | pooled, all 13 levels | pooled AUROC |
-|---|---|---|---|---|---|
-| $g$ | +0.75 | +0.72 | +0.67 | +0.55 | 0.69 |
-| $d$ | +0.93 | +0.28 | +0.97 | +0.12 | 0.58 |
-| $r_A$ | +0.93 | +0.28 | +0.98 | +0.02 | 0.53 |
-| SURE | +0.91 | +0.40 | - | - | - |
+Spearman $\rho$ between each signal and the true error, three seeds per group. "Within
+level" is the median over the 13 corruption levels; "partial" controls for brightness;
+"pooled" mixes all levels, the setting in which the corruption is unknown.
 
-1. On a trained model, $g$ is informative. Within a level it ranks errors with
-   $\rho \approx 0.7$, and unlike $d$ it does not degrade as the noise grows. It is the
-   best signal when all corruptions are pooled.
-2. $g$ has a blind spot. Under pixel masks with 75% dropped, the mean error is 0.234,
-   five times the error at noise $\sigma = 0.1$ (0.043). Mean $g$ barely changes (0.013
-   vs. 0.011). The model turns sparse dots into a dim, plausible garment and treats it as
-   a fixed point. Of the images with top-10% error and below-median $g$, 83% come from
-   this condition (seed 0).
-3. The high within-level scores of $d$ and $r_A$ under pixel masks mostly reflect
-   brightness: the mean of $y$ alone reaches $\rho = 0.96$ there (exploratory analysis;
-   the next evaluation run reports partial correlations).
-4. Known structure helps. $r_A$ ranks blur errors best, and SURE is the best per-image
-   MSE estimate at the training noise levels.
+| signal | $\lambda_{id}=0$ within / noise / partial / pooled | $\lambda_{id}=1$ within / noise / partial / pooled |
+|---|---|---|
+| $g$ | +0.70 / +0.75 / +0.59 / +0.55 | +0.62 / +0.60 / +0.53 / +0.49 |
+| $d$ | +0.76 / +0.67 / +0.57 / +0.12 | +0.82 / +0.74 / +0.65 / +0.18 |
+| $r_A$ | +0.79 / +0.67 / +0.76 / +0.02 | +0.84 / +0.74 / +0.82 / +0.05 |
+| SURE (noise only) | +0.73 / +0.73 / +0.73 / - | +0.77 / +0.77 / +0.78 / - |
+| $b$ (baseline) | +0.51 / +0.05 / - / -0.17 | +0.41 / +0.07 / - / -0.17 |
 
-![Signals vs. true error by family](results/models/figures/signal_vs_error_dae_lam0_seed0.png)
+1. **Exact projectors carry no residual information.** $g < 2\cdot10^{-15}$ everywhere,
+   while the mean error is 0.04 to 0.23.
+2. **On a trained model $g$ is informative**, and it is the only signal that ranks errors
+   when corruptions are mixed ($\rho = 0.55$ against 0.12 for $d$). It also holds up as the
+   noise grows, where $d$ collapses (0.93 at $\sigma = 0.1$ to 0.28 at $\sigma = 0.5$).
+3. **$g$ is blind to the dominant failure.** Pixel masks hold 60% of the worst-quartile
+   errors, and $g$ flags only 18% of them. Under 75% masking the mean error is 0.234 against
+   0.043 at $\sigma = 0.1$, while mean $g$ barely moves (0.013 against 0.011).
+4. **Training for idempotence makes $g$ worse as a signal.** With $\lambda_{id} = 1$ the
+   residual halves (mean 0.0146 to 0.0088) and so does its usefulness: within-level
+   $\rho$ falls 0.70 to 0.62, within noise levels 0.75 to 0.60, and recall of the worst
+   pixel-mask errors 18% to 10%. The three seeds of each group do not overlap. Restoration
+   costs 3.6% more error overall.
+5. **The same training helps the other signals**, which is consistent with the projector
+   experiment: a tighter fixed-point set makes displacement more informative ($d$: 0.76 to
+   0.82, $r_A$: 0.79 to 0.84, SURE: 0.73 to 0.77).
+6. **Without warm-up the model collapses**: a constant output with $g = 1.4\cdot10^{-6}$ and
+   error 0.2095 at every corruption. Exactly idempotent, useless.
+7. **Baselines matter.** Brightness alone reaches a median within-level $\rho$ of 0.51, so
+   raw within-level scores overstate every signal; the partial columns correct for it.
+
+![Idempotence residual vs. error](results/models/comparison/g_vs_error.png)
+
+![Ranking quality per condition](results/models/comparison/rho_by_condition.png)
+
+![Training curves](results/models/comparison/training_curves.png)
 
 ![Stable but wrong outputs](results/models/figures/failures_dae_lam0_seed0.png)
 
