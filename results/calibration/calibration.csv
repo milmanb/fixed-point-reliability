@@ -129,3 +129,33 @@ r_A,raw,0.0273,0.5334,dae_lam0.1w5_seed2,dae_lam0.1w5
 r_A,per level,0.9372,0.9781,dae_lam0.1w5_seed2,dae_lam0.1w5
 r_A,per family,0.7699,0.9041,dae_lam0.1w5_seed2,dae_lam0.1w5
 -,severity only,0.7649,0.9078,dae_lam0.1w5_seed2,dae_lam0.1w5
+g,raw,0.4891,0.6726,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+g,per level,0.8908,0.9546,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+g,per family,0.8288,0.9176,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+d,raw,0.1377,0.5886,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+d,per level,0.9260,0.9731,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+d,per family,0.7529,0.8958,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+r_A,raw,0.0319,0.5301,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+r_A,per level,0.9299,0.9745,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+r_A,per family,0.7395,0.8937,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+-,severity only,0.7684,0.9050,dae_lam1w5_outer_seed0,dae_lam1w5_outer
+g,raw,0.5173,0.6798,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+g,per level,0.8817,0.9499,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+g,per family,0.8322,0.9192,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+d,raw,0.2729,0.6715,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+d,per level,0.9385,0.9761,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+d,per family,0.7935,0.9084,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+r_A,raw,0.1504,0.6093,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+r_A,per level,0.9434,0.9773,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+r_A,per family,0.7602,0.8987,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+-,severity only,0.7728,0.9004,dae_lam1w5_outer_seed1,dae_lam1w5_outer
+g,raw,0.4930,0.6697,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+g,per level,0.8698,0.9462,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+g,per family,0.8231,0.9170,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+d,raw,0.1718,0.6062,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+d,per level,0.9279,0.9745,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+d,per family,0.7846,0.9101,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+r_A,raw,0.0319,0.5337,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+r_A,per level,0.9332,0.9766,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+r_A,per family,0.7389,0.8989,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+-,severity only,0.7444,0.9014,dae_lam1w5_outer_seed2,dae_lam1w5_outer

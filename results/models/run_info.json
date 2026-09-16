@@ -51,7 +51,10 @@
     "dae_lam1w5_seed0",
     "dae_lam1w5_seed1",
     "dae_lam1w5_seed2",
-    "dae_lam0.1w5_seed2"
+    "dae_lam0.1w5_seed2",
+    "dae_lam1w5_outer_seed0",
+    "dae_lam1w5_outer_seed1",
+    "dae_lam1w5_outer_seed2"
   ],
   "train_args": {
     "dae_lam0.1w5_seed0": {
@@ -275,6 +278,63 @@
       "threads": 6,
       "checkpoints": "checkpoints",
       "logs": "results/train"
+    },
+    "dae_lam1w5_outer_seed0": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "routing": "outer",
+      "seed": 0,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "architecture": "bottleneck",
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam1w5_outer_seed1": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "routing": "outer",
+      "seed": 1,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "architecture": "bottleneck",
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam1w5_outer_seed2": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "routing": "outer",
+      "seed": 2,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "architecture": "bottleneck",
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
     }
   },
   "seconds": {
@@ -313,6 +373,38 @@
         "device": "cpu",
         "jobs": 2,
         "threads": 3,
+        "seed": 0,
+        "out": "results/models",
+        "no_per_image": false,
+        "append": true
+      }
+    },
+    {
+      "models": [
+        "dae_lam1w5_outer_seed0",
+        "dae_lam1w5_outer_seed1",
+        "dae_lam1w5_outer_seed2"
+      ],
+      "seconds": {
+        "signals": 377.9,
+        "metrics": 412.4,
+        "total": 790.4
+      },
+      "args": {
+        "checkpoints": "checkpoints",
+        "pattern": [
+          "dae_lam1w5_outer_*.pt"
+        ],
+        "projectors": [],
+        "n_eval": 10000,
+        "n_boot": 1000,
+        "probes": 4,
+        "jacobian_families": [
+          "noise"
+        ],
+        "device": "cpu",
+        "jobs": 3,
+        "threads": 2,
         "seed": 0,
         "out": "results/models",
         "no_per_image": false,
