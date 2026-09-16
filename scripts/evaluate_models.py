@@ -108,6 +108,8 @@ def print_report(summary, metrics, per_image):
         pivot = rows.groupby(["model_group", "signal"])[stat].median().unstack()
         print(pivot.reindex(columns=[s for s in SIGNALS if s in pivot]).to_string(float_format="%+.2f"))
 
+    if "g_lin" not in per_image:
+        return
     print("\nTaylor check: Spearman rho(g, g_lin) within level, median over levels")
     rhos = []
     for (condition, model), frame in per_image.groupby(["condition", "model"], sort=False):

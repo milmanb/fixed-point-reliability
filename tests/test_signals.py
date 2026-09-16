@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from fpr.models import ConvAutoencoder
 from fpr.projectors import PCA, principal_components
 from fpr.signals import compute_signals, jacobian_signals
 
@@ -13,8 +14,20 @@ def _images(n, seed, side=6):
 def test_divergence_is_exact_for_diagonal_maps():
     """Rademacher probes satisfy b * b = 1, so Hutchinson is exact when J is diagonal."""
     scale = torch.linspace(0.1, 0.9, 36, dtype=torch.float64).view(1, 1, 6, 6)
-    out = jacobian_signals(lambda y: scale * y, _images(10, 0), probes=3)
+    out = jacobian_signals(lambda y: scale * y, _images(10, 0), probes=3, method="jvp")
     assert np.allclose(out["div"], scale.mean().item(), rtol=0, atol=1e-15)
+
+
+def test_finite_differences_agree_with_forward_mode_ad():
+    """The pipeline uses finite differences; they must match exact products on a smooth model."""
+    torch.manual_seed(0)
+    net = ConvAutoencoder(width=4, latent=8).double()
+    y = _images(8, 7, side=28)
+    with torch.no_grad():
+        exact = jacobian_signals(net, y, probes=2, method="jvp")
+        approximate = jacobian_signals(net, y, probes=2, method="fd")
+    for key in ("div", "g_lin"):
+        assert np.allclose(exact[key], approximate[key], rtol=1e-4, atol=1e-8), key
 
 
 def test_linearized_idempotence_residual_is_exact_for_affine_maps():
@@ -28,7 +41,8 @@ def test_linearized_idempotence_residual_is_exact_for_affine_maps():
 
     y = _images(20, 2)
     exact = compute_signals(f, y, y, lambda z: z)["g"]
-    assert np.allclose(jacobian_signals(f, y, probes=1)["g_lin"], exact, rtol=1e-10, atol=1e-14)
+    linearized = jacobian_signals(f, y, probes=1, method="jvp")["g_lin"]
+    assert np.allclose(linearized, exact, rtol=1e-10, atol=1e-14)
 
 
 def test_sure_is_unbiased_for_a_pca_projector():
