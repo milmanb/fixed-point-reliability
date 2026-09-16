@@ -1,0 +1,17 @@
+{
+  "models": [
+    "unet_lam0_seed0",
+    "unet_lam0_seed1",
+    "unet_lam0_seed2",
+    "unet_lam1_seed0",
+    "unet_lam1w5_seed0",
+    "unet_lam1w5_seed1",
+    "unet_lam1w5_seed2"
+  ],
+  "settings": [
+    "raw",
+    "per level",
+    "per family",
+    "severity only"
+  ]
+}
