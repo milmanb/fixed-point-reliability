@@ -1,7 +1,8 @@
 # Fixed-Point Reliability
 
-**Calibrating Reference-Free Reliability Signals for Learned Image Projectors**
-Final project, Modern Computer Vision (MCV), 2026.
+**Stable but Wrong: Fixed-Point Residuals as Reference-Free Reliability Signals for Image Restoration**
+Final project, Modern Computer Vision (MCV), 2026. Proposed as "Calibrating Reference-Free
+Reliability Signals for Learned Image Projectors".
 Itay Shorian, Michael Bazkor, Boaz Cohen, Bar Milman.
 
 ## Question

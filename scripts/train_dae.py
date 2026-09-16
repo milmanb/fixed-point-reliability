@@ -35,6 +35,8 @@ def parse_args():
     parser.add_argument("--lambda-id", type=float, default=0.0)
     parser.add_argument("--lambda-warmup", type=float, default=0.0,
                         help="epochs over which lambda_id rises linearly from 0 (default: no warm-up)")
+    parser.add_argument("--routing", choices=("both", "inner", "outer"), default="both",
+                        help="which application of f the idempotence term updates")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--batch-size", type=int, default=256)
@@ -80,7 +82,8 @@ def lambda_at(step, lambda_id, warmup_steps):
 def main():
     args = parse_args()
     warmup = f"w{args.lambda_warmup:g}" if args.lambda_warmup > 0 else ""
-    name = f"dae_lam{args.lambda_id:g}{warmup}_seed{args.seed}"
+    routing = "" if args.routing == "both" else f"_{args.routing}"
+    name = f"dae_lam{args.lambda_id:g}{warmup}{routing}_seed{args.seed}"
     device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
     if args.threads:
         torch.set_num_threads(args.threads)
@@ -118,7 +121,7 @@ def main():
             rec_sum += loss.detach()
             lam = lambda_at(step, args.lambda_id, warmup_steps)
             if args.lambda_id > 0:
-                idem = idempotence_loss(model, fy)
+                idem = idempotence_loss(model, fy, routing=args.routing)
                 idem_sum += idem.detach()
                 loss = loss + lam * idem
             optimizer.zero_grad(set_to_none=True)
