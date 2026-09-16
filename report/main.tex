@@ -112,8 +112,10 @@ residual $r_A$ also needs $A_s$, and equals $d$ for denoising. The true error $e
 for evaluation. For Gaussian noise we also compute
 $\mathrm{SURE}(y) = \tfrac{1}{|\Omega|}\norm{f(y)-y}_2^2 - \sigma^2
 + \tfrac{2\sigma^2}{|\Omega|}\operatorname{div} f(y)$, an unbiased estimate of the mean squared
-error of each image~\cite{stein1981sure}. We estimate the divergence with four Rademacher probes
-and forward-mode differentiation, following the Monte-Carlo approach of~\cite{ramani2008mcsure}.
+error of each image~\cite{stein1981sure}. We estimate the divergence with the Monte-Carlo
+estimator of~\cite{ramani2008mcsure}: four Rademacher probes $v$ and the finite difference
+$v^\top (f(y + \varepsilon v) - f(y)) / \varepsilon$ with $\varepsilon = 10^{-3}$. On our models
+this agrees with exact forward-mode products to a relative $10^{-4}$.
 
 \paragraph{Models.}
 The denoiser $f$ is a convolutional autoencoder with 602k parameters: three convolutions down
