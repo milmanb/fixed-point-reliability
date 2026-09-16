@@ -47,8 +47,10 @@ def per_image_signals(models, x, labels, seed=0, probes=0, jacobian_families=("n
     `sure` is added for Gaussian-noise conditions, where its assumptions hold.
     """
     if jobs > 1 and len(models) > 1:
-        work = partial(_signals_for_model, x=x, labels=labels, seed=seed, probes=probes,
-                       jacobian_families=jacobian_families, conditions=conditions,
+        # Send plain numpy buffers: pickling large torch tensors to workers goes through
+        # shared memory, which has been unreliable here for arrays of this size on Windows.
+        work = partial(_signals_for_model, x=x.numpy(), labels=labels.numpy(), seed=seed,
+                       probes=probes, jacobian_families=jacobian_families, conditions=conditions,
                        verbose=verbose, threads=threads)
         with ProcessPoolExecutor(min(jobs, len(models))) as pool:
             table = pd.concat(pool.map(work, models.items()), ignore_index=True)
@@ -85,11 +87,12 @@ def per_image_signals(models, x, labels, seed=0, probes=0, jacobian_families=("n
     return pd.concat(frames, ignore_index=True)
 
 
-def _signals_for_model(item, threads=None, **kwargs):
+def _signals_for_model(item, x, labels, threads=None, **kwargs):
     if threads:
         torch.set_num_threads(threads)
     name, f = item
-    return per_image_signals({name: f}, jobs=1, **kwargs)
+    return per_image_signals({name: f}, torch.from_numpy(x), labels=torch.from_numpy(labels),
+                             jobs=1, **kwargs)
 
 
 def score(per_image, signals, target="e", n_boot=1000, seed=0, severity_baseline=True, control="b",

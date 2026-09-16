@@ -61,22 +61,33 @@ def compute_signals(f, x, y, A, batch_size=2048):
     }
 
 
-def jacobian_signals(f, y, probes=8, batch_size=1024, seed=0):
-    """Per-image `div` and `g_lin` (see module docstring) via forward-mode AD.
+def jacobian_signals(f, y, probes=8, batch_size=1024, seed=0, method="fd", eps=1e-3):
+    """Per-image `div` and `g_lin` (see module docstring) from Jacobian-vector products.
 
-    Uses torch.func.jvp, so f must be built from differentiable torch operations.
+    method="fd" takes the products as finite differences, (f(y + eps v) - f(y)) / eps, which is
+    the estimator of Ramani et al. and needs only forward passes. method="jvp" uses forward-mode
+    automatic differentiation, which is exact but crashes inside spawned worker processes with
+    this PyTorch build on Windows, so it is used for tests rather than for the pipeline.
     """
+    if method not in ("fd", "jvp"):
+        raise ValueError(f"method must be 'fd' or 'jvp', got {method!r}")
     gen = torch.Generator().manual_seed(seed)
     div, g_lin = [], []
     for part in y.split(batch_size):
         with torch.no_grad():
-            delta = f(part) - part
-        _, j_delta = torch.func.jvp(f, (part,), (delta,))
-        g_lin.append(_mean_abs(j_delta))
+            fy = f(part)
+
+        def product(tangent, fy=fy, part=part):
+            """The Jacobian-vector product J_f(y) v."""
+            if method == "jvp":
+                return torch.func.jvp(f, (part,), (tangent,))[1]
+            with torch.no_grad():
+                return (f(part + eps * tangent) - fy) / eps
+
+        g_lin.append(_mean_abs(product(fy - part)))
         total = np.zeros(len(part))
         for _ in range(probes):
             probe = (2 * torch.randint(0, 2, part.shape, generator=gen) - 1).to(part)
-            _, j_probe = torch.func.jvp(f, (part,), (probe,))
-            total += (probe * j_probe).flatten(1).mean(1).detach().cpu().double().numpy()
+            total += (probe * product(probe)).flatten(1).mean(1).detach().cpu().double().numpy()
         div.append(total / probes)
     return {"div": np.concatenate(div), "g_lin": np.concatenate(g_lin)}
