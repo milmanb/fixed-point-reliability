@@ -1,0 +1,12 @@
+{
+  "models": [
+    "dae_lam0_seed0",
+    "dae_lam1w5_seed0"
+  ],
+  "settings": [
+    "raw",
+    "per level",
+    "per family",
+    "severity only"
+  ]
+}

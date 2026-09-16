@@ -1,0 +1,21 @@
+signal,setting,spearman,auroc,model,group
+g,raw,0.5162,0.6753,dae_lam0_seed0,dae_lam0
+g,per level,0.9006,0.9574,dae_lam0_seed0,dae_lam0
+g,per family,0.8408,0.9189,dae_lam0_seed0,dae_lam0
+d,raw,0.1061,0.5752,dae_lam0_seed0,dae_lam0
+d,per level,0.9274,0.9756,dae_lam0_seed0,dae_lam0
+d,per family,0.7780,0.9037,dae_lam0_seed0,dae_lam0
+r_A,raw,0.0113,0.5268,dae_lam0_seed0,dae_lam0
+r_A,per level,0.9345,0.9783,dae_lam0_seed0,dae_lam0
+r_A,per family,0.7656,0.9016,dae_lam0_seed0,dae_lam0
+-,severity only,0.7794,0.9166,dae_lam0_seed0,dae_lam0
+g,raw,0.4734,0.6656,dae_lam1w5_seed0,dae_lam1w5
+g,per level,0.8670,0.9460,dae_lam1w5_seed0,dae_lam1w5
+g,per family,0.8200,0.9193,dae_lam1w5_seed0,dae_lam1w5
+d,raw,0.1327,0.5977,dae_lam1w5_seed0,dae_lam1w5
+d,per level,0.9268,0.9743,dae_lam1w5_seed0,dae_lam1w5
+d,per family,0.7798,0.9099,dae_lam1w5_seed0,dae_lam1w5
+r_A,raw,0.0105,0.5337,dae_lam1w5_seed0,dae_lam1w5
+r_A,per level,0.9347,0.9773,dae_lam1w5_seed0,dae_lam1w5
+r_A,per family,0.7518,0.9015,dae_lam1w5_seed0,dae_lam1w5
+-,severity only,0.7456,0.9026,dae_lam1w5_seed0,dae_lam1w5

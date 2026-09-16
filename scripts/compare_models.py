@@ -54,11 +54,13 @@ def model_group(name):
 
 def group_label(group):
     """dae_lam1w5_inner -> lambda_id = 1, warm-up 5 ep., inner only (as mathtext)."""
-    match = re.fullmatch(r"dae_lam([\d.]+)(?:w([\d.]+))?(?:_(inner|outer))?", group)
+    match = re.fullmatch(r"(dae|unet)_lam([\d.]+)(?:w([\d.]+))?(?:_(inner|outer))?", group)
     if not match:
         return group
-    weight, warmup, routing = match.groups()
+    architecture, weight, warmup, routing = match.groups()
     label = rf"$\lambda_{{id}} = {weight}$"
+    if architecture == "unet":
+        label += ", skips"
     if warmup:
         label += f", warm-up {warmup} ep."
     elif float(weight) > 0:

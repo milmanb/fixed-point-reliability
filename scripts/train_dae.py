@@ -24,7 +24,7 @@ import torch
 
 from fpr.data import REPO_ROOT, load_fashion_mnist
 from fpr.losses import idempotence_loss, reconstruction_loss
-from fpr.models import ConvAutoencoder, save_checkpoint
+from fpr.models import ARCHITECTURES, save_checkpoint
 
 VAL_SIGMAS = (0.1, 0.2, 0.3, 0.5)
 
@@ -43,6 +43,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--sigma-min", type=float, default=0.05)
     parser.add_argument("--sigma-max", type=float, default=0.25)
+    parser.add_argument("--architecture", choices=tuple(ARCHITECTURES), default="bottleneck")
     parser.add_argument("--width", type=int, default=32)
     parser.add_argument("--latent", type=int, default=64)
     parser.add_argument("--val-size", type=int, default=5000)
@@ -83,7 +84,8 @@ def main():
     args = parse_args()
     warmup = f"w{args.lambda_warmup:g}" if args.lambda_warmup > 0 else ""
     routing = "" if args.routing == "both" else f"_{args.routing}"
-    name = f"dae_lam{args.lambda_id:g}{warmup}{routing}_seed{args.seed}"
+    prefix = "dae" if args.architecture == "bottleneck" else "unet"
+    name = f"{prefix}_lam{args.lambda_id:g}{warmup}{routing}_seed{args.seed}"
     device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
     if args.threads:
         torch.set_num_threads(args.threads)
@@ -92,7 +94,10 @@ def main():
     images, _ = load_fashion_mnist("train")
     x_train = images[:-args.val_size].to(device)
     x_val = images[-args.val_size:].to(device)
-    model = ConvAutoencoder(args.width, args.latent).to(device)
+    config = {"width": args.width}
+    if args.architecture == "bottleneck":
+        config["latent"] = args.latent
+    model = ARCHITECTURES[args.architecture](**config).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     steps_per_epoch = -(-len(x_train) // args.batch_size)
