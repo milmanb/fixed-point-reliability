@@ -89,7 +89,10 @@ def blind_spot_table(per_image, groups):
     rows = []
     for model, frame in with_groups(per_image, groups).groupby("model", sort=False):
         worst = frame["e"] >= frame["e"].quantile(0.75)
-        flagged = {s: frame[s] >= frame[s].quantile(0.75) for s in SIGNALS}
+        # A constant signal (a collapsed model has g = 0 everywhere) has no top quartile:
+        # thresholding it would flag every image and report a recall of 1.
+        flagged = {s: (frame[s] >= frame[s].quantile(0.75) if np.ptp(frame[s]) > 1e-9
+                       else pd.Series(np.nan, index=frame.index)) for s in SIGNALS}
         parts = [("all", worst)] + [(family, worst & (frame["family"] == family))
                                     for family in frame["family"].unique()]
         for family, mask in parts:
