@@ -43,6 +43,8 @@ def parse_args():
                         help="file name (without extension) for the scatter figure")
     parser.add_argument("--results", default="results/models", help="relative to the repository")
     parser.add_argument("--logs", default="results/train", help="relative to the repository")
+    parser.add_argument("--out-dir", default="comparison",
+                        help="output folder inside --results (use a second name for ablations)")
     return parser.parse_args()
 
 
@@ -51,15 +53,18 @@ def model_group(name):
 
 
 def group_label(group):
-    """dae_lam1w5 -> lambda_id = 1, warm-up 5 ep. (as mathtext)."""
-    match = re.fullmatch(r"dae_lam([\d.]+)(?:w([\d.]+))?", group)
+    """dae_lam1w5_inner -> lambda_id = 1, warm-up 5 ep., inner only (as mathtext)."""
+    match = re.fullmatch(r"dae_lam([\d.]+)(?:w([\d.]+))?(?:_(inner|outer))?", group)
     if not match:
         return group
-    label = rf"$\lambda_{{id}} = {match.group(1)}$"
-    if match.group(2):
-        label += f", warm-up {match.group(2)} ep."
-    elif float(match.group(1)) > 0:
+    weight, warmup, routing = match.groups()
+    label = rf"$\lambda_{{id}} = {weight}$"
+    if warmup:
+        label += f", warm-up {warmup} ep."
+    elif float(weight) > 0:
         label += ", no warm-up"
+    if routing:
+        label += f", {routing} only"
     return label
 
 
@@ -205,7 +210,7 @@ def print_summary(errors, within, pooled, blind, groups):
 def main():
     args = parse_args()
     results = REPO_ROOT / args.results
-    out = results / "comparison"
+    out = results / args.out_dir
     out.mkdir(exist_ok=True)
     metrics = pd.read_csv(results / "metrics.csv")
     summary = pd.read_csv(results / "summary.csv")
