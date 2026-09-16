@@ -116,8 +116,9 @@ def blind_spot_table(per_image, groups):
     return pd.DataFrame(rows).groupby(["model_group", "family"], sort=False).mean().reset_index()
 
 
-def plot_training_curves(log_dir, path):
-    histories = {p.stem: pd.read_csv(p) for p in sorted(log_dir.glob("dae_*.csv"))}
+def plot_training_curves(log_dir, path, groups):
+    histories = {p.stem: pd.read_csv(p) for p in sorted(log_dir.glob("*_seed*.csv"))
+                 if model_group(p.stem) in groups}
     groups = list(dict.fromkeys(model_group(name) for name in histories))
     if len(groups) > len(SERIES):
         raise SystemExit(f"training_curves: {len(groups)} groups, but only {len(SERIES)} colours")
@@ -235,7 +236,7 @@ def main():
                         ("blind_spot", blind)):
         table.to_csv(out / f"{name}.csv", index=False, float_format="%.4f")
 
-    plot_training_curves(REPO_ROOT / args.logs, out / "training_curves.png")
+    plot_training_curves(REPO_ROOT / args.logs, out / "training_curves.png", groups)
     plot_rho_by_condition(within, groups, out / "rho_by_condition.png")
     scatter_groups = [g for g in (args.scatter_groups or groups) if g in groups]
     first_model = {group: sorted(m for m in per_image["model"].unique() if model_group(m) == group)[0]
