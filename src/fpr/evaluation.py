@@ -11,6 +11,7 @@ random draws are seeded per model or per group, so the pool does not change the 
 import time
 import zlib
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from functools import partial
 
 import numpy as np
@@ -27,6 +28,21 @@ CONDITIONS = [
     *(PixelMask(drop) for drop in (0.25, 0.5, 0.75)),
     *(BoxMask(size) for size in (8, 14)),
 ]
+
+
+def _map(work, items, jobs):
+    """Map `work` over `items` in a process pool, falling back to serial if the pool breaks.
+
+    A worker can die under heavy load or on operations that do not survive spawning, and losing
+    an hour of evaluation to that is worse than finishing slowly.
+    """
+    if jobs > 1:
+        try:
+            with ProcessPoolExecutor(jobs) as pool:
+                return list(pool.map(work, items))
+        except BrokenProcessPool:
+            print("  a worker process died; falling back to serial", flush=True)
+    return [work(item) for item in items]
 
 
 def observe(condition, x, seed):
@@ -52,8 +68,8 @@ def per_image_signals(models, x, labels, seed=0, probes=0, jacobian_families=("n
         work = partial(_signals_for_model, x=x.numpy(), labels=labels.numpy(), seed=seed,
                        probes=probes, jacobian_families=jacobian_families, conditions=conditions,
                        verbose=verbose, threads=threads)
-        with ProcessPoolExecutor(min(jobs, len(models))) as pool:
-            table = pd.concat(pool.map(work, models.items()), ignore_index=True)
+        table = pd.concat(_map(work, list(models.items()), min(jobs, len(models))),
+                          ignore_index=True)
         rank = {"condition": {c.label: i for i, c in enumerate(conditions)},
                 "model": {name: i for i, name in enumerate(models)}}
         return table.sort_values(["condition", "model", "image"], kind="stable",
@@ -118,11 +134,7 @@ def score(per_image, signals, target="e", n_boot=1000, seed=0, severity_baseline
 
     work = partial(_score_group, signals=signals, target=target, n_boot=n_boot, seed=seed,
                    severity_baseline=severity_baseline, control=control)
-    if jobs > 1:
-        with ProcessPoolExecutor(jobs) as pool:
-            results = list(pool.map(work, tasks))
-    else:
-        results = [work(task) for task in tasks]
+    results = _map(work, tasks, jobs)
     return pd.DataFrame([row for rows in results for row in rows])
 
 
