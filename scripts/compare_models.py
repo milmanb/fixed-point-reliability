@@ -24,7 +24,7 @@ import pandas as pd  # noqa: E402
 from fpr.data import REPO_ROOT  # noqa: E402
 from fpr.evaluation import CONDITIONS  # noqa: E402
 from fpr.plotting import (AXIS, FAMILIES, GRID, INK, INK_SECONDARY, SERIES,  # noqa: E402
-                          family_scatter, style_axes)
+                          family_scatter, pretty_condition, style_axes)
 
 SIGNALS = ("g", "d", "r_A")
 SIGNAL_LABELS = {"g": "g  idempotence residual", "d": "d  displacement", "r_A": "r_A  measurement residual"}
@@ -172,7 +172,8 @@ def plot_rho_by_condition(within, groups, path):
             if j == 0:
                 ax.set_ylabel(SIGNAL_LABELS[signal], fontsize=8, color=INK_SECONDARY)
     for ax in axes[-1]:
-        ax.set_xticks(x, conditions, rotation=40, ha="right", fontsize=7.5, color=INK)
+        ax.set_xticks(x, [pretty_condition(c) for c in conditions], rotation=40, ha="right",
+                      fontsize=7.5, color=INK)
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper right", ncol=len(groups), frameon=False, fontsize=8,
                labelcolor=INK)
