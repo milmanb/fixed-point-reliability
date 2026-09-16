@@ -1,0 +1,16 @@
+model_group,family,share_of_worst,recall_g,recall_d,recall_r_A
+unet_lam0,all,1.0000,0.5271,0.1931,0.1217
+unet_lam0,noise,0.1167,0.9996,1.0000,1.0000
+unet_lam0,blur,0.1431,0.1508,0.0000,0.0012
+unet_lam0,pixel_mask,0.5686,0.6824,0.1343,0.0081
+unet_lam0,box_mask,0.1715,0.0041,0.0000,0.0010
+unet_lam1,all,1.0000,,0.6190,0.6190
+unet_lam1,noise,0.3077,,1.0000,1.0000
+unet_lam1,blur,0.3077,,0.8315,0.8315
+unet_lam1,pixel_mask,0.2308,,0.0437,0.0437
+unet_lam1,box_mask,0.1538,,0.2950,0.2950
+unet_lam1w5,all,1.0000,0.4014,0.1774,0.1440
+unet_lam1w5,noise,0.0861,0.9675,0.9989,1.0000
+unet_lam1w5,blur,0.1644,0.8150,0.0000,0.0009
+unet_lam1w5,pixel_mask,0.5834,0.3090,0.1566,0.0983
+unet_lam1w5,box_mask,0.1661,0.0238,0.0001,0.0024
