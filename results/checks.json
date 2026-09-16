@@ -1,0 +1,32 @@
+{
+  "collapse": {
+    "median_image_error": 0.2105913845538215,
+    "mean_image_error": 0.23238226457666702,
+    "model": "dae_lam1_seed0",
+    "model_error": 0.21059418167009133,
+    "output_spread": 1.1982493314515388e-05,
+    "distance_to_median_image": 0.0006435221962758993
+  },
+  "finite_differences": {
+    "dae_lam0_seed0": {
+      "div": {
+        "mean_relative_error": 0.00035214553837869714,
+        "max_relative_error": 0.0019236946870512428
+      },
+      "g_lin": {
+        "mean_relative_error": 0.0006570148633962519,
+        "max_relative_error": 0.0034219399434794345
+      }
+    },
+    "dae_lam1w5_seed0": {
+      "div": {
+        "mean_relative_error": 0.0003935304256800471,
+        "max_relative_error": 0.0014625168134837759
+      },
+      "g_lin": {
+        "mean_relative_error": 0.0011829803026661054,
+        "max_relative_error": 0.005411417347652743
+      }
+    }
+  }
+}

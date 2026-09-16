@@ -50,12 +50,12 @@ Restoration networks are often applied where the clean image is unknown. When su
 fails, its output can still look plausible, so the failure cannot be seen in the image alone.
 A signal that flags unreliable outputs without ground truth would therefore be useful.
 
-Idempotent Generative Networks (IGN)~\cite{shocher2024ign} train a network $f$ to map inputs
-onto a target manifold, so that $f(f(y)) = f(y)$. Related methods use the deviation from this
-property as a confidence score. ZigZag~\cite{durasov2024zigzag} and
-IT$^3$~\cite{durasov2025it3} report that a self-consistency residual correlates strongly with
-prediction error, and NAIGN~\cite{aljaff2025naign} proposes the drift for out-of-distribution
-detection. It is tempting to conclude that an output which is a fixed point is also a correct
+Idempotent Generative Networks (IGN)~\cite{shocher2024ign} train a network $f$ so that real data
+are fixed points, $f(x) = x$, and other inputs land on that set, $f(f(y)) = f(y)$. Related
+methods use the deviation from this property as a confidence score. ZigZag~\cite{durasov2024zigzag} and
+IT$^3$~\cite{durasov2025it3} report that a self-consistency residual tracks prediction quality,
+and NAIGN~\cite{aljaff2025naign} reads the drift of a network as a distance to the data
+manifold. It is tempting to conclude that an output which is a fixed point is also a correct
 output.
 
 This conclusion does not hold in general. An exact projector satisfies $P(P(y)) = P(y)$ for
@@ -77,15 +77,15 @@ smaller and less informative.
 Idempotence has been used to train one-step generative
 models~\cite{shocher2024ign,aljaff2025naign} and to distill diffusion
 models~\cite{zaman2025sign}. In supervised prediction, self-consistency residuals serve as
-uncertainty estimates~\cite{durasov2024zigzag,durasov2025it3}; the correlation of $-0.94$ that
-IT$^3$ reports on ImageNet-C is computed per inference batch, not per image. Closest to our
-setting, Huang et al.~\cite{huang2023cycle} estimate the uncertainty of deblurring and
-super-resolution networks from forward-backward cycle residuals, which include
-$\norm{A_s f(y) - y}$. Reference-free error estimates for denoising include
+uncertainty estimates. ZigZag~\cite{durasov2024zigzag} reports per-sample correlations with the
+loss above 0.9, while the $-0.94$ that IT$^3$~\cite{durasov2025it3} reports between idempotence
+error and accuracy on ImageNet-C is computed per inference batch. Closest to our setting, Huang
+et al.~\cite{huang2023cycle} predict the uncertainty of deblurring and super-resolution networks
+from forward-backward cycles, whose features include $\norm{A_s f(y) - y}$. Reference-free error estimates for denoising include
 SURE~\cite{stein1981sure} and its Monte-Carlo form for black-box
-models~\cite{ramani2008mcsure}; for a minimum mean squared error denoiser the posterior
-covariance is the Jacobian times the noise variance~\cite{manor2024posterior}, which is the
-term SURE adds to the displacement. Data
+models~\cite{ramani2008mcsure}; under Gaussian noise the posterior covariance of a minimum mean
+squared error denoiser equals its Jacobian times the noise variance~\cite{manor2024posterior},
+whose trace is, up to a factor of two, the correction SURE adds to the displacement. Data
 consistency cannot detect errors in the null space of the
 operator~\cite{bhadra2021hallucinations}, and restorations with perfect perceptual quality pay
 in distortion~\cite{blau2018perception}. We measure what the fixed-point residual adds per
@@ -98,8 +98,9 @@ Let $x$ be a clean image and $y = A_s x + n$ an observation, with a known linear
 and Gaussian noise $n$, where $s$ indexes the corruption. A model $f$ returns an estimate
 $f(y)$, and $x$ is not available at test time. We use four corruption families with 13 levels:
 Gaussian noise ($A_s = I$, $\sigma \in \{0.1, 0.2, 0.3, 0.5\}$), Gaussian blur (width 0.5, 1,
-1.5 or 2 pixels), pixel masks (25, 50 or 75\% of pixels zeroed) and box masks (one random square
-of side 8 or 14). Blur and masks add weak noise ($\sigma = 0.02$).
+1.5 or 2 pixels), pixel masks (each pixel zeroed with probability 0.25, 0.5 or 0.75) and box
+masks (one random square of side 8 or 14). Blur and masks add weak noise ($\sigma = 0.02$); for
+the masks the noise is added before the mask, so masked pixels are exactly zero.
 
 \paragraph{Signals.}
 With $|\Omega|$ the number of pixels, we compare
@@ -112,14 +113,16 @@ residual $r_A$ also needs $A_s$, and equals $d$ for denoising. The true error $e
 for evaluation. For Gaussian noise we also compute
 $\mathrm{SURE}(y) = \tfrac{1}{|\Omega|}\norm{f(y)-y}_2^2 - \sigma^2
 + \tfrac{2\sigma^2}{|\Omega|}\operatorname{div} f(y)$, an unbiased estimate of the mean squared
-error of each image~\cite{stein1981sure}. We estimate the divergence with the Monte-Carlo
-estimator of~\cite{ramani2008mcsure}: four Rademacher probes $v$ and the finite difference
-$v^\top (f(y + \varepsilon v) - f(y)) / \varepsilon$ with $\varepsilon = 10^{-3}$. On our models
-this agrees with exact forward-mode products to a relative $10^{-4}$.
+error of each image~\cite{stein1981sure}. We estimate the divergence with a Rademacher variant of the Monte-Carlo
+estimator of~\cite{ramani2008mcsure}: four probes $v$ and the finite difference
+$v^\top (f(y + \varepsilon v) - f(y)) / \varepsilon$ with $\varepsilon = 10^{-3}$. On the trained
+models this agrees with exact forward-mode products to $4\cdot10^{-4}$ on average and
+$2\cdot10^{-3}$ at worst.
 
 \paragraph{Models.}
-The denoiser $f$ is a convolutional autoencoder with 602k parameters: three convolutions down
-to $7\times7$, a 64-dimensional bottleneck, a mirrored decoder and a sigmoid output. It has no
+The denoiser $f$ is a convolutional autoencoder with 602k parameters: three convolutions (base
+width 32, SiLU, stride 2 after the first) down to $7\times7$, a 64-dimensional bottleneck, a
+mirrored decoder and a sigmoid output. It has no
 normalization layers, so applying $f$ to its own output is not affected by batch statistics.
 We train on 55{,}000 Fashion-MNIST~\cite{xiao2017fashion} training images with Gaussian noise,
 $\sigma \sim \mathcal{U}[0.05, 0.25]$, for 15 epochs with Adam (learning rate $10^{-3}$, cosine
@@ -184,18 +187,17 @@ not (radial at $\sigma = 0.2$, $\rho = -0.46$).
   \end{tabular}
 \end{table*}
 
-Table~\ref{tab:rank} summarizes the models. For $\lid = 0$, $g$ ranks errors with $\rho$ between
-0.72 and 0.75 inside every noise level and does not degrade as the noise grows, while the
-displacement falls from 0.93 at $\sigma = 0.1$ to 0.28 at $\sigma = 0.5$, outside the training
+Table~\ref{tab:rank} summarizes the models. For $\lid = 0$, $g$ ranks errors inside every noise
+level and falls only from 0.75 to 0.72 as the noise grows, while the displacement falls from 0.93 at $\sigma = 0.1$ to 0.28 at $\sigma = 0.5$, outside the training
 range, and SURE falls from 0.91 to 0.40. Pooled over all 13 levels, $g$ reaches $\rho = 0.55$
 and an AUROC of 0.70, against 0.12 and 0.58 for $d$ and 0.02 and 0.53 for $r_A$, whose scales
 differ between noise, blur and masks. Replacing a signal by its median over its level keeps only
-severity; that baseline reaches $\rho = 0.46$ for $g$ and $0.00$ for $d$, so only $g$ carries
-per-image information across corruption types.
+severity; that baseline reaches $\rho = 0.46$ for $g$ and $0.00$ for $d$. Only $g$ adds
+per-image information across corruption types, and the increment is small, from 0.46 to 0.55.
 
 The pooled score hides a systematic failure (Fig.~\ref{fig:scatter}). Under pixel masks with 75\%
 of the pixels dropped, the mean error is 0.234, five times the error at $\sigma = 0.1$ (0.043).
-The mean residual barely changes (0.013 against 0.011). The model turns sparse dots into a dim
+The mean residual barely changes (0.014 against 0.011). The model turns sparse dots into a dim
 garment that it treats as a fixed point (Fig.~\ref{fig:failures}). Pixel masks hold 60\% of the
 worst-quartile errors and $g$ flags 18\% of them, against 74\% for box masks and 82\% under
 noise.
@@ -229,10 +231,12 @@ its ranking (0.79 to 0.76), while $d$ loses more (0.76 to 0.57).
 \subsection{Training for idempotence}
 \label{sec:idem}
 With $\lid = 1$ from the first step, all three seeds collapse within one epoch to a constant
-output. The validation error is 0.2107, the error of the per-pixel median training image
-(0.2106), and the residual falls to $1.4\cdot10^{-6}$. The collapse held for all 15 epochs. This
-model is exactly idempotent and useless as a denoiser. Its loss is about 0.21, far above the
-value at the $\lid = 0$ solution (about 0.06), so the collapse is a failure of optimization
+output, and the seed we ran for all 15 epochs never left it. Its validation error is 0.21059,
+the error of the per-pixel median training image (0.21059), which is the best constant under an
+$L_1$ loss. Its output moves by $1.2\cdot10^{-5}$ across inputs and its residual is
+$1.4\cdot10^{-6}$: exactly idempotent and useless as a denoiser. Its loss is about 0.21, far
+above the value at the $\lid = 0$ solution (about 0.06), so the collapse is a failure of
+optimization
 rather than the minimum of Eq.~\eqref{eq:loss}. A likely cause is that a network at
 initialization is nearly constant, so any input dependence first raises the residual.
 
@@ -242,8 +246,8 @@ well as $\lid = 0$ (mean error 0.095 against 0.092 over all conditions) and halv
 drops from 0.70 to 0.62 within a level, from 0.75 to 0.60 within noise levels, and the share of
 the worst pixel-mask errors it flags drops from 18\% to 10\%. The three seeds of the two groups
 do not overlap on any of these numbers. The share of top-decile errors that come with a
-below-median residual rises from 29\% to 34\% (seed 0), and 98\% of those images are pixel
-masks. The same training improves the other signals (Table~\ref{tab:rank}), which matches the
+below-median residual rises from 23\% to 35\% on average over seeds, and 97\% of those images
+are pixel masks. The same training improves the other signals (Table~\ref{tab:rank}), which matches the
 projector experiment: a tighter fixed-point set makes the displacement more informative.
 
 \section{Discussion}
@@ -261,16 +265,21 @@ objective does not train at all: the optimizer settles on a constant map.
 
 When the operator is known, the measurement residual is the better signal, and it keeps most of
 its ranking after brightness is controlled for. Under Gaussian noise of known strength, SURE
-estimates the error directly and ranks best at the training noise levels. The baselines matter
+estimates the squared error directly and ranks it best at every training level; against the
+$L_1$ error used here it leads only at $\sigma = 0.2$. The baselines matter
 as much as the signals: brightness explains most of the within-level ranking under masks, and
 pooling the levels of one corruption rewards signals that only track severity, which is what a
 batch-level correlation measures. We recommend reporting per-level scores together with
 severity and content baselines.
 
-\paragraph{Limitations.}
-We use one small dataset, one architecture and synthetic corruptions, and train on noise only,
-so blur and masks test unseen operators. We tested one gradient routing and one warm-up
-schedule; IGN-style stop-gradients may behave differently.
+\paragraph{Limitations and deviations from the proposal.}
+We proposed to calibrate these signals. We measure how well they rank errors and leave
+calibration open. We added box masks, SURE, the divergence and the two baselines, and
+$\lid = 1$ needed a warm-up that the proposal did not foresee. We use one small dataset, one
+architecture and synthetic corruptions, and train on noise only, so blur and masks test unseen
+operators. Fashion-MNIST images have a black background, which is part of why brightness is such
+a strong baseline. Seeds differ: the share of stable but wrong outputs spans 19--29\% for
+$\lid = 0$ and 30--41\% for $\lid = 1$.
 
 \footnotesize
 \bibliographystyle{abbrv}  % ignores url/doi fields, which keeps the report within three pages
