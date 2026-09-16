@@ -5,6 +5,8 @@ collapse: the model trained with lambda_id = 1 and no warm-up outputs one consta
     best constant under an L1 loss, and measure how much its output varies with the input.
 finite_differences: the pipeline estimates Jacobian-vector products with finite differences.
     We compare them with exact forward-mode products on the trained checkpoints.
+initialization: how constant each architecture is before training, which is the proposed reason
+    why the idempotence term collapses the bottleneck model.
 
     python scripts/checks.py
 """
@@ -16,7 +18,7 @@ import torch
 
 from fpr.data import REPO_ROOT, load_fashion_mnist
 from fpr.evaluation import CONDITIONS, observe
-from fpr.models import load_restorer
+from fpr.models import ARCHITECTURES, load_restorer
 from fpr.signals import jacobian_signals
 
 COLLAPSED = "dae_lam1_seed0"
@@ -66,8 +68,32 @@ def finite_difference_check(n_eval=200, probes=4):
     return rows
 
 
+def initialization_check(n=256, seeds=3):
+    """How constant is each architecture at initialization, and how large is its residual there?
+
+    The collapse under lambda_id = 1 is explained by a network that starts almost constant: a
+    constant map is already idempotent, and becoming input-dependent first raises the residual.
+    """
+    x, _ = load_fashion_mnist("test", dtype=torch.float32)
+    y, _ = observe(CONDITIONS[1], x[:n].double(), 0)
+    rows = {}
+    for architecture, build in ARCHITECTURES.items():
+        spread, residual = [], []
+        for seed in range(seeds):
+            torch.manual_seed(seed)
+            net = build().double()
+            with torch.no_grad():
+                fy = net(y)
+                spread.append(fy.std(dim=0).mean().item())
+                residual.append((net(fy) - fy).abs().mean().item())
+        rows[architecture] = {"output_spread_over_inputs": float(np.mean(spread)),
+                              "idempotence_residual": float(np.mean(residual))}
+    return rows
+
+
 def main():
-    out = {"collapse": collapse_check(), "finite_differences": finite_difference_check()}
+    out = {"collapse": collapse_check(), "finite_differences": finite_difference_check(),
+           "initialization": initialization_check()}
     path = REPO_ROOT / "results" / "checks.json"
     path.write_text(json.dumps(out, indent=2))
     print(json.dumps(out, indent=2))

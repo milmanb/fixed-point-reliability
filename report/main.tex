@@ -119,6 +119,22 @@ $v^\top (f(y + \varepsilon v) - f(y)) / \varepsilon$ with $\varepsilon = 10^{-3}
 models this agrees with exact forward-mode products to $4\cdot10^{-4}$ on average and
 $2\cdot10^{-3}$ at worst.
 
+\paragraph{Why the residual can be blind.}
+Write $\delta(y) = f(y) - y$ for the displacement. A first-order expansion of the second
+application of $f$ gives
+\begin{equation}
+  g(y) = \tfrac{1}{|\Omega|}\norm{f(y + \delta) - f(y)}_1
+       \approx \tfrac{1}{|\Omega|}\norm{J_f(y)\,\delta(y)}_1,
+  \label{eq:taylor}
+\end{equation}
+so the residual probes the Jacobian along the one direction in which the model has just moved.
+For an exact projector onto a smooth set, $\delta$ is normal to that set while $J_f$ projects
+onto its tangent space, so $J_f\delta = 0$ and the residual vanishes whatever the error. Our
+projectors show exactly this: $g < 2\cdot10^{-15}$ and the right side of Eq.~\eqref{eq:taylor}
+is $10^{-13}$, the size of the finite-difference round-off. A trained network is only
+approximately a projector, and there the two sides agree in rank (Spearman 0.89 for
+$\lid = 0$). The residual is therefore a local Jacobian probe, not a distance to the data.
+
 \paragraph{Models.}
 The denoiser $f$ is a convolutional autoencoder with 602k parameters: three convolutions (base
 width 32, SiLU, stride 2 after the first) down to $7\times7$, a 64-dimensional bottleneck, a
