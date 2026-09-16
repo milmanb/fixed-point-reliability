@@ -226,11 +226,12 @@ results/           small result tables and figures (per-image dumps are git-igno
 
 - [x] Evaluation pipeline and exact-projector smoke check
 - [x] Training and evaluation pipeline for the autoencoders, first-order signals
-- [x] Convolutional denoising autoencoders, $\lambda_{id} = 0$ (3 seeds), evaluated
-- [x] Brightness baseline and partial correlations in the evaluation
-- [ ] Idempotence loss and $\lambda_{id} = 1$ models (3 seeds)
-- [ ] Evaluation on held-out noise levels, blur and masks
-- [ ] Report (LaTeX, 2-3 pages) and 5-minute talk
+- [x] Autoencoders for $\lambda_{id} \in \{0, 1\}$, three seeds each, plus the collapsed run
+- [x] Evaluation on held-out noise levels, blur and masks, with brightness and severity baselines
+- [x] Report draft (LaTeX, three pages including references)
+- [ ] Optional ablations: IGN-style stop-gradient routing, $\lambda_{id} = 0.1$
+- [ ] 5-minute talk
+- [ ] Make the repository public before submission
 
 ## References
 
