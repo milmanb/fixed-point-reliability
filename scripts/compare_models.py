@@ -23,7 +23,8 @@ import pandas as pd  # noqa: E402
 
 from fpr.data import REPO_ROOT  # noqa: E402
 from fpr.evaluation import CONDITIONS  # noqa: E402
-from fpr.plotting import AXIS, GRID, INK, INK_SECONDARY, SERIES, family_scatter, style_axes  # noqa: E402
+from fpr.plotting import (AXIS, FAMILIES, GRID, INK, INK_SECONDARY, SERIES,  # noqa: E402
+                          family_scatter, style_axes)
 
 SIGNALS = ("g", "d", "r_A")
 SIGNAL_LABELS = {"g": "g  idempotence residual", "d": "d  displacement", "r_A": "r_A  measurement residual"}
@@ -34,6 +35,12 @@ def parse_args():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--groups", nargs="*", default=None,
                         help="model groups to compare (default: all autoencoder groups, at most 3)")
+    parser.add_argument("--scatter-groups", nargs="*", default=None,
+                        help="groups shown in g_vs_error.png (default: all compared groups)")
+    parser.add_argument("--scatter-families", nargs="*", default=list(FAMILIES),
+                        help="corruption families shown in g_vs_error.png")
+    parser.add_argument("--scatter-name", default="g_vs_error",
+                        help="file name (without extension) for the scatter figure")
     parser.add_argument("--results", default="results/models", help="relative to the repository")
     parser.add_argument("--logs", default="results/train", help="relative to the repository")
     return parser.parse_args()
@@ -222,13 +229,15 @@ def main():
 
     plot_training_curves(REPO_ROOT / args.logs, out / "training_curves.png")
     plot_rho_by_condition(within, groups, out / "rho_by_condition.png")
+    scatter_groups = [g for g in (args.scatter_groups or groups) if g in groups]
     first_model = {group: sorted(m for m in per_image["model"].unique() if model_group(m) == group)[0]
-                   for group in groups}
+                   for group in scatter_groups}
+    families = [f for f in args.scatter_families if f in FAMILIES]
     family_scatter([(f"g, {group_label(group)}", per_image[per_image["model"] == first_model[group]], "g")
-                    for group in groups],
-                   out / "g_vs_error.png",
-                   f"Idempotence residual g vs. true error ({', '.join(first_model.values())}); "
-                   f"family in blue, all conditions in gray")
+                    for group in scatter_groups],
+                   out / f"{args.scatter_name}.png",
+                   "Idempotence residual g vs. true error; family in blue, other levels in gray",
+                   families=families, width=2.7 * len(families) + 0.4)
     print_summary(errors, within, pooled, blind, groups)
     print(f"\nWrote tables and figures to {out}")
 

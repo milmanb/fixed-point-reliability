@@ -15,7 +15,7 @@ SEQUENTIAL = ("#fcfcfb", "#b7d3f6", "#5598e7", "#1c5cab", "#0d366b")
 FAMILIES = ("noise", "blur", "pixel_mask", "box_mask")
 
 
-def family_scatter(rows, path, title, per_condition=600, seed=0):
+def family_scatter(rows, path, title, per_condition=600, seed=0, families=FAMILIES, width=10.5):
     """Signal vs. true error: one row per (label, frame, signal), one column per corruption family.
 
     Each panel highlights one family in blue over all conditions in gray, so it shows whether
@@ -24,13 +24,13 @@ def family_scatter(rows, path, title, per_condition=600, seed=0):
     import matplotlib.pyplot as plt
     from scipy.stats import spearmanr
 
-    fig, axes = plt.subplots(len(rows), len(FAMILIES), figsize=(10.5, 0.9 + 2.2 * len(rows)),
+    fig, axes = plt.subplots(len(rows), len(families), figsize=(width, 0.9 + 2.2 * len(rows)),
                              sharex=True, sharey="row", squeeze=False)
     for i, (label, frame, signal) in enumerate(rows):
         n = min(per_condition, int(frame.groupby("condition").size().min()))
         sample = frame.groupby("condition", group_keys=False).sample(n=n, random_state=seed)
         pooled = spearmanr(frame[signal], frame["e"]).statistic
-        for j, family in enumerate(FAMILIES):
+        for j, family in enumerate(families):
             ax = axes[i, j]
             style_axes(ax)
             ax.scatter(sample["e"], sample[signal], s=3, color=CONTEXT, alpha=0.35, linewidths=0,

@@ -38,6 +38,8 @@ def parse_args():
     parser.add_argument("--results", default="results/models", help="relative to the repository")
     parser.add_argument("--checkpoints", default="checkpoints", help="relative to the repository")
     parser.add_argument("--examples", type=int, default=6)
+    parser.add_argument("--compact", action="store_true",
+                        help="drop the error-map row and save as failures_compact_<model>.png")
     parser.add_argument("--seed", type=int, default=0)
     return parser.parse_args()
 
@@ -53,11 +55,12 @@ def select_failures(frame, count, seed):
     return candidates.sample(n=min(count, len(candidates)), random_state=seed), candidates, len(frame)
 
 
-def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total):
+def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, compact=False):
     conditions = {c.label: c for c in CONDITIONS}
     error_cmap = LinearSegmentedColormap.from_list("error", SEQUENTIAL)
-    fig, axes = plt.subplots(4, len(rows), figsize=(1.75 * len(rows), 7.3), squeeze=False)
-    row_names = ["clean x", "observed y", "output f(y)", "|f(y) - x|"]
+    row_names = ["clean x", "observed y", "output f(y)", "|f(y) - x|"][:3 if compact else 4]
+    fig, axes = plt.subplots(len(row_names), len(rows),
+                             figsize=(1.75 * len(rows), 1.35 + 1.5 * len(row_names)), squeeze=False)
     observed = {}
     for j, (_, row) in enumerate(rows.iterrows()):
         index = int(row["image"])
@@ -76,7 +79,7 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total):
             (fy[0, 0], "gray", f"e = {row['e']:.3f} (p{100 * row['e_pct']:.0f})\n"
                                f"g = {row['g']:.4f} (p{100 * row['g_pct']:.0f})"),
             ((fy - x[index:index + 1])[0, 0].abs(), error_cmap, ""),
-        ]
+        ][:len(row_names)]
         for i, (image, cmap, caption) in enumerate(panels):
             ax = axes[i, j]
             ax.imshow(np.clip(image.numpy(), 0, 1), cmap=cmap, vmin=0, vmax=1, interpolation="nearest")
@@ -89,12 +92,17 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total):
                 ax.set_ylabel(row_names[i], fontsize=8, color=INK)
     shares = candidates["condition"].value_counts(normalize=True).head(3)
     composition = ", ".join(f"{share:.0%} {condition}" for condition, share in shares.items())
-    fig.suptitle(f"{model}: stable but wrong\n"
-                 f"Random picks among the {len(candidates):,} of {n_total:,} images with error in the top 10% "
-                 f"and g below its median.\nCandidates: {composition}. "
-                 f"p = percentile over all conditions.",
-                 fontsize=8, color=INK, x=0.01, ha="left")
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    if compact:
+        # The caption of the figure carries the selection rule in the report.
+        fig.tight_layout()
+    else:
+        fig.suptitle(f"{model}: stable but wrong\n"
+                     f"Random picks among the {len(candidates):,} of {n_total:,} images with error in the "
+                     f"top 10% and g below its median.\nCandidates: {composition}. "
+                     f"p = percentile over all conditions.",
+                     fontsize=8, color=INK, x=0.01, ha="left")
+        fig.tight_layout(rect=(0, 0, 1, 0.92))
+    print(f"  candidates: {len(candidates):,} of {n_total:,}; {composition}")
     fig.savefig(path, dpi=200)
     plt.close(fig)
 
@@ -121,8 +129,9 @@ def main():
     restorer, _ = load_restorer(REPO_ROOT / args.checkpoints / f"{args.model}.pt", device="cpu")
     rows, candidates, n_total = select_failures(frame, args.examples, args.seed)
     print("Selected failures by condition:", rows["condition"].value_counts().to_dict())
-    plot_failures(rows, restorer, x, eval_seed, figures / f"failures_{args.model}.png", args.model,
-                  candidates, n_total)
+    name = f"failures_compact_{args.model}.png" if args.compact else f"failures_{args.model}.png"
+    plot_failures(rows, restorer, x, eval_seed, figures / name, args.model, candidates, n_total,
+                  compact=args.compact)
     print(f"Wrote figures to {figures}")
 
 
