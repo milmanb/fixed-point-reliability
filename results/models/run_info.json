@@ -2,9 +2,7 @@
   "args": {
     "checkpoints": "checkpoints",
     "pattern": [
-      "dae_lam0_*.pt",
-      "dae_lam1w5_*.pt",
-      "dae_lam1_seed0.pt"
+      "dae_*.pt"
     ],
     "projectors": [
       "radial",
@@ -41,15 +39,56 @@
   "models": [
     "radial",
     "pca64",
+    "dae_lam0.1w5_seed0",
+    "dae_lam0.1w5_seed1",
     "dae_lam0_seed0",
     "dae_lam0_seed1",
     "dae_lam0_seed2",
     "dae_lam1_seed0",
+    "dae_lam1w5_inner_seed0",
+    "dae_lam1w5_inner_seed1",
+    "dae_lam1w5_inner_seed2",
     "dae_lam1w5_seed0",
     "dae_lam1w5_seed1",
     "dae_lam1w5_seed2"
   ],
   "train_args": {
+    "dae_lam0.1w5_seed0": {
+      "lambda_id": 0.1,
+      "lambda_warmup": 5.0,
+      "routing": "both",
+      "seed": 0,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam0.1w5_seed1": {
+      "lambda_id": 0.1,
+      "lambda_warmup": 5.0,
+      "routing": "both",
+      "seed": 1,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
     "dae_lam0_seed0": {
       "lambda_id": 0.0,
       "seed": 0,
@@ -109,6 +148,63 @@
       "checkpoints": "checkpoints",
       "logs": "results/train"
     },
+    "dae_lam1w5_inner_seed0": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "routing": "inner",
+      "seed": 0,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "architecture": "bottleneck",
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam1w5_inner_seed1": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "routing": "inner",
+      "seed": 1,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "architecture": "bottleneck",
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam1w5_inner_seed2": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "routing": "inner",
+      "seed": 2,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "architecture": "bottleneck",
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
     "dae_lam1w5_seed0": {
       "lambda_id": 1.0,
       "lambda_warmup": 5.0,
@@ -162,9 +258,9 @@
     }
   },
   "seconds": {
-    "signals": 1367.8,
-    "metrics": 2025.4,
-    "total": 3455.6
+    "signals": 2036.2,
+    "metrics": 3745.0,
+    "total": 5901.4
   },
   "versions": {
     "python": "3.13.14",

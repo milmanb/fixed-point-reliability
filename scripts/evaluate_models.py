@@ -53,6 +53,8 @@ def parse_args():
     parser.add_argument("--out", type=str, default="results/models",
                         help="output directory, relative to the repository")
     parser.add_argument("--no-per-image", action="store_true")
+    parser.add_argument("--append", action="store_true",
+                        help="add these models to the results already in --out, replacing re-run models")
     return parser.parse_args()
 
 
@@ -120,6 +122,36 @@ def print_report(summary, metrics, per_image):
         print(pd.DataFrame(rhos).groupby("model_group")["rho"].median().to_string(float_format="%+.3f"))
 
 
+def merge_with_existing(out, summary, metrics, per_image, run_info):
+    """Add this run's models to an earlier run in the same folder, replacing rows of re-run models.
+
+    Valid because every row is computed from one model alone with fixed seeds, so a separate run
+    produces the same rows a joint run would.
+    """
+    new_models = set(run_info["models"])
+    previous = json.loads((out / "run_info.json").read_text())
+    if previous["args"]["n_eval"] != run_info["args"]["n_eval"] or \
+            previous["args"]["seed"] != run_info["args"]["seed"] or \
+            previous["args"]["n_boot"] != run_info["args"]["n_boot"]:
+        raise SystemExit("--append needs the same --n-eval, --seed and --n-boot as the earlier run")
+
+    def combine(name, frame, reader):
+        old = reader(out / name)
+        return pd.concat([old[~old["model"].isin(new_models)], frame], ignore_index=True)
+
+    summary = combine("summary.csv", summary, pd.read_csv)
+    metrics = combine("metrics.csv", metrics, pd.read_csv)
+    per_image = combine("per_image.csv.gz", per_image, pd.read_csv)
+    kept = [m for m in previous["models"] if m not in new_models]
+    run_info = previous | {
+        "models": kept + run_info["models"],
+        "train_args": previous["train_args"] | run_info["train_args"],
+        "appended_runs": previous.get("appended_runs", []) + [
+            {"models": run_info["models"], "seconds": run_info["seconds"], "args": run_info["args"]}],
+    }
+    return summary, metrics, per_image, run_info
+
+
 def main():
     args = parse_args()
     if args.jobs > 1 and args.device != "cpu":
@@ -144,11 +176,6 @@ def main():
                         ignore_index=True)
     t_metrics = time.perf_counter()
     summary = summarize(per_image)
-
-    summary.to_csv(out / "summary.csv", index=False, float_format="%.6g")
-    metrics.to_csv(out / "metrics.csv", index=False, float_format="%.4f")
-    if not args.no_per_image:
-        per_image.to_csv(out / "per_image.csv.gz", index=False, float_format="%.6g")
     run_info = {
         "args": vars(args),
         "conditions": [c.label for c in CONDITIONS],
@@ -159,6 +186,14 @@ def main():
         "versions": {"python": platform.python_version(), "torch": torch.__version__,
                      "numpy": np.__version__, "pandas": pd.__version__},
     }
+    if args.append:
+        summary, metrics, per_image, run_info = merge_with_existing(out, summary, metrics, per_image,
+                                                                    run_info)
+
+    summary.to_csv(out / "summary.csv", index=False, float_format="%.6g")
+    metrics.to_csv(out / "metrics.csv", index=False, float_format="%.4f")
+    if not args.no_per_image:
+        per_image.to_csv(out / "per_image.csv.gz", index=False, float_format="%.6g")
     (out / "run_info.json").write_text(json.dumps(run_info, indent=2))
     print_report(summary, metrics, per_image)
     print(f"\nWrote results to {out} in {run_info['seconds']['total']}s")
