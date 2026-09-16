@@ -50,7 +50,8 @@
     "dae_lam1w5_inner_seed2",
     "dae_lam1w5_seed0",
     "dae_lam1w5_seed1",
-    "dae_lam1w5_seed2"
+    "dae_lam1w5_seed2",
+    "dae_lam0.1w5_seed2"
   ],
   "train_args": {
     "dae_lam0.1w5_seed0": {
@@ -255,6 +256,25 @@
       "threads": 2,
       "checkpoints": "checkpoints",
       "logs": "results/train"
+    },
+    "dae_lam0.1w5_seed2": {
+      "lambda_id": 0.1,
+      "lambda_warmup": 5.0,
+      "routing": "both",
+      "seed": 2,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "architecture": "bottleneck",
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 6,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
     }
   },
   "seconds": {
@@ -267,5 +287,37 @@
     "torch": "2.12.0+cu130",
     "numpy": "2.4.4",
     "pandas": "3.0.5"
-  }
+  },
+  "appended_runs": [
+    {
+      "models": [
+        "dae_lam0.1w5_seed2"
+      ],
+      "seconds": {
+        "signals": 145.7,
+        "metrics": 197.3,
+        "total": 343.1
+      },
+      "args": {
+        "checkpoints": "checkpoints",
+        "pattern": [
+          "dae_lam0.1w5_seed2.pt"
+        ],
+        "projectors": [],
+        "n_eval": 10000,
+        "n_boot": 1000,
+        "probes": 4,
+        "jacobian_families": [
+          "noise"
+        ],
+        "device": "cpu",
+        "jobs": 2,
+        "threads": 3,
+        "seed": 0,
+        "out": "results/models",
+        "no_per_image": false,
+        "append": true
+      }
+    }
+  ]
 }
