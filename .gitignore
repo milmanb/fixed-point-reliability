@@ -8,10 +8,12 @@ venv/
 # Datasets are downloaded on demand
 data/
 
-# Large per-image dumps and checkpoints
+# Large per-image dumps; regenerate them with scripts/evaluate_models.py
 results/**/per_image*
-*.pt
 *.ckpt
+*.pt
+# Trained models are published so the results can be checked without retraining
+!checkpoints/*.pt
 
 # LaTeX build products
 *.aux
