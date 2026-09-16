@@ -6,7 +6,6 @@
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{xcolor}
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage[hidelinks]{hyperref}
 
@@ -16,12 +15,8 @@
 \setlength{\dblfloatsep}{8pt}
 \setlength{\dbltextfloatsep}{8pt}
 \setlength{\intextsep}{8pt}
-\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
 \newcommand{\norm}[1]{\lVert #1 \rVert}
 \newcommand{\lid}{\lambda_{\mathrm{id}}}
-
-% Draft. Every number below comes from the committed result files; numbers marked
-% "final run" must be re-checked against the combined evaluation of all models.
 
 \title{Stable but Wrong: Fixed-Point Residuals as\\Reference-Free Reliability Signals for Image Restoration}
 \author{Itay Shorian \and Michael Bazkor \and Boaz Cohen \and Bar Milman\\[2pt]
@@ -36,9 +31,8 @@
 A learned restoration model does not signal when its output is wrong. Idempotent networks
 are trained so that $f(f(y)) = f(y)$, and recent work reads a small idempotence residual as a
 sign of a reliable prediction. We test this reading in a controlled denoising setting on
-Fashion-MNIST. We compare three reference-free signals, the idempotence residual, the
-displacement and the measurement residual, with the true per-image error under noise, blur
-and masking. For exact projectors the residual is zero by construction. For learned denoisers
+Fashion-MNIST. We compare three model-only signals (the idempotence residual, the displacement
+and the measurement residual) with the true per-image error under noise, blur and masking. For exact projectors the residual is zero by construction. For learned denoisers
 it ranks errors within a known corruption (Spearman $\rho \approx 0.7$) and ranks them better
 than the other signals when corruptions are mixed. It still misses the largest failures: under
 random pixel masks the model outputs dim, plausible images that are near fixed points, with
@@ -76,8 +70,8 @@ corruption level from ranking across levels, with baselines for image brightness
 (ii)~evidence that the idempotence residual of a learned denoiser is informative for familiar
 corruptions but blind to its main failure under an unseen operator;
 (iii)~an ablation of explicit idempotence training, which collapses the model to a constant
-output unless the loss weight is ramped up, and which makes the residual both smaller and
-less informative when it is.
+output unless the loss weight is ramped up and, when it is ramped, makes the residual both
+smaller and less informative.
 
 \paragraph{Related work.}
 Idempotence has been used to train one-step generative
@@ -87,11 +81,11 @@ uncertainty estimates~\cite{durasov2024zigzag,durasov2025it3}; the correlation o
 IT$^3$ reports on ImageNet-C is computed per inference batch, not per image. Closest to our
 setting, Huang et al.~\cite{huang2023cycle} estimate the uncertainty of deblurring and
 super-resolution networks from forward-backward cycle residuals, which include
-$\norm{A f(y) - y}$. Reference-free error estimates for denoising include
+$\norm{A_s f(y) - y}$. Reference-free error estimates for denoising include
 SURE~\cite{stein1981sure} and its Monte-Carlo form for black-box
 models~\cite{ramani2008mcsure}; for a minimum mean squared error denoiser the posterior
-covariance is the Jacobian times the noise variance~\cite{manor2024posterior}, which is why we
-also report the divergence. Data
+covariance is the Jacobian times the noise variance~\cite{manor2024posterior}, which is the
+term SURE adds to the displacement. Data
 consistency cannot detect errors in the null space of the
 operator~\cite{bhadra2021hallucinations}, and restorations with perfect perceptual quality pay
 in distortion~\cite{blau2018perception}. We measure what the fixed-point residual adds per
@@ -101,11 +95,11 @@ image, for exact and learned projectors.
 
 \paragraph{Setting.}
 Let $x$ be a clean image and $y = A_s x + n$ an observation, with a known linear operator $A_s$
-and Gaussian noise $n$. A model $f$ returns an estimate $f(y)$, and $x$ is not available at test
-time. We use 13 corruption levels: Gaussian noise ($A_s = I$, $\sigma \in \{0.1, 0.2, 0.3,
-0.5\}$), Gaussian blur (width 0.5 to 2 pixels), random pixel masks (25, 50 or 75\% of pixels
-zeroed) and a random square mask (side 8 or 14). Blur and masks add weak noise
-($\sigma = 0.02$).
+and Gaussian noise $n$, where $s$ indexes the corruption. A model $f$ returns an estimate
+$f(y)$, and $x$ is not available at test time. We use four corruption families with 13 levels:
+Gaussian noise ($A_s = I$, $\sigma \in \{0.1, 0.2, 0.3, 0.5\}$), Gaussian blur (width 0.5, 1,
+1.5 or 2 pixels), pixel masks (25, 50 or 75\% of pixels zeroed) and box masks (one random square
+of side 8 or 14). Blur and masks add weak noise ($\sigma = 0.02$).
 
 \paragraph{Signals.}
 With $|\Omega|$ the number of pixels, we compare
@@ -143,14 +137,16 @@ the top-$k$ principal subspace (PCA-$k$).
 
 \paragraph{Evaluation.}
 On the 10{,}000 test images we report Spearman's $\rho$ between each signal and $e$, within each
-corruption level and pooled over all 13 levels, which corresponds to an unknown corruption, plus
-the AUROC for detecting the worst quartile of $e$. Two confounds need care. Under masking the
+corruption level and pooled over all 13 levels, which corresponds to an unknown corruption. We
+also report the AUROC for detecting the worst quartile of $e$, and we call an image
+\emph{flagged} when the signal lies in its own top quartile. Two confounds need care. Under
+masking the
 error grows with the amount of content in an image, so we add the brightness
 $b(y) = \operatorname{mean}(y)$ as a model-free baseline and report partial correlations
 given~$b$. In pooled scores a signal can rank images mostly by severity, so we compare it with
-the same signal replaced by its median over each level. Confidence intervals (95\%) come from
-1000 bootstrap resamples of test images, resampling all levels of an image together; they are
-about $\pm 0.01$ wide.
+the same signal replaced by its median over each level. Bootstrap resamples of test images
+(1000, with all levels of an image resampled together) give 95\% intervals of half-width about
+0.01. A corruption \emph{family} groups the levels of one operator.
 
 \section{Results}
 
@@ -165,11 +161,13 @@ not (radial at $\sigma = 0.2$, $\rho = -0.46$).
 \begin{table*}[t]
   \centering
   \small
-  \caption{Spearman $\rho$ between each signal and the true error, three seeds per group.
-    \emph{within}: median over the 13 corruption levels. \emph{noise}: median over the four
-    noise levels. \emph{partial}: median partial correlation given the brightness $b$.
-    \emph{pooled}: all 13 levels mixed, so the corruption is unknown. SURE is defined for
-    Gaussian noise only, and $b$ is a model-free baseline rather than a signal.}
+  \caption{Spearman $\rho$ between each signal and the true error. $g$ is the idempotence
+    residual, $d$ the displacement and $r_A$ the measurement residual. \emph{within}: median over
+    the 13 corruption levels and three seeds. \emph{noise}: the same over the four noise levels.
+    \emph{partial}: partial correlation given the brightness $b$. \emph{pooled}: all 13 levels
+    mixed, so the corruption is unknown, averaged over seeds. Bold marks the best pooled score in
+    each group. SURE is defined for Gaussian noise only, and $b$ is a model-free baseline rather
+    than a signal.}
   \label{tab:rank}
   \begin{tabular}{@{}lcccccccc@{}}
     \toprule
@@ -188,16 +186,19 @@ not (radial at $\sigma = 0.2$, $\rho = -0.46$).
 
 Table~\ref{tab:rank} summarizes the models. For $\lid = 0$, $g$ ranks errors with $\rho$ between
 0.72 and 0.75 inside every noise level and does not degrade as the noise grows, while the
-displacement falls from 0.93 at $\sigma = 0.1$ to 0.28 at the held-out $\sigma = 0.5$ and SURE
-falls from 0.91 to 0.40. Pooled over all 13 levels, $g$ reaches $\rho = 0.55$, against 0.12 for
-$d$ and 0.02 for $r_A$, whose scales differ between noise, blur and masks.
+displacement falls from 0.93 at $\sigma = 0.1$ to 0.28 at $\sigma = 0.5$, outside the training
+range, and SURE falls from 0.91 to 0.40. Pooled over all 13 levels, $g$ reaches $\rho = 0.55$
+and an AUROC of 0.70, against 0.12 and 0.58 for $d$ and 0.02 and 0.53 for $r_A$, whose scales
+differ between noise, blur and masks. Replacing a signal by its median over its level keeps only
+severity; that baseline reaches $\rho = 0.46$ for $g$ and $0.00$ for $d$, so only $g$ carries
+per-image information across corruption types.
 
 The pooled score hides a systematic failure (Fig.~\ref{fig:scatter}). Under pixel masks with 75\%
 of the pixels dropped, the mean error is 0.234, five times the error at $\sigma = 0.1$ (0.043).
 The mean residual barely changes (0.013 against 0.011). The model turns sparse dots into a dim
 garment that it treats as a fixed point (Fig.~\ref{fig:failures}). Pixel masks hold 60\% of the
 worst-quartile errors and $g$ flags 18\% of them, against 74\% for box masks and 82\% under
-noise. Among the images with top-10\% error and below-median $g$, 98\% are pixel masks.
+noise.
 
 Raw within-level scores overstate every signal. The brightness $b$ alone reaches a median
 within-level $\rho$ of 0.51, and 0.96 under pixel masks, where the error grows with the amount
@@ -208,8 +209,9 @@ its ranking (0.79 to 0.76), while $d$ loses more (0.76 to 0.57).
   \centering
   \includegraphics[width=\columnwidth]{models/comparison/g_vs_error_compact.png}
   \caption{Idempotence residual against the true error, one row per model (seed 0). The
-    highlighted family is blue, all other levels gray. Under noise the residual tracks the error;
-    under pixel masks it stays flat while the error grows. The repository holds the same figure
+    highlighted family is blue, all other levels gray. Under noise the residual tracks the error.
+    Under pixel masks it keeps its noise-level range while the error grows several times larger,
+    so masked images look as stable as mildly noisy ones. The repository holds the same figure
     for blur and box masks.}
   \label{fig:scatter}
 \end{figure}
@@ -239,10 +241,10 @@ well as $\lid = 0$ (mean error 0.095 against 0.092 over all conditions) and halv
 (0.0088 against 0.0146). The residual also becomes a worse signal. Its correlation with the error
 drops from 0.70 to 0.62 within a level, from 0.75 to 0.60 within noise levels, and the share of
 the worst pixel-mask errors it flags drops from 18\% to 10\%. The three seeds of the two groups
-do not overlap on any of these numbers. The count of images with top-10\% error and
-below-median residual rises from 3748 to 4446 out of 130000. The same training improves the
-other signals (Table~\ref{tab:rank}), which matches the projector experiment: a tighter
-fixed-point set makes the displacement more informative.
+do not overlap on any of these numbers. The share of top-decile errors that come with a
+below-median residual rises from 29\% to 34\% (seed 0), and 98\% of those images are pixel
+masks. The same training improves the other signals (Table~\ref{tab:rank}), which matches the
+projector experiment: a tighter fixed-point set makes the displacement more informative.
 
 \section{Discussion}
 A small idempotence residual is weak evidence of a correct restoration. For exact projectors it
@@ -252,17 +254,18 @@ values, however, include the largest failures under an unseen operator. There th
 input to an image that it reproduces, and the residual cannot tell that image from the correct
 one.
 
-Training for idempotence does not repair this, it deepens it. The residual halves, its ranking
+Training for idempotence does not repair this; it deepens it. The residual halves, its ranking
 quality drops, and the model produces more stable but wrong outputs. A quantity that is used as
 a diagnostic and optimized as a loss stops being a diagnostic. Without a warm-up the same
-objective produces a constant map, which is the end point of that process.
+objective does not train at all: the optimizer settles on a constant map.
 
 When the operator is known, the measurement residual is the better signal, and it keeps most of
 its ranking after brightness is controlled for. Under Gaussian noise of known strength, SURE
 estimates the error directly and ranks best at the training noise levels. The baselines matter
 as much as the signals: brightness explains most of the within-level ranking under masks, and
-pooling over levels inflates correlations, as in batch-level analyses. We recommend reporting
-per-level scores together with severity and content baselines.
+pooling the levels of one corruption rewards signals that only track severity, which is what a
+batch-level correlation measures. We recommend reporting per-level scores together with
+severity and content baselines.
 
 \paragraph{Limitations.}
 We use one small dataset, one architecture and synthetic corruptions, and train on noise only,

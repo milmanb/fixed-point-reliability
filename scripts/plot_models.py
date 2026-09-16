@@ -26,7 +26,7 @@ from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 from fpr.data import REPO_ROOT, load_fashion_mnist  # noqa: E402
 from fpr.evaluation import CONDITIONS, observe  # noqa: E402
 from fpr.models import load_restorer  # noqa: E402
-from fpr.plotting import INK, INK_SECONDARY, SEQUENTIAL, family_scatter  # noqa: E402
+from fpr.plotting import INK, INK_SECONDARY, SEQUENTIAL, family_scatter, pretty_condition  # noqa: E402
 
 SIGNAL_LABELS = {"g": "g  idempotence residual", "d": "d  displacement", "r_A": "r_A  measurement residual"}
 
@@ -75,7 +75,7 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, com
             raise RuntimeError(f"recomputed e={error:.6f} differs from the table ({row['e']:.6f})")
         panels = [
             (x[index, 0], "gray", ""),
-            (y[0, 0], "gray", row["condition"]),
+            (y[0, 0], "gray", pretty_condition(row["condition"])),
             (fy[0, 0], "gray", f"e = {row['e']:.3f} (p{100 * row['e_pct']:.0f})\n"
                                f"g = {row['g']:.4f} (p{100 * row['g_pct']:.0f})"),
             ((fy - x[index:index + 1])[0, 0].abs(), error_cmap, ""),
