@@ -29,17 +29,17 @@
 
 \begin{abstract}
 Idempotent networks are trained so that $f(f(y)) = f(y)$, and recent work reads a small
-idempotence residual as a sign of a reliable prediction. We test this reading on small Fashion-MNIST denoisers under noise, blur and
-masking, against the true per-image error. The residual is zero for any exact projector, whatever
+idempotence residual as a sign of a reliable prediction. We test this reading on small Fashion-MNIST denoisers against the true
+per-image error. The residual is zero for any exact projector, whatever
 the error, and a first-order expansion shows that it probes the Jacobian along the model's own
 displacement. For learned models it ranks errors within a corruption level (Spearman
 $\rho = 0.70$ for a bottleneck autoencoder, 0.86 with skip connections). Yet each architecture has
 an unseen corruption under which its outputs are stable but wrong and the residual misses them:
-pixel masks for the bottleneck model, large box masks for the skip model. Training with an
-idempotence penalty makes the residual a worse signal in both architectures ($\rho$ 0.62 and
-0.63), and without a warm-up it collapses both to constant images. Calibrating the residual per
-level lifts its pooled ranking from 0.55 to 0.89, but predicting each level's mean error already
-reaches 0.77.
+pixel masks for the bottleneck model, large box masks for the skip model. A strong idempotence
+penalty makes the residual a worse signal in both architectures ($\rho$ 0.62 and 0.63), and
+without a warm-up it collapses both to constant images. For the bottleneck model, calibrating the
+residual per level lifts its pooled ranking from 0.55 to 0.89, but predicting each level's mean
+error already reaches 0.77.
 \end{abstract}
 
 \section{Introduction}
@@ -55,18 +55,17 @@ score~\cite{durasov2024zigzag,durasov2025it3,aljaff2025naign}. It is tempting to
 output which is a fixed point is also a correct one. This does not hold in general: an exact
 projector satisfies $P(P(y)) = P(y)$ for every input, including inputs that it maps to a wrong
 image. We ask how the residual behaves for learned models, which are only approximately
-idempotent, and how training for idempotence changes it, in a controlled setting where the true
-error is known offline. We find that (i)~the residual is a useful signal within a corruption
+idempotent, and how training for idempotence changes it, in a controlled setting with known
+errors. We find that (i)~the residual is a useful signal within a corruption
 level, but each of two architectures has a corruption under which it misses the worst errors;
-(ii)~an idempotence penalty makes the residual a worse signal, and without a warm-up it collapses
-the model to a constant image; (iii)~brightness and level baselines and per-level calibration are
+(ii)~a strong idempotence penalty makes the residual a worse signal, and without a warm-up it
+collapses the model to a constant image; (iii)~brightness and level baselines and per-level calibration are
 needed to read such signals correctly.
 
 \paragraph{Related work.}
 Idempotence has been used to train one-step generative
-models~\cite{shocher2024ign,aljaff2025naign} and to distill diffusion
-models~\cite{zaman2025sign}; NAIGN~\cite{aljaff2025naign} reads the drift of a network as a
-distance to the data manifold. In supervised prediction, ZigZag~\cite{durasov2024zigzag} reports
+models~\cite{shocher2024ign,aljaff2025naign,zaman2025sign}, and NAIGN~\cite{aljaff2025naign}
+reads the drift of a network as a distance to the data manifold. In supervised prediction, ZigZag~\cite{durasov2024zigzag} reports
 per-sample correlations above 0.9 between a self-consistency residual and the loss, while the
 $-0.94$ that IT$^3$~\cite{durasov2025it3} reports between idempotence error and accuracy on
 ImageNet-C is computed per inference batch. Closest to our setting, Huang et
@@ -94,7 +93,7 @@ With $|\Omega|$ the number of pixels, we compare
   r_A(y) &= \tfrac{1}{|\Omega|}\norm{A_s f(y) - y}_1, & e(y) &= \tfrac{1}{|\Omega|}\norm{f(y) - x}_1.
 \end{align*}
 The residual $g$ and the displacement $d$ need only $f$ and $y$; the measurement residual $r_A$
-also needs $A_s$ and equals $d$ for denoising. The error $e$ is used only for evaluation. For
+also needs $A_s$ and equals $d$ for denoising. For
 Gaussian noise we also compute Stein's unbiased estimate of the squared error~\cite{stein1981sure},
 $\mathrm{SURE}(y) = \tfrac{1}{|\Omega|}\norm{f(y)-y}_2^2 - \sigma^2
 + \tfrac{2\sigma^2}{|\Omega|}\operatorname{div} f(y)$, with the divergence from four Rademacher
@@ -118,7 +117,7 @@ The \emph{bottleneck} model is a convolutional autoencoder with 602k parameters:
 convolutions (base width 32, SiLU, stride 2 after the first) down to $7\times7$, a 64-dimensional
 bottleneck, a mirrored decoder and a sigmoid output. The \emph{skip} model has the same
 convolutions with skip connections and no bottleneck (230k parameters), so it can copy detail from
-its input. Neither uses normalization layers. We train on 55{,}000 Fashion-MNIST~\cite{xiao2017fashion}
+its input. We train on 55{,}000 Fashion-MNIST~\cite{xiao2017fashion}
 images with $\sigma \sim \mathcal{U}[0.05, 0.25]$, for 15 epochs with Adam (learning rate
 $10^{-3}$, cosine decay, batch 256), and minimize
 \begin{equation}
@@ -148,7 +147,7 @@ half-width of about 0.01.
 \begin{table*}[t]
   \centering
   \small
-  \caption{Error, residual and ranking quality. $e$ and $g$ are means over levels and seeds.
+  \caption{Error, residual and ranking quality. $e$ and $g$ are test-set means over levels and seeds.
     \emph{within} and \emph{noise}: Spearman $\rho$ with $e$, median over the 13 levels or the
     four noise levels for each seed, then mean over three seeds. \emph{partial}: the same, given
     the brightness $b$. \emph{pooled} and \emph{AUROC}: all levels mixed. \emph{flagged}: among the
@@ -160,19 +159,20 @@ half-width of about 0.01.
 \end{table*}
 
 \subsection{Exact projectors}
-For the radial and PCA projectors $g < 2\cdot10^{-15}$ on every image, and the right side of
-Eq.~\eqref{eq:taylor} is at most $10^{-12}$, the finite-difference round-off, while the mean error
+For the radial and PCA projectors $g < 2\cdot10^{-15}$, and where we computed the right side of
+Eq.~\eqref{eq:taylor} (radial and PCA-64 under noise) it is at most $10^{-12}$, the round-off of the
+finite differences, while the mean error
 lies between 0.04 and 0.23. The residual cannot rank these errors at all.
 
 \subsection{Learned models and their blind spots}
 For the bottleneck model, $g$ ranks errors within a level with $\rho = 0.70$
-(Table~\ref{tab:main}), and Eq.~\eqref{eq:taylor} holds in rank (Spearman 0.89 between $g$ and its
-linearization, median over noise levels). Under noise the residual holds up as the noise grows
+(Table~\ref{tab:main}), and Eq.~\eqref{eq:taylor} holds in rank (Spearman 0.81 to 0.97 between
+$g$ and its linearization for $\sigma \le 0.3$). Under noise the residual holds up as the noise grows
 (0.75 at $\sigma = 0.1$, 0.72 at 0.5), while $d$ falls from 0.93 to 0.28 and SURE from 0.91 to 0.40
-(against the squared error it estimates, SURE ranks best for $\sigma \le 0.3$). The
+(against squared error, SURE ranks best for $\sigma \le 0.3$). The
 skip model's residual ranks errors better at 11 of the 13 levels, and its partial $\rho$ is higher
-at the same 11 levels for every seed. Its displacement is worse (0.49), and negative for
-$\sigma \ge 0.2$, consistent with a model that moves least where it leaves noise in place.
+at the same 11 levels for every seed; its median is still lower because of the box masks. Its displacement is worse (0.49), and negative for
+$\sigma \ge 0.2$.
 Brightness alone reaches a median within-level $\rho$ of 0.51 to 0.55, and 0.96 under pixel
 masks, so raw scores under masks and blur overstate the signals.
 
@@ -185,7 +185,8 @@ it turns sparse dots into a dim garment and treats it as a fixed point. Pixel ma
 the worst-quartile errors, and $g$ flags 18\% of them, fewer than a random score. The skip model
 has the opposite blind spot. Under box masks its within-level $\rho$ drops to 0.29 and 0.12
 (bottleneck: 0.83 and 0.71), it flags under 1\% of the worst box-mask errors, and 83--87\% of its
-images with top-10\% error and below-median $g$ are large boxes.
+images with top-10\% error and below-median $g$ are large boxes. It also flags only 14--16\% of
+its worst blur errors, although those outputs are not stable.
 
 \begin{figure}[t]
   \centering
@@ -201,40 +202,40 @@ images with top-10\% error and below-median $g$ are large boxes.
 Without a warm-up, $\lid = 1$ collapses both architectures within one epoch to a constant image.
 The bottleneck model settles on the per-pixel median training image (validation error 0.2106 for
 both, residual $10^{-6}$) and the skip model on a black image (validation error 0.2885, the mean
-pixel value; residual $10^{-10}$). Their losses, 0.21 and 0.29, are far above the value at the
-$\lid = 0$ solution (about 0.06), so these are failures of optimization. The skip model does not
-start constant (output spread $8\cdot10^{-3}$ across inputs, against $5\cdot10^{-6}$), so a
-near-constant start is not required.
+pixel value; residual $10^{-10}$). Their losses, 0.21 and 0.29, are far above the values at the
+$\lid = 0$ solutions (about 0.06 and 0.05), so these are failures of optimization. At
+initialization the bottleneck model's output varies by $5\cdot10^{-6}$ across inputs and the skip
+model's by $8\cdot10^{-3}$ (clean images: 0.27), so a start as constant as the bottleneck's is not
+required.
 
-With the warm-up the models train normally and their mean error changes little (0.092 to 0.095;
-0.086 to 0.084). The residual halves and becomes a worse signal
-in both architectures: within-level $\rho$ falls from 0.70 to 0.62 and from 0.86 to 0.63, with no
-overlap between the three seeds, and so do the noise, partial and pooled scores and the
-pixel-mask flagged share. Only the box-mask flagged share rises. A weight of 0.1 leaves the
-within-level $\rho$ unchanged (0.71) and lowers most other scores slightly. All three gradient
-routings lower the within-level $\rho$ (0.62, 0.61 inner-only, 0.65 outer-only). Outer-only
-training also reproduces the losses in partial $\rho$ (0.54), pooled $\rho$ (0.50) and the
-pixel-mask flagged share (11\%), while inner-only training keeps them (0.61, 0.53, 22\%). These
-losses therefore come through the outer application, which reshapes $f$ around its current
-outputs.
+With the warm-up, mean error changes little (0.092 to 0.095; 0.086 to 0.084). The residual falls by 40\% and 61\% and becomes a
+worse signal in both architectures: within-level $\rho$ falls from 0.70 to 0.62 and from 0.86 to
+0.63, with no overlap between the three seeds, and so do the noise, partial and pooled scores and
+the pixel-mask flagged share. Of $g$'s scores only the box-mask flagged share rises. A weight of
+0.1 leaves the within-level $\rho$ unchanged (0.71 against 0.70) and lowers the others by at most
+0.03. All three gradient routings lower the within-level $\rho$ (0.62, 0.61 inner-only, 0.65
+outer-only). Outer-only training also reproduces the losses in partial $\rho$ (0.54), pooled
+$\rho$ (0.50) and the pixel-mask flagged share (11\%), while inner-only training keeps them
+(0.61, 0.53, 22\%). These three losses appear only when gradients reach the outer application,
+which also shrinks $g$ more (by 27\% against 7\%).
 
 \subsection{Calibration}
-Pooled scores are low because each signal has a different scale in each family. After per-level
+Each signal has a different scale in each family. After per-level
 calibration, pooled $\rho$ is 0.89 for $g$, 0.93 for $d$ and 0.94 for $r_A$ in the bottleneck
 model, and 0.92--0.93 in the skip model. The level-mean predictor already reaches 0.77 and 0.84, so
-the per-image signals add 0.08 to 0.16. When only the family is known, $g$ is the best calibrated
+the per-image signals add 0.08 to 0.17. When only the family is known, $g$ is the best calibrated
 signal in both models (0.84 and 0.79).
 
 \section{Discussion}
 In our setting, a small idempotence residual is weak evidence of a correct restoration. For a
 projector it carries no information. For the two learned models it is a useful signal within a
-level, but each produces stable but wrong outputs under one unseen corruption and the residual
-misses most of them. Which corruption this is depends on the architecture, so a residual
+level, but each produces stable but wrong outputs under at least one unseen corruption, and the
+residual misses most of them. Which corruption this is depends on the architecture, so a residual
 validated on some corruptions need not transfer to others.
 
 With $\lid = 1$, the residual became a worse signal in both architectures while the models still
-restored well. A diagnostic that is also optimized as a loss can lose information, here mostly
-when the loss reshapes the model around its own outputs. Methods that
+restored well. A diagnostic that is also optimized as a loss can lose information; here the losses in
+brightness-controlled and pooled ranking needed gradients through the outer application. Methods that
 minimize the residual at test time~\cite{durasov2025it3} may face the same issue; we did not test
 this. No signal compares corruptions without calibration, and a level-mean predictor already
 reaches most of the calibrated performance.
@@ -243,12 +244,13 @@ reaches most of the calibrated performance.
 We proposed to calibrate the signals; we evaluate the ranking of calibrated values, without a
 coverage guarantee, and report the worst-quartile AUROC pooled only. We added box masks, SURE, the
 baselines, the second architecture and the ablations, and $\lid > 0$ needed a warm-up. The evidence comes from one small dataset, two small models of different size, three seeds
-per setting and one collapse run per architecture. The black background of Fashion-MNIST makes
+per setting and one full collapse run per architecture (two shorter bottleneck runs also
+collapsed). The black background of Fashion-MNIST makes
 brightness a strong baseline.
 
 \footnotesize
 \bibliographystyle{abbrv}  % ignores url/doi fields
-\setlength{\bibsep}{2pt}
+\setlength{\bibsep}{0.5pt}
 \bibliography{references}
 
 \end{document}
