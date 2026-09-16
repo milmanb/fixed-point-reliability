@@ -10,7 +10,7 @@
 \usepackage[hidelinks]{hyperref}
 
 \graphicspath{{../results/}}
-% Tighter space around floats, so three pages hold the figures and the bibliography.
+% Tighter space around floats, so three pages hold the table, the figure and the bibliography.
 \setlength{\textfloatsep}{8pt}
 \setlength{\dblfloatsep}{8pt}
 \setlength{\dbltextfloatsep}{8pt}
@@ -30,15 +30,17 @@
 \begin{abstract}
 A learned restoration model does not signal when its output is wrong. Idempotent networks are
 trained so that $f(f(y)) = f(y)$, and recent work reads a small idempotence residual as a sign of
-a reliable prediction. We test this reading on Fashion-MNIST denoisers under noise, blur and
-masking, against the true per-image error. A first-order expansion shows that the residual probes
-the Jacobian along the model's own displacement, so it is exactly zero for projectors. For
-learned models it ranks errors within a corruption (Spearman $\rho = 0.70$ for a bottleneck
-autoencoder, 0.86 with skip connections), but the bottleneck model misses its largest failures:
-under pixel masks it returns dim, plausible images that are near fixed points. Training for
-idempotence makes the residual a worse signal in both architectures ($\rho$ falls to 0.62 and
-0.63), and without a warm-up it collapses both models to constant images. Per-operator calibration lifts the pooled ranking of the residual from 0.55 to 0.89, but
-a baseline that knows only the corruption level already reaches 0.77.
+a reliable prediction. We test this reading on small Fashion-MNIST denoisers under noise, blur and
+masking, against the true per-image error. The residual is zero for any exact projector, whatever
+the error, and a first-order expansion shows that it probes the Jacobian along the model's own
+displacement. For learned models it ranks errors within a corruption level (Spearman
+$\rho = 0.70$ for a bottleneck autoencoder, 0.86 with skip connections). Yet each architecture has
+an unseen corruption under which its outputs are stable but wrong and the residual misses them:
+pixel masks for the bottleneck model, large box masks for the skip model. Training with an
+idempotence penalty makes the residual a worse signal in both architectures ($\rho$ 0.62 and
+0.63), and without a warm-up it collapses both to constant images. Calibrating the residual per
+level lifts its pooled ranking from 0.55 to 0.89, but predicting each level's mean error already
+reaches 0.77.
 \end{abstract}
 
 \section{Introduction}
@@ -49,46 +51,45 @@ would be useful.
 
 Idempotent Generative Networks (IGN)~\cite{shocher2024ign} train a network $f$ so that real data
 are fixed points, $f(x) = x$, and other inputs land on that set, $f(f(y)) = f(y)$. Related
-methods use the deviation from this property as a confidence score. ZigZag~\cite{durasov2024zigzag}
-and IT$^3$~\cite{durasov2025it3} report that a self-consistency residual tracks prediction
-quality, and NAIGN~\cite{aljaff2025naign} reads the drift of a network as a distance to the data
-manifold. It is tempting to conclude that an output which is a fixed point is also a correct one.
-
-This conclusion does not hold in general. An exact projector satisfies $P(P(y)) = P(y)$ for every
-input, including inputs that it maps to a wrong image. The open questions are how the residual
-behaves for learned models, which are only approximately idempotent, and whether training for
-idempotence changes that. We study them in a small, controlled setting with known corruptions,
-where the true error is available offline. Our contributions are:
-(i)~an evaluation protocol with brightness and severity baselines and a per-operator calibration;
-(ii)~an analysis of the residual as a Jacobian probe, tested on two architectures that differ in
-how close they are to a projector;
-(iii)~an ablation of idempotence training over its weight, gradient routing and architecture.
+methods read the deviation from this property as a confidence
+score~\cite{durasov2024zigzag,durasov2025it3,aljaff2025naign}. It is tempting to conclude that an
+output which is a fixed point is also a correct one. This does not hold in general: an exact
+projector satisfies $P(P(y)) = P(y)$ for every input, including inputs that it maps to a wrong
+image. We ask how the residual behaves for learned models, which are only approximately
+idempotent, and how training for idempotence changes it, in a controlled setting where the true
+error is known offline. We find that (i)~the residual is a useful signal within a corruption
+level, but each of two architectures has a corruption under which it misses the worst errors;
+(ii)~an idempotence penalty makes the residual a worse signal, and without a warm-up it collapses
+the model to a constant image; (iii)~brightness and level baselines and per-level calibration are
+needed to read such signals correctly.
 
 \paragraph{Related work.}
 Idempotence has been used to train one-step generative
 models~\cite{shocher2024ign,aljaff2025naign} and to distill diffusion
-models~\cite{zaman2025sign}. In supervised prediction, self-consistency residuals serve as
-uncertainty estimates. ZigZag~\cite{durasov2024zigzag} reports per-sample correlations with the
-loss above 0.9, while the $-0.94$ that IT$^3$~\cite{durasov2025it3} reports between idempotence
-error and accuracy on ImageNet-C is computed per inference batch. Closest to our setting, Huang et
+models~\cite{zaman2025sign}; NAIGN~\cite{aljaff2025naign} reads the drift of a network as a
+distance to the data manifold. In supervised prediction, ZigZag~\cite{durasov2024zigzag} reports
+per-sample correlations above 0.9 between a self-consistency residual and the loss, while the
+$-0.94$ that IT$^3$~\cite{durasov2025it3} reports between idempotence error and accuracy on
+ImageNet-C is computed per inference batch. Closest to our setting, Huang et
 al.~\cite{huang2023cycle} predict the uncertainty of deblurring and super-resolution networks from
-forward-backward cycles, whose features include $\norm{A_s f(y) - y}$. For denoising, SURE and
-its Monte-Carlo form estimate the error without references~\cite{stein1981sure,ramani2008mcsure},
-and the posterior covariance of a minimum mean squared error denoiser is its Jacobian times the
-noise variance~\cite{manor2024posterior}. Data consistency cannot detect errors in the null space
-of the operator~\cite{bhadra2021hallucinations}, and perfect perceptual quality costs
-distortion~\cite{blau2018perception}.
+forward-backward cycles, whose features include $\norm{A_s f(y) - y}$. Unlike them, we test the
+idempotence residual itself and how idempotence training changes it. For denoising, SURE and its
+Monte-Carlo form estimate the error without references~\cite{stein1981sure,ramani2008mcsure}, and
+data consistency cannot detect errors in the null space of the
+operator~\cite{bhadra2021hallucinations}.
 
 \section{Method}
 
 \paragraph{Setting.}
-Let $x$ be a clean image and $y = A_s x + n$ an observation, with a known linear operator $A_s$
-and Gaussian noise $n$, where $s$ indexes the corruption. A model $f$ returns an estimate $f(y)$,
-and $x$ is not available at test time. We use four corruption families with 13 levels: Gaussian
-noise ($A_s = I$, $\sigma \in \{0.1, 0.2, 0.3, 0.5\}$), Gaussian blur (width 0.5, 1, 1.5 or 2
-pixels), pixel masks (each pixel zeroed with probability 0.25, 0.5 or 0.75) and box masks (one
-random square of side 8 or 14). Blur and masks add weak noise ($\sigma = 0.02$), which the masks
-apply before zeroing.
+Let $x$ be a clean image and $y = A_s x + n$ an observation, with a known linear operator $A_s$ for
+corruption $s$ and Gaussian noise $n$. A model $f$ returns an estimate $f(y)$; $x$ is not available
+at test time. A \emph{level} is one operator at one strength, and a \emph{family} groups the levels
+of one operator. We use 13 levels in four families: Gaussian noise ($A_s = I$,
+$\sigma \in \{0.1, 0.2, 0.3, 0.5\}$), Gaussian blur (width 0.5, 1, 1.5 or 2 pixels), pixel masks
+(each pixel zeroed with probability 0.25, 0.5 or 0.75) and box masks (one random square of side 8
+or 14). Blur and masks add weak noise ($\sigma = 0.02$), which the masks apply before zeroing.
+Models are trained on Gaussian noise with $\sigma \le 0.25$ only, so $\sigma \ge 0.3$, blur and
+masks are unseen.
 
 \paragraph{Signals.}
 With $|\Omega|$ the number of pixels, we compare
@@ -96,10 +97,9 @@ With $|\Omega|$ the number of pixels, we compare
   g(y) &= \tfrac{1}{|\Omega|}\norm{f(f(y)) - f(y)}_1, & d(y) &= \tfrac{1}{|\Omega|}\norm{f(y) - y}_1,\\
   r_A(y) &= \tfrac{1}{|\Omega|}\norm{A_s f(y) - y}_1, & e(y) &= \tfrac{1}{|\Omega|}\norm{f(y) - x}_1.
 \end{align*}
-The idempotence residual $g$ and the displacement $d$ need only $f$ and $y$. The measurement
-residual $r_A$ also needs $A_s$, and equals $d$ for denoising. The error $e$ is used only for
-evaluation. For Gaussian noise we also compute Stein's unbiased estimate of the mean squared
-error~\cite{stein1981sure},
+The residual $g$ and the displacement $d$ need only $f$ and $y$; the measurement residual $r_A$
+also needs $A_s$ and equals $d$ for denoising. The error $e$ is used only for evaluation. For
+Gaussian noise we also compute Stein's unbiased estimate of the squared error~\cite{stein1981sure},
 $\mathrm{SURE}(y) = \tfrac{1}{|\Omega|}\norm{f(y)-y}_2^2 - \sigma^2
 + \tfrac{2\sigma^2}{|\Omega|}\operatorname{div} f(y)$, with the divergence from four Rademacher
 probes and finite differences ($\varepsilon = 10^{-3}$), a variant of~\cite{ramani2008mcsure}.
@@ -114,140 +114,143 @@ application of $f$ gives
 \end{equation}
 so the residual probes the Jacobian along the one direction in which the model has just moved.
 For an exact projector onto a smooth set, $\delta$ is normal to that set while $J_f$ projects onto
-its tangent space, so $J_f\delta = 0$ and the residual vanishes whatever the error. Our projectors
-show exactly this: $g < 2\cdot10^{-15}$ and the right side of Eq.~\eqref{eq:taylor} is $10^{-13}$,
-the size of the finite-difference round-off. For a trained network the two sides agree in rank
-(Spearman 0.89). The expansion predicts that a model further from a projector keeps more of the
-error in $J_f\delta$, so its residual should be more informative.
+its tangent space, so $J_f\delta = 0$ whatever the error. A learned model can only be informative
+where $J_f$ does not cancel its own displacement.
 
 \paragraph{Models.}
 The \emph{bottleneck} model is a convolutional autoencoder with 602k parameters: three
 convolutions (base width 32, SiLU, stride 2 after the first) down to $7\times7$, a 64-dimensional
 bottleneck, a mirrored decoder and a sigmoid output. The \emph{skip} model has the same
-convolutions with skip connections and no bottleneck (230k parameters). It can copy detail from
-its input, so it is further from a projector. Neither uses normalization layers. We train on
-55{,}000 Fashion-MNIST~\cite{xiao2017fashion} images with Gaussian noise,
-$\sigma \sim \mathcal{U}[0.05, 0.25]$, for 15 epochs with Adam (learning rate $10^{-3}$, cosine
-decay, batch 256), and minimize
+convolutions with skip connections and no bottleneck (230k parameters), so it can copy detail from
+its input. Neither uses normalization layers. We train on 55{,}000 Fashion-MNIST~\cite{xiao2017fashion}
+images with $\sigma \sim \mathcal{U}[0.05, 0.25]$, for 15 epochs with Adam (learning rate
+$10^{-3}$, cosine decay, batch 256), and minimize
 \begin{equation}
   \mathcal{L} = \norm{f(y) - x}_1 + \lid\,\norm{f(f(y)) - f(y)}_1,
   \label{eq:loss}
 \end{equation}
-averaged over pixels, with gradients through both applications of $f$. Both models are trained
-with $\lid \in \{0, 1\}$, and the bottleneck model also with $\lid = 0.1$ and with updates to the
-inner application only, as in IGN; three seeds each. For $\lid > 0$ the weight is ramped from 0
-over five epochs; one run per model omits the ramp. As exact references we project onto a sphere
-around the training mean (radial) and onto the top-$k$ principal subspace (PCA-$k$).
+averaged over pixels. Both models are trained with $\lid \in \{0, 1\}$ and the bottleneck model
+also with $\lid = 0.1$; three seeds each. For $\lid > 0$ we ramp $\lid$ linearly from 0 over five
+epochs (a warm-up); one run per model omits it. Gradients normally flow through both applications
+of $f$. \emph{Inner-only} training freezes the weights of the outer $f$ in $f(f(y))$, as in IGN;
+\emph{outer-only} training freezes the inner output. As exact references we project onto a sphere
+around the training mean (radial) and onto the top-$k$ principal subspace (PCA-$k$,
+$k \in \{16, 64, 256\}$).
 
 \paragraph{Evaluation.}
-On the 10{,}000 test images we report Spearman's $\rho$ between a signal and $e$, within each
-corruption level and pooled over all 13 levels, which corresponds to an unknown corruption. We
-call an image \emph{flagged} when its signal is in the top quartile. Under masking the error grows
-with the amount of content in an image, so we add the brightness $b(y) = \operatorname{mean}(y)$ as
-a model-free baseline and report partial correlations given $b$. A severity-only baseline replaces
-a signal by its median over the level. Bootstrap intervals (1000 resamples of test images) have a
-half-width of about 0.01. For calibration we fit isotonic regression of $e$ on a signal, per
-level or per family of levels, on half of the test images and score the other half.
+On 10{,}000 test images we report Spearman's $\rho$ between a signal and $e$ within each level and
+pooled over all levels, which corresponds to an unknown corruption, and the AUROC for detecting
+the worst quartile of $e$. An image is \emph{flagged} when its signal is in the top quartile over
+all levels, so a random score flags 25\% of any subset. Under masking the error grows with the
+content of an image, so we add the brightness $b(y) = \operatorname{mean}(y)$ as a model-free
+baseline and report partial correlations given $b$. For calibration we fit isotonic regression of
+$e$ on a signal, per level or per family, on half the test images, score the other half, and
+compare with a predictor that returns each level's mean error. Bootstrap 95\% intervals (1000
+resamples of test images) have a half-width of about 0.01.
 
 \section{Results}
 
 \begin{table*}[t]
   \centering
   \small
-  \caption{Error, residual and ranking quality for each model. $e$ and $g$ are means over levels
-    and seeds. Correlations are Spearman $\rho$ with $e$: the median over the 13 levels
-    (\emph{within}) or the four noise levels (\emph{noise}) for each seed, then the mean over three
-    seeds. \emph{partial} controls for the brightness $b$. \emph{pooled} mixes all levels, with the
-    severity-only baseline in parentheses. \emph{flagged}: share of the worst-quartile pixel-mask
-    errors whose $g$ is in its top quartile. Runs without a warm-up (one seed) are constant maps,
-    for which the signals carry no meaning.}
+  \caption{Error, residual and ranking quality. $e$ and $g$ are means over levels and seeds.
+    \emph{within} and \emph{noise}: Spearman $\rho$ with $e$, median over the 13 levels or the
+    four noise levels for each seed, then mean over three seeds. \emph{partial}: the same, given
+    the brightness $b$. \emph{pooled} and \emph{AUROC}: all levels mixed. \emph{flagged}: among the
+    worst-quartile errors under pixel or box masks, the share whose $g$ is in its top quartile over
+    all levels (chance: 25\%). Runs without a warm-up (one seed) are constant maps, for which the
+    rankings are trivial.}
   \label{tab:main}
   \input{table_main.tex}
 \end{table*}
 
-\subsection{Exact projectors have zero residual}
-For the radial and PCA projectors $g < 2\cdot10^{-15}$ everywhere, while the mean error lies
-between 0.04 and 0.23, so it cannot rank images. The displacement ranks errors
-well when the fixed-point set is tight (PCA-16, median $\rho = 0.91$) and can reverse when it is
-not (radial at $\sigma = 0.2$, $\rho = -0.46$).
+\subsection{Exact projectors}
+For the radial and PCA projectors $g < 2\cdot10^{-15}$ on every image, and the right side of
+Eq.~\eqref{eq:taylor} is at most $10^{-12}$, the finite-difference round-off, while the mean error
+lies between 0.04 and 0.23. The displacement ranks errors well when the fixed-point set is tight
+(PCA-16, median $\rho = 0.91$) and can reverse when it is not (radial at $\sigma = 0.2$,
+$\rho = -0.46$).
 
-\subsection{The residual depends on the model}
-For the bottleneck model, $g$ ranks errors within a level with $\rho = 0.70$ (Table~\ref{tab:main}).
-Under noise it holds up as the noise grows (0.75 at $\sigma = 0.1$, 0.72 at 0.5), while $d$ falls
-from 0.93 to 0.28 and SURE from 0.91 to 0.40. As Eq.~\eqref{eq:taylor} predicts, the skip model's
-residual ranks errors better (0.86; 0.92 under noise). Its displacement is worse (0.49) and under
-noise even negative ($-0.62$): the model moves least on the images where it leaves noise in place.
-Raw within-level scores overstate every signal: brightness alone reaches a median $\rho$ of 0.51,
-and 0.96 under pixel masks. Controlling for it reverses the order of the architectures (partial
-$\rho$ 0.59 and 0.48).
+\subsection{Learned models and their blind spots}
+For the bottleneck model, $g$ ranks errors within a level with $\rho = 0.70$
+(Table~\ref{tab:main}), and Eq.~\eqref{eq:taylor} holds in rank (Spearman 0.89 between $g$ and its
+linearization, median over noise levels). Under noise the residual holds up as the noise grows
+(0.75 at $\sigma = 0.1$, 0.72 at 0.5), while $d$ falls from 0.93 to 0.28 and SURE from 0.91 to 0.40.
+SURE estimates the squared error, and against that target it ranks best for $\sigma \le 0.3$. The
+skip model's residual ranks errors better at 11 of the 13 levels, and its partial $\rho$ is higher
+at the same 11 levels for every seed. Its displacement is worse (0.49), and negative for
+$\sigma \ge 0.2$, consistent with a model that moves least where it leaves noise in place.
+Brightness alone reaches a median within-level $\rho$ of 0.51 and 0.55 for the two models, and
+0.96 under pixel masks, so raw within-level scores under masks and blur overstate the signals.
 
-Pooled over all levels, $g$ reaches $\rho = 0.55$ for the bottleneck model, against 0.12 for $d$
-and 0.02 for $r_A$, whose scales differ between corruptions. This hides a systematic failure
-(Fig.~\ref{fig:failures}). Under pixel masks with 75\% dropped, the
-bottleneck model's mean error is 0.234, five times that at $\sigma = 0.1$, while its mean residual
-barely moves (0.014 against 0.011): it turns sparse dots into a dim garment and treats it as a
-fixed point. Pixel masks hold 60\% of the worst-quartile errors, and $g$ flags 18\% of them. The
-skip model's residual flags 68\%.
+Pooled over all levels, $g$ reaches $\rho = 0.55$ and an AUROC of 0.69 for the bottleneck model,
+against $\rho$ of 0.12 for $d$ and 0.02 for $r_A$, whose scales differ between families; replacing
+$g$ by its median per level still gives 0.46. The pooled score hides a blind spot
+(Fig.~\ref{fig:failures}). Under pixel masks with 75\% dropped the bottleneck model's mean error is
+0.234, five times that at $\sigma = 0.1$, while its mean residual barely moves (0.014 against 0.011):
+it turns sparse dots into a dim garment and treats it as a fixed point. Pixel masks hold 60\% of
+the worst-quartile errors, and $g$ flags 18\% of them, fewer than a random score. The skip model
+has the opposite blind spot. Under box masks its within-level $\rho$ drops to 0.29 and 0.12
+(bottleneck: 0.83 and 0.71), it flags under 1\% of the worst box-mask errors, and 83--87\% of its
+images with top-10\% error and below-median $g$ are large boxes.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.92\columnwidth]{models/figures/failures_compact_dae_lam0_seed0.png}
+  \includegraphics[width=\columnwidth]{models/figures/failures_compact_dae_lam0_seed0.png}
   \caption{Stable but wrong: random test images with error in the top 10\% and $g$ below its
-    median (bottleneck model, seed 0). Rows: clean image, observation, output; labels give $e$ and
-    $g$ with their percentiles over all levels. 98\% of the images selected this way are pixel
-    masks.}
+    median (bottleneck model, $\lid = 0$, seed 0), with the percentiles of $e$ and $g$ over all
+    levels. 98\% of the images selected this way are pixel masks.}
   \label{fig:failures}
 \end{figure}
 
 \subsection{Training for idempotence}
 \label{sec:idem}
-Without a warm-up, $\lid = 1$ collapses both architectures within one epoch to a constant, exactly
-idempotent image: the per-pixel median training image for the bottleneck model (validation error
-0.21059 for both) and a black image for the skip model (0.287, the mean pixel value). The loss
-there, about 0.21, is far above its value at the $\lid = 0$ solution (about 0.06), so this is a
-failure of optimization. The bottleneck model starts almost constant (output spread
-$5\cdot10^{-6}$ across inputs) and the skip model does not ($8\cdot10^{-3}$), so a near-constant
-start decides where a model collapses, not whether.
+Without a warm-up, $\lid = 1$ collapses both architectures within one epoch to a constant image.
+The bottleneck model settles on the per-pixel median training image (validation error 0.2106 for
+both, residual $10^{-6}$) and the skip model on a black image (validation error 0.2885, the mean
+pixel value; residual $10^{-10}$). Their losses, 0.21 and 0.29, are far above the value at the
+$\lid = 0$ solution (about 0.06), so these are failures of optimization. The bottleneck model
+starts almost constant (output spread $5\cdot10^{-6}$ across inputs) but the skip model does not
+($8\cdot10^{-3}$), so a near-constant start is not required; the saturated sigmoid may keep the
+skip model at black.
 
-With the ramp, training succeeds and restoration barely changes, but the residual shrinks and
-becomes a worse signal in both architectures: within-level $\rho$ falls from 0.70 to 0.62 and
-from 0.86 to 0.63, with no overlap between seeds, and the share of the worst pixel-mask errors
-that $g$ flags from 18\% to 10\% and from 68\% to 31\%. A weight of 0.1 leaves the ranking
-unchanged (0.71). Updating only the inner application, as in IGN, preserves most of the signal
-(partial $\rho$ 0.61; 22\% flagged). Since the full gradient is the sum of the inner and outer
-ones, the damage comes mainly from the outer route, which reshapes $f$ so that its current outputs
-become fixed points.
+With the warm-up the models train normally. Mean error changes little (0.092 to 0.095 and 0.086
+to 0.084), though more on the mildest corruptions. The residual halves and becomes a worse signal
+in both architectures: within-level $\rho$ falls from 0.70 to 0.62 and from 0.86 to 0.63, with no
+overlap between the three seeds, and so do the noise, partial and pooled scores and the
+pixel-mask flagged share. Only the box-mask flagged share rises. A weight of 0.1 leaves the
+within-level $\rho$ unchanged (0.71) and lowers most other scores slightly. Inner-only training
+lowers the within-level and noise $\rho$ (0.61 and 0.68) but keeps the partial $\rho$ (0.61) and
+the flagged shares, and outer-only training \textbf{[outer-only result]}.
 
 \subsection{Calibration}
-Pooled scores are low because each signal has a different scale under each corruption. Calibrated
-per level, pooled $\rho$ rises to 0.89 for $g$, 0.93 for $d$ and 0.94 for $r_A$ (bottleneck model)
-and to 0.92--0.93 for the skip model. A prediction that knows only the level's mean error already
-reaches 0.77 and 0.84, so the per-image signals add 0.08 to 0.17. When only the corruption family
-is known, $g$ is the best calibrated signal for the bottleneck model (0.84, against 0.79 for $d$
-and 0.77 for $r_A$).
+Pooled scores are low because each signal has a different scale in each family. After per-level
+calibration, pooled $\rho$ is 0.89 for $g$, 0.93 for $d$ and 0.94 for $r_A$ in the bottleneck
+model, and 0.92--0.93 in the skip model. The level-mean predictor already reaches 0.77 and 0.84, so
+the per-image signals add 0.08 to 0.16. When only the family is known, $g$ is the best calibrated
+signal in both models (0.84 and 0.79).
 
 \section{Discussion}
-A small idempotence residual is weak evidence of a correct restoration. For a projector it carries
-no information, because the Jacobian removes the displacement it probes. Further from that limit
-the residual helps more: the skip model's residual ranks errors better under noise and sees the
-pixel-mask failures that the bottleneck model misses.
+In our setting, a small idempotence residual is weak evidence of a correct restoration. For a
+projector it carries no information. For the two learned models it is a useful signal within a
+level, but each produces stable but wrong outputs under one unseen corruption and the residual
+misses most of them. Which corruption this is depends on the architecture, so a residual
+validated on some corruptions need not transfer to others.
 
-Training for idempotence makes the residual a worse signal, in both architectures and more with a
-larger weight: a quantity optimized as a loss stops being a reliable diagnostic, most of all when
-the map is reshaped around its own outputs. This is a caution for methods that minimize the
-residual at test time~\cite{durasov2025it3}.
-
-With a known operator the measurement residual is the stronger signal, and every signal needs
-per-operator calibration before it can compare corruptions. Baselines matter as much as signals:
-brightness explains much of the within-level ranking under masks, and a severity-only prediction
-reaches most of the calibrated performance.
+With $\lid = 1$, the residual became a worse signal in both architectures while the models still
+restored well. A diagnostic that is also optimized as a loss can lose information. Methods that
+minimize the residual at test time~\cite{durasov2025it3} may face the same issue; we did not test
+this. The measurement residual ranks errors better than $g$ for the bottleneck model and worse for
+the skip model, and no signal compares corruptions without calibration, where a level-mean
+predictor already reaches most of the calibrated performance.
 
 \paragraph{Limitations and deviations from the proposal.}
-We proposed to calibrate the signals; we calibrate their ranking, not a coverage guarantee. We
-added box masks, SURE, the baselines, the second architecture and the ablations, and $\lid > 0$
-needed a warm-up. We use one small dataset and synthetic corruptions, and train on noise only. The
-architectures also differ in size, Fashion-MNIST's black background makes brightness a strong
-baseline, and the role of the outer route is inferred rather than tested directly.
+We proposed to calibrate the signals; we evaluate the ranking of calibrated values, without a
+coverage guarantee, and report the worst-quartile AUROC pooled only. We added box masks, SURE, the
+baselines, the second architecture and the weight and routing ablations, and $\lid > 0$ needed a
+warm-up. The evidence comes from one small dataset, two small models of different size, three seeds
+per setting and one collapse run per architecture. The black background of Fashion-MNIST makes
+brightness a strong baseline.
 
 \footnotesize
 \bibliographystyle{abbrv}  % ignores url/doi fields

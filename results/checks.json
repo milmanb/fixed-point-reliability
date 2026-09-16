@@ -28,5 +28,15 @@
         "max_relative_error": 0.005411417347652743
       }
     }
+  },
+  "initialization": {
+    "bottleneck": {
+      "output_spread_over_inputs": 4.958094455119009e-06,
+      "idempotence_residual": 4.713423978482334e-06
+    },
+    "skip": {
+      "output_spread_over_inputs": 0.007592625954490651,
+      "idempotence_residual": 0.006702519839695553
+    }
   }
 }

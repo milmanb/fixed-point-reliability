@@ -58,9 +58,14 @@ def select_failures(frame, count, seed):
 def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, compact=False):
     conditions = {c.label: c for c in CONDITIONS}
     error_cmap = LinearSegmentedColormap.from_list("error", SEQUENTIAL)
-    row_names = ["clean x", "observed y", "output f(y)", "|f(y) - x|"][:3 if compact else 4]
-    fig, axes = plt.subplots(len(row_names), len(rows),
-                             figsize=(1.75 * len(rows), 1.35 + 1.5 * len(row_names)), squeeze=False)
+    if compact:
+        # Drawn at the printed size of one report column, so 6-7 pt labels stay readable.
+        row_names = ["clean", "input", "output"]
+        figsize, caption_size, label_size = (3.4, 2.55), 5.5, 6.5
+    else:
+        row_names = ["clean x", "observed y", "output f(y)", "|f(y) - x|"]
+        figsize, caption_size, label_size = (1.75 * len(rows), 7.35), 6.5, 8
+    fig, axes = plt.subplots(len(row_names), len(rows), figsize=figsize, squeeze=False)
     observed = {}
     for j, (_, row) in enumerate(rows.iterrows()):
         index = int(row["image"])
@@ -73,11 +78,13 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, com
         error = (fy - x[index:index + 1]).abs().mean().item()
         if not np.isclose(error, row["e"], rtol=1e-3):
             raise RuntimeError(f"recomputed e={error:.6f} differs from the table ({row['e']:.6f})")
+        levels = (f"e p{100 * row['e_pct']:.0f}\ng p{100 * row['g_pct']:.0f}" if compact else
+                  f"e = {row['e']:.3f} (p{100 * row['e_pct']:.0f})\n"
+                  f"g = {row['g']:.4f} (p{100 * row['g_pct']:.0f})")
         panels = [
             (x[index, 0], "gray", ""),
-            (y[0, 0], "gray", pretty_condition(row["condition"])),
-            (fy[0, 0], "gray", f"e = {row['e']:.3f} (p{100 * row['e_pct']:.0f})\n"
-                               f"g = {row['g']:.4f} (p{100 * row['g_pct']:.0f})"),
+            (y[0, 0], "gray", "" if compact else pretty_condition(row["condition"])),
+            (fy[0, 0], "gray", levels),
             ((fy - x[index:index + 1])[0, 0].abs(), error_cmap, ""),
         ][:len(row_names)]
         for i, (image, cmap, caption) in enumerate(panels):
@@ -87,14 +94,14 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, com
             ax.set_yticks([])
             for spine in ax.spines.values():
                 spine.set_visible(False)
-            ax.set_xlabel(caption, fontsize=6.5, color=INK_SECONDARY, labelpad=2)
+            ax.set_xlabel(caption, fontsize=caption_size, color=INK_SECONDARY, labelpad=1.5)
             if j == 0:
-                ax.set_ylabel(row_names[i], fontsize=8, color=INK)
+                ax.set_ylabel(row_names[i], fontsize=label_size, color=INK)
     shares = candidates["condition"].value_counts(normalize=True).head(3)
     composition = ", ".join(f"{share:.0%} {condition}" for condition, share in shares.items())
     if compact:
         # The caption of the figure carries the selection rule in the report.
-        fig.tight_layout()
+        fig.tight_layout(pad=0.2, h_pad=0.3, w_pad=0.2)
     else:
         fig.suptitle(f"{model}: stable but wrong\n"
                      f"Random picks among the {len(candidates):,} of {n_total:,} images with error in the "
