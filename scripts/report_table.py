@@ -117,7 +117,10 @@ def latex_rows(table):
         return "--" if pd.isna(value) else f"{value:.{digits}f}".replace("-", "$-$")
 
     def percent(value):
-        return "--" if pd.isna(value) else f"{100 * value:.0f}\\%"
+        if pd.isna(value):
+            return "--"
+        # A share that rounds to 0% but is not zero, as the text says "under 1%".
+        return "$<$1\\%" if 0 < value < 0.005 else f"{100 * value:.0f}\\%"
 
     lines = [
         r"\begin{tabular}{@{}lccccccccccc@{}}",
