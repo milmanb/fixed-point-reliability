@@ -221,20 +221,26 @@ src/fpr/
   data.py          Fashion-MNIST loading
   degradations.py  operators A_s: noise, blur, pixel mask, box mask
   projectors.py    exact projectors: identity, radial, PCA, nearest neighbour
-  models.py        convolutional denoising autoencoder and checkpoint loading
-  losses.py        reconstruction and idempotence losses
+  models.py        bottleneck and skip-connection autoencoders, checkpoint loading
+  losses.py        reconstruction loss; idempotence loss with inner/outer/both routing
   signals.py       g, d, r_A, the offline error e, and first-order signals (div, g_lin)
   metrics.py       Spearman / AUROC / partial Spearman with clustered bootstrap CIs
   evaluation.py    shared corruption grid, per-image signals, scoring
   plotting.py      shared figure style
 scripts/
-  smoke_projectors.py
-  train_dae.py
-  evaluate_models.py
-  plot_models.py
-  explore_sure.py  SURE vs. displacement on exact projectors (exploration)
-tests/             unit tests (pytest)
-results/           small result tables and figures (per-image dumps are git-ignored)
+  smoke_projectors.py  exact-projector experiment
+  train_dae.py         training (architecture, lambda_id, warm-up, routing)
+  evaluate_models.py   per-image signals and scores (--jobs, --append)
+  compare_models.py    tables and figures comparing model groups
+  plot_models.py       per-model figures, including the stable-but-wrong examples
+  calibrate.py         isotonic calibration per level or per family
+  checks.py            collapse, finite-difference accuracy, initialization
+  report_table.py      Table 1 of the report (results/report_table.csv, report/table_main.tex)
+  explore_sure.py      SURE vs. displacement on exact projectors (exploration)
+checkpoints/           trained models
+report/                LaTeX source and bibliography of the report
+tests/                 unit tests (pytest)
+results/               result tables and figures (per-image dumps are git-ignored)
 ```
 
 ## Status
@@ -243,8 +249,13 @@ results/           small result tables and figures (per-image dumps are git-igno
 - [x] Training and evaluation pipeline for the autoencoders, first-order signals
 - [x] Autoencoders for $\lambda_{id} \in \{0, 1\}$, three seeds each, plus the collapsed run
 - [x] Evaluation on held-out noise levels, blur and masks, with brightness and severity baselines
-- [x] Report draft (LaTeX, three pages including references)
-- [ ] Optional ablations: IGN-style stop-gradient routing, $\lambda_{id} = 0.1$
+- [x] Ablations, three seeds each: IGN-style inner-only routing, outer-only routing,
+      $\lambda_{id} = 0.1$
+- [x] Skip-connection architecture control: $\lambda_{id} \in \{0, 1\}$, three seeds each, plus
+      a collapse run
+- [x] Per-level and per-family calibration of the signals
+- [x] Checks: collapse to the median image, finite-difference accuracy, initialization
+- [x] Report (LaTeX, three pages including references)
 
 ## References
 
