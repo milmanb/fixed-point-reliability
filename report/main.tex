@@ -210,14 +210,15 @@ required.
 
 With the warm-up, mean error changes little (0.092 to 0.095; 0.086 to 0.084). The residual falls by 40\% and 61\% and becomes a
 worse signal in both architectures: within-level $\rho$ falls from 0.70 to 0.62 and from 0.86 to
-0.63, with no overlap between the three seeds, and so do the noise, partial and pooled scores and
-the pixel-mask flagged share. Of $g$'s scores only the box-mask flagged share rises. A weight of
-0.1 leaves the within-level $\rho$ unchanged (0.71 against 0.70) and lowers the others by at most
-0.03. All three gradient routings lower the within-level $\rho$ (0.62, 0.61 inner-only, 0.65
+0.63, with no overlap between seeds, and so do the noise, partial and pooled scores and
+the pixel-mask flagged share. Only its box-mask flagged share rises. A weight of
+0.1 leaves the within-level $\rho$ unchanged (0.71 against 0.70) and changes the other
+Table~\ref{tab:main} scores by at most 0.03, except the pixel-mask flagged share (18\% to 13\%). All
+three routings lower the within-level $\rho$ (0.62, 0.61 inner-only, 0.65
 outer-only). Outer-only training also reproduces the losses in partial $\rho$ (0.54), pooled
 $\rho$ (0.50) and the pixel-mask flagged share (11\%), while inner-only training keeps them
 (0.61, 0.53, 22\%). These three losses appear only when gradients reach the outer application,
-which also shrinks $g$ more (by 27\% against 7\%).
+which shrinks $g$ more (by 26\% against 6\%).
 
 \subsection{Calibration}
 Each signal has a different scale in each family. After per-level
