@@ -259,7 +259,7 @@ results/               result tables and figures (per-image dumps are git-ignore
 - [x] Per-level and per-family calibration of the signals
 - [x] Checks: collapse to the median image, finite-difference accuracy, initialization
 - [x] Report (LaTeX, three pages including references), after three independent audit rounds
-- [ ] Make the repository public before submission
+- [x] Repository made public
 
 ## References
 
