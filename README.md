@@ -214,9 +214,6 @@ residual is in its top quartile over all levels (a random score gives 25%).
 cd report && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex
 ```
 
-`latexmk` needs Perl, which is not installed on the machine used here, so the four steps
-are run directly.
-
 ## Repository layout
 
 ```
@@ -258,8 +255,7 @@ results/               result tables and figures (per-image dumps are git-ignore
       a collapse run
 - [x] Per-level and per-family calibration of the signals
 - [x] Checks: collapse to the median image, finite-difference accuracy, initialization
-- [x] Report (LaTeX, three pages including references), after three independent audit rounds
-- [x] Repository made public
+- [x] Report (LaTeX, three pages including references)
 
 ## References
 
