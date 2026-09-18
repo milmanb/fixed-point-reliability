@@ -263,3 +263,7 @@ results/               result tables and figures (per-image dumps are git-ignore
 2. M. Al-Jaff et al., "A Non-Adversarial Approach to Idempotent Generative Modelling," ECAI 2025.
 3. S. Zaman et al., "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
 4. N. Durasov et al., "IT³: Idempotent Test-Time Training," ICML 2025.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
