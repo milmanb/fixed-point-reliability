@@ -1,0 +1,17 @@
+{
+  "groups": [
+    "dae_lam0",
+    "dae_lam1w5",
+    "unet_lam0",
+    "unet_lam1w5"
+  ],
+  "signals": [
+    "g",
+    "d",
+    "r_A",
+    "dis",
+    "g2",
+    "q",
+    "b"
+  ]
+}

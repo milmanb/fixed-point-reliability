@@ -24,6 +24,14 @@ First-order signals (`jacobian_signals`), from Jacobian-vector products:
 
 For Gaussian noise with known sigma, Stein's unbiased estimate of the per-pixel MSE is
     sure = d_mse - sigma^2 + 2 sigma^2 div.
+
+Multi-step residuals (`iterate_signals`):
+
+    g_k  = (1/|Omega|) |f^{k+1}(y) - f^k(y)|_1   for k = 1, 2, 3
+    q    = g_2 / g_1                               contraction ratio (NaN when g_1 = 0)
+
+g_1 coincides with g. Deeper steps probe |J_f^k delta|; if the Jacobian cancels the
+displacement, more iterations cannot recover the information.
 """
 
 import numpy as np
@@ -45,12 +53,19 @@ def _mean_sq(z):
 
 
 @torch.no_grad()
-def compute_signals(f, x, y, A, batch_size=2048):
-    """Return a dict of per-image numpy arrays; A acts on the full batch, f in chunks."""
+def compute_signals(f, x, y, A, batch_size=2048, iterate_steps=1):
+    """Return a dict of per-image numpy arrays; A acts on the full batch, f in chunks.
+
+    iterate_steps >= 1: also compute g2, g3, ... and the contraction ratio q = g2/g1 when
+    iterate_steps >= 2. g1 is always present as `g`.
+    """
     fy = _batched(f, y, batch_size)
-    ffy = _batched(f, fy, batch_size)
-    return {
-        "g": _mean_abs(ffy - fy),
+    iterates = [fy]
+    for _ in range(iterate_steps):
+        iterates.append(_batched(f, iterates[-1], batch_size))
+    g1 = _mean_abs(iterates[1] - iterates[0])
+    out = {
+        "g": g1,
         "d": _mean_abs(fy - y),
         "r_A": _mean_abs(A(fy) - y),
         "e": _mean_abs(fy - x),
@@ -59,6 +74,32 @@ def compute_signals(f, x, y, A, batch_size=2048):
         "d_mse": _mean_sq(fy - y),
         "e_mse": _mean_sq(fy - x),
     }
+    if iterate_steps >= 2:
+        g2 = _mean_abs(iterates[2] - iterates[1])
+        out["g2"] = g2
+        with np.errstate(invalid="ignore", divide="ignore"):
+            out["q"] = np.where(g1 > 1e-12, g2 / g1, np.nan)
+    if iterate_steps >= 3:
+        out["g3"] = _mean_abs(iterates[3] - iterates[2])
+    return out
+
+
+@torch.no_grad()
+def iterate_signals(f, y, steps=3, batch_size=2048):
+    """Multi-step residuals g_k and contraction ratio q = g2/g1 (see module docstring)."""
+    if steps < 1:
+        raise ValueError(f"steps must be >= 1, got {steps}")
+    current = y
+    residuals = {}
+    for k in range(1, steps + 1):
+        nxt = _batched(f, current, batch_size)
+        residuals[f"g{k}" if k > 1 else "g"] = _mean_abs(nxt - current)
+        current = nxt
+    g1 = residuals["g"]
+    if steps >= 2:
+        with np.errstate(invalid="ignore", divide="ignore"):
+            residuals["q"] = np.where(g1 > 1e-12, residuals["g2"] / g1, np.nan)
+    return residuals
 
 
 def jacobian_signals(f, y, probes=8, batch_size=1024, seed=0, method="fd", eps=1e-3):
