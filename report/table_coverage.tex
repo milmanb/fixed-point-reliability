@@ -1,0 +1,13 @@
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}lccccccc@{}}
+\toprule
+& \multicolumn{2}{c}{width} & \multicolumn{3}{c}{coverage, $g$} & \multicolumn{2}{c}{nAURC} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-6} \cmidrule(l){7-8}
+model & $g$ & level & pixel & box & shift & $g$ & $\mathrm{dis}$ \\
+\midrule
+bottleneck, $\lid{=}0$ & 0.174 & 0.137 & 0.61 & 0.96 & 0.47 & 0.41 & 0.48 \\
+bottleneck, $\lid{=}1$ & 0.175 & 0.142 & 0.60 & 0.97 & 0.55 & 0.50 & 0.53 \\
+skip, $\lid{=}0$ & 0.174 & 0.129 & 0.74 & 0.76 & 0.16 & 0.51 & 0.53 \\
+skip, $\lid{=}1$ & 0.182 & 0.127 & 0.67 & 0.85 & 0.31 & 0.65 & 0.57 \\
+\bottomrule
+\end{tabular}

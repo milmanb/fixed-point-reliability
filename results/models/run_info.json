@@ -4,22 +4,25 @@
     "pattern": [
       "dae_*.pt"
     ],
-    "projectors": [
-      "radial",
-      "pca64"
-    ],
+    "projectors": [],
     "n_eval": 10000,
     "n_boot": 1000,
     "probes": 4,
     "jacobian_families": [
       "noise"
     ],
+    "iterate_steps": 3,
+    "ensemble": true,
     "device": "cpu",
     "jobs": 4,
     "threads": 2,
     "seed": 0,
     "out": "results/models",
-    "no_per_image": false
+    "no_per_image": false,
+    "no_metrics": true,
+    "signals": null,
+    "append": false,
+    "from_per_image": false
   },
   "conditions": [
     "noise(sigma=0.1)",
@@ -37,10 +40,9 @@
     "box_mask(size=14)"
   ],
   "models": [
-    "radial",
-    "pca64",
     "dae_lam0.1w5_seed0",
     "dae_lam0.1w5_seed1",
+    "dae_lam0.1w5_seed2",
     "dae_lam0_seed0",
     "dae_lam0_seed1",
     "dae_lam0_seed2",
@@ -48,13 +50,12 @@
     "dae_lam1w5_inner_seed0",
     "dae_lam1w5_inner_seed1",
     "dae_lam1w5_inner_seed2",
-    "dae_lam1w5_seed0",
-    "dae_lam1w5_seed1",
-    "dae_lam1w5_seed2",
-    "dae_lam0.1w5_seed2",
     "dae_lam1w5_outer_seed0",
     "dae_lam1w5_outer_seed1",
-    "dae_lam1w5_outer_seed2"
+    "dae_lam1w5_outer_seed2",
+    "dae_lam1w5_seed0",
+    "dae_lam1w5_seed1",
+    "dae_lam1w5_seed2"
   ],
   "train_args": {
     "dae_lam0.1w5_seed0": {
@@ -90,6 +91,25 @@
       "val_size": 5000,
       "device": "cpu",
       "threads": 3,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam0.1w5_seed2": {
+      "lambda_id": 0.1,
+      "lambda_warmup": 5.0,
+      "routing": "both",
+      "seed": 2,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "architecture": "bottleneck",
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 6,
       "checkpoints": "checkpoints",
       "logs": "results/train"
     },
@@ -209,76 +229,6 @@
       "checkpoints": "checkpoints",
       "logs": "results/train"
     },
-    "dae_lam1w5_seed0": {
-      "lambda_id": 1.0,
-      "lambda_warmup": 5.0,
-      "seed": 0,
-      "epochs": 15,
-      "batch_size": 256,
-      "lr": 0.001,
-      "sigma_min": 0.05,
-      "sigma_max": 0.25,
-      "width": 32,
-      "latent": 64,
-      "val_size": 5000,
-      "device": "cpu",
-      "threads": 2,
-      "checkpoints": "checkpoints",
-      "logs": "results/train"
-    },
-    "dae_lam1w5_seed1": {
-      "lambda_id": 1.0,
-      "lambda_warmup": 5.0,
-      "seed": 1,
-      "epochs": 15,
-      "batch_size": 256,
-      "lr": 0.001,
-      "sigma_min": 0.05,
-      "sigma_max": 0.25,
-      "width": 32,
-      "latent": 64,
-      "val_size": 5000,
-      "device": "cpu",
-      "threads": 2,
-      "checkpoints": "checkpoints",
-      "logs": "results/train"
-    },
-    "dae_lam1w5_seed2": {
-      "lambda_id": 1.0,
-      "lambda_warmup": 5.0,
-      "seed": 2,
-      "epochs": 15,
-      "batch_size": 256,
-      "lr": 0.001,
-      "sigma_min": 0.05,
-      "sigma_max": 0.25,
-      "width": 32,
-      "latent": 64,
-      "val_size": 5000,
-      "device": "cpu",
-      "threads": 2,
-      "checkpoints": "checkpoints",
-      "logs": "results/train"
-    },
-    "dae_lam0.1w5_seed2": {
-      "lambda_id": 0.1,
-      "lambda_warmup": 5.0,
-      "routing": "both",
-      "seed": 2,
-      "epochs": 15,
-      "batch_size": 256,
-      "lr": 0.001,
-      "sigma_min": 0.05,
-      "sigma_max": 0.25,
-      "architecture": "bottleneck",
-      "width": 32,
-      "latent": 64,
-      "val_size": 5000,
-      "device": "cpu",
-      "threads": 6,
-      "checkpoints": "checkpoints",
-      "logs": "results/train"
-    },
     "dae_lam1w5_outer_seed0": {
       "lambda_id": 1.0,
       "lambda_warmup": 5.0,
@@ -335,81 +285,127 @@
       "threads": 3,
       "checkpoints": "checkpoints",
       "logs": "results/train"
+    },
+    "dae_lam1w5_seed0": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "seed": 0,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 2,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam1w5_seed1": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "seed": 1,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 2,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
+    },
+    "dae_lam1w5_seed2": {
+      "lambda_id": 1.0,
+      "lambda_warmup": 5.0,
+      "seed": 2,
+      "epochs": 15,
+      "batch_size": 256,
+      "lr": 0.001,
+      "sigma_min": 0.05,
+      "sigma_max": 0.25,
+      "width": 32,
+      "latent": 64,
+      "val_size": 5000,
+      "device": "cpu",
+      "threads": 2,
+      "checkpoints": "checkpoints",
+      "logs": "results/train"
     }
   },
   "seconds": {
-    "signals": 2036.2,
-    "metrics": 3745.0,
-    "total": 5901.4
+    "signals": 6271.3,
+    "metrics": 0.0,
+    "total": 6271.9
   },
   "versions": {
-    "python": "3.13.14",
-    "torch": "2.12.0+cu130",
-    "numpy": "2.4.4",
-    "pandas": "3.0.5"
+    "python": "3.12.10",
+    "torch": "2.3.1+cpu",
+    "numpy": "1.26.4",
+    "pandas": "2.3.3"
   },
   "appended_runs": [
     {
       "models": [
-        "dae_lam0.1w5_seed2"
+        "dae_lam0_seed0",
+        "dae_lam0_seed1",
+        "dae_lam0_seed2",
+        "dae_lam1w5_seed0",
+        "dae_lam1w5_seed1",
+        "dae_lam1w5_seed2"
       ],
       "seconds": {
-        "signals": 145.7,
-        "metrics": 197.3,
-        "total": 343.1
+        "signals": 4.4,
+        "metrics": 1110.5,
+        "total": 1115.2
       },
       "args": {
         "checkpoints": "checkpoints",
         "pattern": [
-          "dae_lam0.1w5_seed2.pt"
+          "dae_*.pt"
         ],
-        "projectors": [],
+        "projectors": [
+          "radial",
+          "pca64"
+        ],
         "n_eval": 10000,
         "n_boot": 1000,
         "probes": 4,
         "jacobian_families": [
           "noise"
         ],
+        "iterate_steps": 3,
+        "ensemble": false,
         "device": "cpu",
-        "jobs": 2,
-        "threads": 3,
+        "jobs": 6,
+        "threads": null,
         "seed": 0,
         "out": "results/models",
         "no_per_image": false,
-        "append": true
-      }
-    },
-    {
-      "models": [
-        "dae_lam1w5_outer_seed0",
-        "dae_lam1w5_outer_seed1",
-        "dae_lam1w5_outer_seed2"
-      ],
-      "seconds": {
-        "signals": 377.9,
-        "metrics": 412.4,
-        "total": 790.4
+        "no_metrics": false,
+        "signals": [
+          "dis",
+          "g2",
+          "g3",
+          "q"
+        ],
+        "append": true,
+        "from_per_image": true,
+        "models": [
+          "dae_lam0_seed0",
+          "dae_lam0_seed1",
+          "dae_lam0_seed2",
+          "dae_lam1w5_seed0",
+          "dae_lam1w5_seed1",
+          "dae_lam1w5_seed2"
+        ]
       },
-      "args": {
-        "checkpoints": "checkpoints",
-        "pattern": [
-          "dae_lam1w5_outer_*.pt"
-        ],
-        "projectors": [],
-        "n_eval": 10000,
-        "n_boot": 1000,
-        "probes": 4,
-        "jacobian_families": [
-          "noise"
-        ],
-        "device": "cpu",
-        "jobs": 3,
-        "threads": 2,
-        "seed": 0,
-        "out": "results/models",
-        "no_per_image": false,
-        "append": true
-      }
+      "mode": "from_per_image"
     }
   ]
 }

@@ -18,12 +18,16 @@ All signals are per-image mean absolute values over pixels.
 | Signal | Definition | Needs |
 |---|---|---|
 | idempotence residual | $g(y) = \lvert f(f(y)) - f(y) \rvert$ | $f, y$ |
+| deeper iterates | $g_k(y) = \lvert f^{k+1}(y) - f^k(y) \rvert$, $q = g_2/g_1$ | $f, y$ |
 | displacement | $d(y) = \lvert f(y) - y \rvert$ | $f, y$ |
 | measurement residual | $r_A(y) = \lvert A_s f(y) - y \rvert$ | $f, y, A_s$ |
+| ensemble disagreement | $\mathrm{dis}(y) = \frac{1}{M}\sum_i \lvert f_i(y) - \bar f(y) \rvert$ | $f_1..f_M, y$ |
 | true error (offline only) | $e(y) = \lvert f(y) - x \rvert$ | clean $x$ |
 
 A signal is scored by Spearman's $\rho$ with $e$ and by AUROC for detecting the
-worst-error quartile, with image-level bootstrap 95% CIs.
+worst-error quartile, with image-level bootstrap 95% CIs. It is also turned into a split
+conformal upper bound on $e$ (coverage and width, marginally and per corruption family) and
+into a risk-coverage curve. See [IMPROVEMENTS.md](IMPROVEMENTS.md) for what those added.
 
 ## Setup
 
@@ -155,9 +159,15 @@ python scripts/train_dae.py --architecture skip --lambda-id 0 --seed 0     # ski
 python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --routing inner --seed 0
 python scripts/evaluate_models.py --pattern "unet_*.pt" --projectors --device cpu --out results/models_skip
 python scripts/calibrate.py                                                # isotonic calibration
+python scripts/conformal.py                                                # conformal coverage and width
+python scripts/selective.py                                                # risk-coverage curves
 python scripts/checks.py                                                   # collapse, FD accuracy, init
-python scripts/report_table.py                                             # Table 1 of the report
+python scripts/report_table.py                                             # Tables 1 and 2 of the report
 ```
+
+`--ensemble` adds the cross-seed disagreement signal, `--no-metrics` writes the per-image dump
+without the bootstrap scoring, and `--from-per-image --signals ...` re-scores selected signals
+from an existing dump instead of recomputing everything.
 
 `--append` adds models to an earlier evaluation instead of re-running all of them.
 
@@ -223,19 +233,24 @@ src/fpr/
   projectors.py    exact projectors: identity, radial, PCA, nearest neighbour
   models.py        bottleneck and skip-connection autoencoders, checkpoint loading
   losses.py        reconstruction loss; idempotence loss with inner/outer/both routing
-  signals.py       g, d, r_A, the offline error e, and first-order signals (div, g_lin)
+  signals.py       g, g_k, q, d, r_A, the offline error e, first-order signals (div, g_lin)
+  ensemble.py      cross-seed disagreement dis
+  conformal.py     split conformal bounds, the shift test, SURE self-calibration
+  selective.py     risk-coverage curves, AURC, selective risk
   metrics.py       Spearman / AUROC / partial Spearman with clustered bootstrap CIs
   evaluation.py    shared corruption grid, per-image signals, scoring
   plotting.py      shared figure style
 scripts/
   smoke_projectors.py  exact-projector experiment
   train_dae.py         training (architecture, lambda_id, warm-up, routing)
-  evaluate_models.py   per-image signals and scores (--jobs, --append)
+  evaluate_models.py   per-image signals and scores (--jobs, --append, --ensemble)
   compare_models.py    tables and figures comparing model groups
   plot_models.py       per-model figures, including the stable-but-wrong examples
   calibrate.py         isotonic calibration per level or per family
+  conformal.py         coverage and width of conformal error bars
+  selective.py         risk-coverage curves and selective risk
   checks.py            collapse, finite-difference accuracy, initialization
-  report_table.py      Table 1 of the report (results/report_table.csv, report/table_main.tex)
+  report_table.py      Tables 1 and 2 (results/report_table.csv, report/table_*.tex)
   explore_sure.py      SURE vs. displacement on exact projectors (exploration)
 checkpoints/           trained models
 report/                LaTeX source and bibliography of the report
@@ -254,8 +269,12 @@ results/               result tables and figures (per-image dumps are git-ignore
 - [x] Skip-connection architecture control: $\lambda_{id} \in \{0, 1\}$, three seeds each, plus
       a collapse run
 - [x] Per-level and per-family calibration of the signals
+- [x] Split conformal error bars: coverage per family, the calibrate-on-noise shift test, and a
+      SURE-self-calibrated variant that needs no clean images
+- [x] Risk-coverage curves and selective risk, against an oracle and a random baseline
+- [x] Deeper iterates $g_2$, $g_3$, the contraction ratio, and cross-seed ensemble disagreement
 - [x] Checks: collapse to the median image, finite-difference accuracy, initialization
-- [x] Report (LaTeX, three pages including references)
+- [x] Report (LaTeX, three pages including references) and [IMPROVEMENTS.md](IMPROVEMENTS.md)
 
 ## References
 
@@ -263,6 +282,11 @@ results/               result tables and figures (per-image dumps are git-ignore
 2. M. Al-Jaff et al., "A Non-Adversarial Approach to Idempotent Generative Modelling," ECAI 2025.
 3. S. Zaman et al., "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
 4. N. Durasov et al., "IT³: Idempotent Test-Time Training," ICML 2025.
+5. A. Angelopoulos and S. Bates, "A Gentle Introduction to Conformal Prediction," arXiv:2107.07511, 2021.
+6. J. Teneggi et al., "How to Trust Your Diffusion Model" (K-RCPS), arXiv:2302.03791, 2023.
+7. "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," arXiv:2502.05127, 2025.
+8. "Selective Conformal Risk Control," arXiv:2512.12844, 2025.
+9. "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
 
 ## License
 
