@@ -1,4 +1,5 @@
 {
+  "alpha": 0.1,
   "models": [
     "dae_lam0.1w5_seed0",
     "dae_lam0.1w5_seed1",
@@ -15,12 +16,26 @@
     "dae_lam1w5_outer_seed2",
     "dae_lam1w5_seed0",
     "dae_lam1w5_seed1",
-    "dae_lam1w5_seed2"
+    "dae_lam1w5_seed2",
+    "unet_lam0_seed0",
+    "unet_lam0_seed1",
+    "unet_lam0_seed2",
+    "unet_lam1_seed0",
+    "unet_lam1w5_seed0",
+    "unet_lam1w5_seed1",
+    "unet_lam1w5_seed2"
+  ],
+  "signals": [
+    "g",
+    "d",
+    "r_A",
+    "dis",
+    "g2",
+    "q"
   ],
   "settings": [
-    "raw",
-    "per level",
-    "per family",
-    "severity only"
+    "normalized",
+    "marginal",
+    "severity"
   ]
 }

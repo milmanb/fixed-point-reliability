@@ -11,13 +11,18 @@
     "jacobian_families": [
       "noise"
     ],
+    "iterate_steps": 3,
+    "ensemble": true,
     "device": "cpu",
     "jobs": 4,
     "threads": 2,
     "seed": 0,
     "out": "results/models_skip",
     "no_per_image": false,
-    "append": false
+    "no_metrics": true,
+    "signals": null,
+    "append": false,
+    "from_per_image": false
   },
   "conditions": [
     "noise(sigma=0.1)",
@@ -179,14 +184,73 @@
     }
   },
   "seconds": {
-    "signals": 1949.6,
-    "metrics": 981.3,
-    "total": 2931.1
+    "signals": 3452.0,
+    "metrics": 0.0,
+    "total": 3452.3
   },
   "versions": {
-    "python": "3.13.14",
-    "torch": "2.12.0+cu130",
-    "numpy": "2.4.4",
-    "pandas": "3.0.5"
-  }
+    "python": "3.12.10",
+    "torch": "2.3.1+cpu",
+    "numpy": "1.26.4",
+    "pandas": "2.3.3"
+  },
+  "appended_runs": [
+    {
+      "models": [
+        "unet_lam0_seed0",
+        "unet_lam0_seed1",
+        "unet_lam0_seed2",
+        "unet_lam1w5_seed0",
+        "unet_lam1w5_seed1",
+        "unet_lam1w5_seed2"
+      ],
+      "seconds": {
+        "signals": 1.9,
+        "metrics": 1088.1,
+        "total": 1090.2
+      },
+      "args": {
+        "checkpoints": "checkpoints",
+        "pattern": [
+          "dae_*.pt"
+        ],
+        "projectors": [
+          "radial",
+          "pca64"
+        ],
+        "n_eval": 10000,
+        "n_boot": 1000,
+        "probes": 4,
+        "jacobian_families": [
+          "noise"
+        ],
+        "iterate_steps": 3,
+        "ensemble": false,
+        "device": "cpu",
+        "jobs": 6,
+        "threads": null,
+        "seed": 0,
+        "out": "results/models_skip",
+        "no_per_image": false,
+        "no_metrics": false,
+        "signals": [
+          "dis",
+          "g2",
+          "g3",
+          "q"
+        ],
+        "append": true,
+        "from_per_image": true,
+        "models": [
+          "unet_lam0_seed0",
+          "unet_lam0_seed1",
+          "unet_lam0_seed2",
+          "unet_lam1w5_seed0",
+          "unet_lam1w5_seed1",
+          "unet_lam1w5_seed2"
+        ]
+      },
+      "mode": "from_per_image"
+    }
+  ]
 }

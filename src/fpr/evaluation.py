@@ -52,7 +52,8 @@ def observe(condition, x, seed):
 
 
 def per_image_signals(models, x, labels, seed=0, probes=0, jacobian_families=("noise",),
-                      conditions=CONDITIONS, verbose=True, jobs=1, threads=None):
+                      conditions=CONDITIONS, verbose=True, jobs=1, threads=None,
+                      iterate_steps=3):
     """Long-format table with one row per (condition, model, test image).
 
     models: dict name -> callable f. Models with `differentiable = False` skip first-order signals.
@@ -60,6 +61,7 @@ def per_image_signals(models, x, labels, seed=0, probes=0, jacobian_families=("n
     jacobian_families: corruption families that get first-order signals. The default is noise
         only: SURE is defined for Gaussian denoising, and the probes dominate the run time.
     jobs, threads: worker processes (one model each) and PyTorch threads per worker.
+    iterate_steps: applications of f beyond the first; >= 2 adds g2, q; >= 3 adds g3.
     `sure` is added for Gaussian-noise conditions, where its assumptions hold.
     """
     if jobs > 1 and len(models) > 1:
@@ -67,7 +69,7 @@ def per_image_signals(models, x, labels, seed=0, probes=0, jacobian_families=("n
         # shared memory, which has been unreliable here for arrays of this size on Windows.
         work = partial(_signals_for_model, x=x.numpy(), labels=labels.numpy(), seed=seed,
                        probes=probes, jacobian_families=jacobian_families, conditions=conditions,
-                       verbose=verbose, threads=threads)
+                       verbose=verbose, threads=threads, iterate_steps=iterate_steps)
         table = pd.concat(_map(work, list(models.items()), min(jobs, len(models))),
                           ignore_index=True)
         rank = {"condition": {c.label: i for i, c in enumerate(conditions)},
@@ -81,7 +83,7 @@ def per_image_signals(models, x, labels, seed=0, probes=0, jacobian_families=("n
         y, A = observe(condition, x, seed)
         for name, f in models.items():
             start = time.perf_counter()
-            signals = compute_signals(f, x, y, A)
+            signals = compute_signals(f, x, y, A, iterate_steps=iterate_steps)
             if (probes and condition.family in jacobian_families
                     and getattr(f, "differentiable", True)):
                 signals |= jacobian_signals(f, y, probes=probes, seed=seed)

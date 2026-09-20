@@ -19,6 +19,16 @@ r_A,raw,0.0328,0.5312,dae_lam0.1w5_seed1,dae_lam0.1w5
 r_A,per level,0.9380,0.9774,dae_lam0.1w5_seed1,dae_lam0.1w5
 r_A,per family,0.7621,0.8990,dae_lam0.1w5_seed1,dae_lam0.1w5
 -,severity only,0.7730,0.9086,dae_lam0.1w5_seed1,dae_lam0.1w5
+g,raw,0.5357,0.6855,dae_lam0.1w5_seed2,dae_lam0.1w5
+g,per level,0.8833,0.9489,dae_lam0.1w5_seed2,dae_lam0.1w5
+g,per family,0.8347,0.9168,dae_lam0.1w5_seed2,dae_lam0.1w5
+d,raw,0.1437,0.5921,dae_lam0.1w5_seed2,dae_lam0.1w5
+d,per level,0.9284,0.9741,dae_lam0.1w5_seed2,dae_lam0.1w5
+d,per family,0.7937,0.9094,dae_lam0.1w5_seed2,dae_lam0.1w5
+r_A,raw,0.0273,0.5334,dae_lam0.1w5_seed2,dae_lam0.1w5
+r_A,per level,0.9372,0.9781,dae_lam0.1w5_seed2,dae_lam0.1w5
+r_A,per family,0.7699,0.9041,dae_lam0.1w5_seed2,dae_lam0.1w5
+-,severity only,0.7649,0.9078,dae_lam0.1w5_seed2,dae_lam0.1w5
 g,raw,0.5162,0.6753,dae_lam0_seed0,dae_lam0
 g,per level,0.9006,0.9574,dae_lam0_seed0,dae_lam0
 g,per family,0.8408,0.9189,dae_lam0_seed0,dae_lam0
@@ -49,9 +59,9 @@ r_A,raw,0.0290,0.5311,dae_lam0_seed2,dae_lam0
 r_A,per level,0.9371,0.9776,dae_lam0_seed2,dae_lam0
 r_A,per family,0.7808,0.9043,dae_lam0_seed2,dae_lam0
 -,severity only,0.7659,0.9092,dae_lam0_seed2,dae_lam0
-g,raw,0.3276,0.6681,dae_lam1_seed0,dae_lam1
-g,per level,0.5131,0.7486,dae_lam1_seed0,dae_lam1
-g,per family,0.4627,0.7250,dae_lam1_seed0,dae_lam1
+g,raw,0.3268,0.6676,dae_lam1_seed0,dae_lam1
+g,per level,0.5123,0.7479,dae_lam1_seed0,dae_lam1
+g,per family,0.4622,0.7245,dae_lam1_seed0,dae_lam1
 d,raw,0.5391,0.8014,dae_lam1_seed0,dae_lam1
 d,per level,0.9436,0.9826,dae_lam1_seed0,dae_lam1
 d,per family,0.7919,0.9311,dae_lam1_seed0,dae_lam1
@@ -89,46 +99,6 @@ r_A,raw,0.0152,0.5269,dae_lam1w5_inner_seed2,dae_lam1w5_inner
 r_A,per level,0.9366,0.9802,dae_lam1w5_inner_seed2,dae_lam1w5_inner
 r_A,per family,0.7695,0.9015,dae_lam1w5_inner_seed2,dae_lam1w5_inner
 -,severity only,0.7150,0.9002,dae_lam1w5_inner_seed2,dae_lam1w5_inner
-g,raw,0.4734,0.6656,dae_lam1w5_seed0,dae_lam1w5
-g,per level,0.8670,0.9460,dae_lam1w5_seed0,dae_lam1w5
-g,per family,0.8200,0.9193,dae_lam1w5_seed0,dae_lam1w5
-d,raw,0.1327,0.5977,dae_lam1w5_seed0,dae_lam1w5
-d,per level,0.9268,0.9743,dae_lam1w5_seed0,dae_lam1w5
-d,per family,0.7798,0.9099,dae_lam1w5_seed0,dae_lam1w5
-r_A,raw,0.0105,0.5337,dae_lam1w5_seed0,dae_lam1w5
-r_A,per level,0.9347,0.9773,dae_lam1w5_seed0,dae_lam1w5
-r_A,per family,0.7518,0.9015,dae_lam1w5_seed0,dae_lam1w5
--,severity only,0.7456,0.9026,dae_lam1w5_seed0,dae_lam1w5
-g,raw,0.4746,0.6398,dae_lam1w5_seed1,dae_lam1w5
-g,per level,0.8644,0.9433,dae_lam1w5_seed1,dae_lam1w5
-g,per family,0.8239,0.9184,dae_lam1w5_seed1,dae_lam1w5
-d,raw,0.2379,0.6307,dae_lam1w5_seed1,dae_lam1w5
-d,per level,0.9262,0.9723,dae_lam1w5_seed1,dae_lam1w5
-d,per family,0.7959,0.9135,dae_lam1w5_seed1,dae_lam1w5
-r_A,raw,0.1045,0.5657,dae_lam1w5_seed1,dae_lam1w5
-r_A,per level,0.9375,0.9764,dae_lam1w5_seed1,dae_lam1w5
-r_A,per family,0.7548,0.9044,dae_lam1w5_seed1,dae_lam1w5
--,severity only,0.7359,0.8988,dae_lam1w5_seed1,dae_lam1w5
-g,raw,0.5155,0.6935,dae_lam1w5_seed2,dae_lam1w5
-g,per level,0.8550,0.9425,dae_lam1w5_seed2,dae_lam1w5
-g,per family,0.8163,0.9192,dae_lam1w5_seed2,dae_lam1w5
-d,raw,0.1742,0.6127,dae_lam1w5_seed2,dae_lam1w5
-d,per level,0.9233,0.9738,dae_lam1w5_seed2,dae_lam1w5
-d,per family,0.7943,0.9144,dae_lam1w5_seed2,dae_lam1w5
-r_A,raw,0.0320,0.5386,dae_lam1w5_seed2,dae_lam1w5
-r_A,per level,0.9353,0.9782,dae_lam1w5_seed2,dae_lam1w5
-r_A,per family,0.7550,0.9043,dae_lam1w5_seed2,dae_lam1w5
--,severity only,0.7225,0.8999,dae_lam1w5_seed2,dae_lam1w5
-g,raw,0.5357,0.6855,dae_lam0.1w5_seed2,dae_lam0.1w5
-g,per level,0.8833,0.9489,dae_lam0.1w5_seed2,dae_lam0.1w5
-g,per family,0.8347,0.9168,dae_lam0.1w5_seed2,dae_lam0.1w5
-d,raw,0.1437,0.5921,dae_lam0.1w5_seed2,dae_lam0.1w5
-d,per level,0.9284,0.9741,dae_lam0.1w5_seed2,dae_lam0.1w5
-d,per family,0.7937,0.9094,dae_lam0.1w5_seed2,dae_lam0.1w5
-r_A,raw,0.0273,0.5334,dae_lam0.1w5_seed2,dae_lam0.1w5
-r_A,per level,0.9372,0.9781,dae_lam0.1w5_seed2,dae_lam0.1w5
-r_A,per family,0.7699,0.9041,dae_lam0.1w5_seed2,dae_lam0.1w5
--,severity only,0.7649,0.9078,dae_lam0.1w5_seed2,dae_lam0.1w5
 g,raw,0.4891,0.6726,dae_lam1w5_outer_seed0,dae_lam1w5_outer
 g,per level,0.8908,0.9546,dae_lam1w5_outer_seed0,dae_lam1w5_outer
 g,per family,0.8288,0.9176,dae_lam1w5_outer_seed0,dae_lam1w5_outer
@@ -159,3 +129,33 @@ r_A,raw,0.0319,0.5337,dae_lam1w5_outer_seed2,dae_lam1w5_outer
 r_A,per level,0.9332,0.9766,dae_lam1w5_outer_seed2,dae_lam1w5_outer
 r_A,per family,0.7389,0.8989,dae_lam1w5_outer_seed2,dae_lam1w5_outer
 -,severity only,0.7444,0.9014,dae_lam1w5_outer_seed2,dae_lam1w5_outer
+g,raw,0.4734,0.6656,dae_lam1w5_seed0,dae_lam1w5
+g,per level,0.8670,0.9460,dae_lam1w5_seed0,dae_lam1w5
+g,per family,0.8200,0.9193,dae_lam1w5_seed0,dae_lam1w5
+d,raw,0.1327,0.5977,dae_lam1w5_seed0,dae_lam1w5
+d,per level,0.9268,0.9743,dae_lam1w5_seed0,dae_lam1w5
+d,per family,0.7798,0.9099,dae_lam1w5_seed0,dae_lam1w5
+r_A,raw,0.0105,0.5337,dae_lam1w5_seed0,dae_lam1w5
+r_A,per level,0.9347,0.9773,dae_lam1w5_seed0,dae_lam1w5
+r_A,per family,0.7518,0.9015,dae_lam1w5_seed0,dae_lam1w5
+-,severity only,0.7456,0.9026,dae_lam1w5_seed0,dae_lam1w5
+g,raw,0.4746,0.6398,dae_lam1w5_seed1,dae_lam1w5
+g,per level,0.8644,0.9433,dae_lam1w5_seed1,dae_lam1w5
+g,per family,0.8238,0.9184,dae_lam1w5_seed1,dae_lam1w5
+d,raw,0.2379,0.6307,dae_lam1w5_seed1,dae_lam1w5
+d,per level,0.9262,0.9723,dae_lam1w5_seed1,dae_lam1w5
+d,per family,0.7959,0.9135,dae_lam1w5_seed1,dae_lam1w5
+r_A,raw,0.1045,0.5657,dae_lam1w5_seed1,dae_lam1w5
+r_A,per level,0.9375,0.9764,dae_lam1w5_seed1,dae_lam1w5
+r_A,per family,0.7548,0.9044,dae_lam1w5_seed1,dae_lam1w5
+-,severity only,0.7359,0.8988,dae_lam1w5_seed1,dae_lam1w5
+g,raw,0.5155,0.6935,dae_lam1w5_seed2,dae_lam1w5
+g,per level,0.8550,0.9425,dae_lam1w5_seed2,dae_lam1w5
+g,per family,0.8163,0.9192,dae_lam1w5_seed2,dae_lam1w5
+d,raw,0.1742,0.6127,dae_lam1w5_seed2,dae_lam1w5
+d,per level,0.9233,0.9738,dae_lam1w5_seed2,dae_lam1w5
+d,per family,0.7943,0.9144,dae_lam1w5_seed2,dae_lam1w5
+r_A,raw,0.0320,0.5386,dae_lam1w5_seed2,dae_lam1w5
+r_A,per level,0.9353,0.9782,dae_lam1w5_seed2,dae_lam1w5
+r_A,per family,0.7550,0.9043,dae_lam1w5_seed2,dae_lam1w5
+-,severity only,0.7225,0.8999,dae_lam1w5_seed2,dae_lam1w5
