@@ -11,18 +11,13 @@
     "jacobian_families": [
       "noise"
     ],
-    "iterate_steps": 3,
-    "ensemble": true,
     "device": "cpu",
     "jobs": 4,
     "threads": 2,
     "seed": 0,
     "out": "results/models_skip",
     "no_per_image": false,
-    "no_metrics": true,
-    "signals": null,
-    "append": false,
-    "from_per_image": false
+    "append": false
   },
   "conditions": [
     "noise(sigma=0.1)",
@@ -184,30 +179,59 @@
     }
   },
   "seconds": {
-    "signals": 3452.0,
-    "metrics": 0.0,
-    "total": 3452.3
+    "signals": 1949.6,
+    "metrics": 981.3,
+    "total": 2931.1
   },
   "versions": {
-    "python": "3.12.10",
-    "torch": "2.3.1+cpu",
-    "numpy": "1.26.4",
-    "pandas": "2.3.3"
+    "python": "3.13.14",
+    "torch": "2.12.0+cu130",
+    "numpy": "2.4.4",
+    "pandas": "3.0.5"
   },
   "appended_runs": [
     {
+      "mode": "add_signals",
+      "signals": [
+        "g2",
+        "g3",
+        "q",
+        "dis"
+      ],
       "models": [
         "unet_lam0_seed0",
         "unet_lam0_seed1",
         "unet_lam0_seed2",
+        "unet_lam1_seed0",
         "unet_lam1w5_seed0",
         "unet_lam1w5_seed1",
         "unet_lam1w5_seed2"
       ],
       "seconds": {
-        "signals": 1.9,
-        "metrics": 1088.1,
-        "total": 1090.2
+        "signals": 3411.5
+      },
+      "versions": {
+        "python": "3.13.14",
+        "torch": "2.12.0+cu130",
+        "numpy": "2.4.4",
+        "pandas": "3.0.5"
+      },
+      "note": "added to the stored per-image dump with fpr.signals.compute_signals(iterate_steps=3) and fpr.ensemble.disagreement, on the same observations; as a check, the recomputed d and e matched all 910000 stored rows and g 910000 of them at the stored 6 significant digits; the stored g, d and e are kept"
+    },
+    {
+      "models": [
+        "unet_lam0_seed0",
+        "unet_lam0_seed1",
+        "unet_lam0_seed2",
+        "unet_lam1_seed0",
+        "unet_lam1w5_seed0",
+        "unet_lam1w5_seed1",
+        "unet_lam1w5_seed2"
+      ],
+      "seconds": {
+        "signals": 5.0,
+        "metrics": 2085.8,
+        "total": 2091.1
       },
       "args": {
         "checkpoints": "checkpoints",
@@ -227,7 +251,7 @@
         "iterate_steps": 3,
         "ensemble": false,
         "device": "cpu",
-        "jobs": 6,
+        "jobs": 3,
         "threads": null,
         "seed": 0,
         "out": "results/models_skip",
@@ -239,16 +263,15 @@
           "g3",
           "q"
         ],
-        "append": true,
+        "append": false,
         "from_per_image": true,
-        "models": [
-          "unet_lam0_seed0",
-          "unet_lam0_seed1",
-          "unet_lam0_seed2",
-          "unet_lam1w5_seed0",
-          "unet_lam1w5_seed1",
-          "unet_lam1w5_seed2"
-        ]
+        "models": null
+      },
+      "versions": {
+        "python": "3.13.14",
+        "torch": "2.12.0+cu130",
+        "numpy": "2.4.4",
+        "pandas": "3.0.5"
       },
       "mode": "from_per_image"
     }
