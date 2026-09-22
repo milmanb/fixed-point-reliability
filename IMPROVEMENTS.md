@@ -99,7 +99,7 @@ left, summarized as the normalized area under the risk-coverage curve (nAURC), w
 ranking by the true error and 1 means a random order.
 
 **Why.** Spearman $\rho$ and AUROC do not tell you whether abstention is worth doing. Selective
-risk is the operational number, and pairing abstention with risk control is current practice
+risk is the operational number, and recent work pairs abstention with conformal risk control
 ([Selective Conformal Risk Control](https://arxiv.org/abs/2512.12844)).
 
 **What came out** (bottleneck, $\lambda_{\text{id}} = 0$):
@@ -137,11 +137,12 @@ Code: `src/fpr/selective.py`, `scripts/selective.py`. Outputs: `results/selectiv
 deviation from their own mean prediction. Reference-free, and free in training terms because the
 seeds already exist.
 
-**Why.** A 2026 paper argues that
-[self-consistency captures aleatoric uncertainty and collapses out of distribution, while
-cross-model disagreement captures the epistemic part](https://arxiv.org/abs/2604.17112). That is a
-falsifiable prediction about exactly this project's failure mode: an unseen corruption operator is
-epistemic, so disagreement should catch what $g$ misses.
+**Why.** A 2026 paper on language models argues that
+[self-consistency, a proxy for aleatoric uncertainty, collapses on confident errors, where a model
+repeats the same wrong answer, while cross-model disagreement captures the epistemic
+part](https://arxiv.org/abs/2604.17112). That gives a falsifiable prediction for this project's
+failure mode: an output that is stable but wrong is a confident error, so disagreement should catch
+what $g$ misses.
 
 **What came out.** Partly confirmed, and the split is informative.
 
