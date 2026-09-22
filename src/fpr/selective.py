@@ -12,6 +12,9 @@ arXiv:2512.12844).
 
 import numpy as np
 
+# NumPy 2 renamed trapz to trapezoid and later removed trapz; keep both versions working.
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz
+
 
 def risk_coverage_curve(signal, error, n_points=50):
     """Mean error of the accepted set vs. fraction kept, rejecting high signal first.
@@ -39,7 +42,7 @@ def aurc(signal, error, n_points=200):
     coverage, risk = risk_coverage_curve(signal, error, n_points=n_points)
     if len(coverage) < 2:
         return float("nan")
-    return float(np.trapz(risk, coverage))
+    return float(_trapezoid(risk, coverage))
 
 
 def selective_risk(signal, error, coverage=0.8):
