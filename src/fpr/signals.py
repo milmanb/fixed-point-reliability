@@ -56,9 +56,11 @@ def _mean_sq(z):
 def compute_signals(f, x, y, A, batch_size=2048, iterate_steps=1):
     """Return a dict of per-image numpy arrays; A acts on the full batch, f in chunks.
 
-    iterate_steps >= 1: also compute g2, g3, ... and the contraction ratio q = g2/g1 when
-    iterate_steps >= 2. g1 is always present as `g`.
+    iterate_steps: applications of f after the first. 1 gives g; 2 adds g2 and the contraction
+    ratio q = g2/g; 3 adds g3.
     """
+    if iterate_steps < 1:
+        raise ValueError(f"iterate_steps must be >= 1, got {iterate_steps}")
     fy = _batched(f, y, batch_size)
     iterates = [fy]
     for _ in range(iterate_steps):
@@ -86,10 +88,13 @@ def compute_signals(f, x, y, A, batch_size=2048, iterate_steps=1):
 
 @torch.no_grad()
 def iterate_signals(f, y, steps=3, batch_size=2048):
-    """Multi-step residuals g_k and contraction ratio q = g2/g1 (see module docstring)."""
+    """Multi-step residuals g, g2, ..., g_steps and the contraction ratio q = g2/g1.
+
+    Starts from f(y), so g equals the idempotence residual of compute_signals (module docstring).
+    """
     if steps < 1:
         raise ValueError(f"steps must be >= 1, got {steps}")
-    current = y
+    current = _batched(f, y, batch_size)
     residuals = {}
     for k in range(1, steps + 1):
         nxt = _batched(f, current, batch_size)
