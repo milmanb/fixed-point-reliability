@@ -248,8 +248,8 @@ but a level-mean bound is narrower still (0.138). By family it covers 0.99 to 1.
 blur, and only 0.61 of pixel masks (bottleneck) and 0.76 of box masks (skip) ---
 Table~\ref{tab:coverage}. Calibrated on the two training noise levels and deployed on the other
 eleven, coverage falls to 0.48 ($g$) and 0.19 ($d$, $r_A$) for the bottleneck model and to
-0.16--0.31 for the skip model. Calibrating with SURE instead of the true error over-covers on
-noise (0.94).
+0.16--0.31 for the skip model. Calibrating with SURE instead of the true
+error~\cite{everink2025sscp} over-covers on noise (0.94).
 
 Deeper iterates rank worse in three of the four settings ($g_2$ 0.63, $g_3$ 0.59 against 0.70
 here) and better for the skip model at $\lid = 1$ (0.69 against 0.63), with unchanged coverage;
@@ -259,8 +259,8 @@ at $\lid = 0$ (0.84 against 0.86), and loses less under the penalty, but it inhe
 spots: 0.59 coverage and 20\% flagged on pixel masks, 1.2\% flagged on skip box masks. Three seeds
 of one architecture fail the same way on an unseen operator. Rejecting the 20\% of images with the
 largest $g$ lowers mean error from 0.092 to 0.084 (oracle 0.064), and by nAURC --- the excess area
-under the risk-coverage curve~\cite{geifman2019bias}, 0 for ranking by the true error and 1 for a
-random order --- $g$ beats disagreement in three of four settings (0.41 against 0.48 here); $r_A$
+under the risk-coverage curve~\cite{geifman2019bias}, scaled to 0 for ranking by the true error and
+1 for a random order --- $g$ beats disagreement in three of four settings (0.41 against 0.48 here); $r_A$
 and brightness are worse than rejecting nothing.
 
 \section{Discussion}
