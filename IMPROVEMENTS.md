@@ -20,7 +20,7 @@ listed as its first open gap. The result is sharper than the ranking version:
   pixel-mask images**. A "90% guarantee" silently fails on nearly two in five images of the family
   that holds most of the worst errors.
 - Calibrate on the two noise levels the models were trained on, deploy on the other eleven, and
-  coverage drops to **47%** for $g$ (and 19% for the displacement $d$ and measurement residual
+  coverage drops to **48%** for $g$ (and 19% for the displacement $d$ and measurement residual
   $r_A$).
 
 So the blind spot is not just a weaker correlation. It is a broken guarantee, and the calibration
@@ -28,19 +28,24 @@ procedure gives no warning that it broke.
 
 Two cheaper additions tested whether the blind spot is specific to the one-step residual.
 
-- **Deeper iterates ($g_2$, $g_3$) are worse, not better** — they rank below the one-step residual
-  (0.63 and 0.60 against 0.70) and leave coverage unchanged. The report's own Jacobian argument
-  predicted this; now it is measured rather than asserted.
+- **Deeper iterates ($g_2$, $g_3$) are worse, not better** in three of the four settings — on the
+  bottleneck model they rank below the one-step residual (0.63 and 0.59 against 0.70) and leave
+  coverage unchanged; only the skip model with the penalty gains ($g_2$ 0.69 against 0.63). The
+  report's first-order argument (Eq. 1) says why they cannot repair the blind spot: each extra
+  application multiplies the displacement by the Jacobian again.
 - **Ensemble disagreement is the one clear improvement**, and the most interesting result of the
-  round. It ranks better than the residual within a corruption level, and it is dramatically more
-  robust to idempotence training — but it inherits both architectures' blind spots. Three seeds of
+  round. It ranks better than the residual within a corruption level in three of the four settings,
+  and it is dramatically more robust to idempotence training — but it inherits both architectures'
+  blind spots, and it ranks worse than the residual once the corruptions are pooled. Three seeds of
   one architecture fail the same way on an unseen operator, so they agree while all being wrong.
 
 ## 1. Conformal error bars (the headline)
 
-**What it does.** Fits an isotonic map from a signal to the error on half the test images, forms
-nonconformity scores $e_i / \hat u(y_i)$, takes the split-conformal quantile, and reports
-$\hat e_{\text{hi}}(y) = \hat q \cdot \hat u(y)$ on the other half at $\alpha = 0.1$.
+**What it does.** Fits an isotonic map $\hat u$ from a signal to the error on a quarter of the test
+images, forms nonconformity scores $e_i / \hat u(y_i)$ on a second quarter, takes the
+split-conformal quantile $\hat q$ of those scores, and reports
+$\hat e_{\text{hi}}(y) = \hat q \cdot \hat u(y)$ on the held-out half at $\alpha = 0.1$. The map is
+fitted on images that supply no calibration score, which is what the coverage guarantee needs.
 
 **Why.** The proposal was titled *Calibrating Reference-Free Reliability Signals*. The previous
 report calibrated the signals but only scored the ranking of the calibrated values, and said so in
@@ -53,7 +58,7 @@ instrument, not as a contribution.
 
 | quantity | $g$ | marginal bound | level-mean bound |
 |---|---|---|---|
-| mean width | 0.174 | 0.183 | **0.137** |
+| mean width | 0.174 | 0.182 | **0.138** |
 | pooled coverage | 0.90 | 0.90 | 0.90 |
 
 Per-family coverage of the $g$ bound, at the same nominal 90%:
@@ -70,8 +75,8 @@ report identified by rank correlation. That is a satisfying consistency check, a
 finding from "the ordering is worse here" to "the stated guarantee is false here".
 
 Two further readings. First, $g$ does buy something over ignoring the signal entirely (0.174 vs
-0.183 width at equal coverage), but knowing which corruption you are looking at buys much more
-(0.137) — the same conclusion the ranking experiments reached, now in the units a user cares about.
+0.182 width at equal coverage), but knowing which corruption you are looking at buys much more
+(0.138) — the same conclusion the ranking experiments reached, now in the units a user cares about.
 Second, the marginal guarantee is not protective, and nothing in the procedure flags the violation;
 you only see it if you already know which family to break the results down by, which is precisely
 what you do not know at deployment.
@@ -81,7 +86,7 @@ estimate from the noisy observation — the only variant of any of this that cou
 deployment time. Since SURE estimates the per-pixel squared error, it has to be scored against that
 target rather than the L1 error (getting this wrong makes the bound look catastrophically broken
 when it is only on a different scale). Done correctly, on the noise family it **over**-covers: 0.94
-against the nominal 0.90, for 21% more width than the supervised bound on the same target. Erring
+against the nominal 0.90, for 17% more width than the supervised bound on the same target. Erring
 conservative is the right direction to err, so dropping the clean images from calibration is
 affordable here.
 
@@ -91,7 +96,7 @@ Code: `src/fpr/conformal.py`, `scripts/conformal.py`. Outputs: `results/conforma
 
 **What it does.** Rejects the highest-signal images first and reports the mean error of what is
 left, summarized as the normalized area under the risk-coverage curve (nAURC), where 0 means
-ranking by the true error and 1 means a constant score.
+ranking by the true error and 1 means a random order.
 
 **Why.** Spearman $\rho$ and AUROC do not tell you whether abstention is worth doing. Selective
 risk is the operational number, and pairing abstention with risk control is current practice
@@ -119,9 +124,10 @@ reduction. Three results are worth flagging:
 - Idempotence training makes selective risk worse too: nAURC rises from 0.41 to 0.50 on the
   bottleneck model and 0.51 to 0.65 on the skip model. That is the report's main claim reproduced
   in a third independent metric.
-- Disagreement is *worse* than $g$ here (0.48 vs 0.41) even though it ranks better within every
-  level. Pooling across families is what costs it: its scale varies more between corruption types,
-  so mixing them hurts it more. Worth knowing if you plan to abstain without knowing the corruption.
+- Disagreement is *worse* than $g$ here (0.48 vs 0.41) even though it ranks better within 12 of
+  the 13 levels. Pooling is what costs it: its level-to-level scale tracks the error less well
+  (its level medians alone give a pooled $\rho$ of 0.29, against 0.46 for $g$), so mixing
+  corruptions hurts it more. Worth knowing if you plan to abstain without knowing the corruption.
 
 Code: `src/fpr/selective.py`, `scripts/selective.py`. Outputs: `results/selective/`.
 
@@ -150,7 +156,7 @@ the 13 levels, mean over seeds:
 | skip, $\lambda_{\text{id}} = 1$ | 0.63 | **0.88** |
 
 The robustness pattern is the real result. Training for idempotence costs $g$ 0.09 on the bottleneck
-model and 0.24 on the skip model; disagreement loses 0.03 and *gains* 0.04. That makes sense —
+model and 0.23 on the skip model; disagreement loses 0.03 and *gains* 0.04. That makes sense —
 disagreement is not the quantity being minimized, so optimizing the residual cannot launder it.
 This is the clearest practical recommendation to come out of the round: if a model has been trained
 for idempotence, do not read its residual, read the spread of its seeds.
@@ -161,7 +167,7 @@ Where it fails, it fails for a reason worth stating: **disagreement inherits bot
 |---|---|---|---|
 | bottleneck, pixel masks: coverage | 0.61 | 0.59 | (nominal 0.90) |
 | bottleneck, pixel masks: worst errors flagged | 18% | 20% | 25% |
-| skip, box masks: coverage | 0.76 | 0.80 | (nominal 0.90) |
+| skip, box masks: coverage | 0.76 | 0.79 | (nominal 0.90) |
 | skip, box masks: worst errors flagged | 0.4% | 1.2% | 25% |
 
 All three seeds turn sparse dots into the same dim garment, so they agree with each other while all
@@ -181,17 +187,17 @@ Code: `src/fpr/ensemble.py`.
 **What it does.** $g_k = |f^{k+1}(y) - f^k(y)|$, plus $q = g_2/g_1$. Two extra forward passes.
 
 **Why.** $g$ only ever probes one extra application, while recursive self-consistency methods
-iterate. The report's own theory (Eq. 2: $g \approx |J_f \delta|$) predicts that deeper iterates
-give $|J_f^k \delta|$ and therefore cannot recover information the Jacobian has already cancelled.
-That prediction was stated but never measured.
+iterate. The report's first-order argument (Eq. 1: $g \approx |J_f \delta|$) extends to deeper
+iterates, which give roughly $|J_f^k \delta|$ and therefore cannot recover information the Jacobian
+has already cancelled. This had not been measured.
 
-**What came out.** Confirmed, cheaply, and slightly more strongly than expected: deeper iterates are
-not merely uninformative, they are actively worse. Within-level $\rho$ on the bottleneck model falls
-monotonically with depth — $g$ 0.70, $g_2$ 0.63, $g_3$ 0.60 — while conformal coverage on pixel
-masks is unchanged (0.60 vs 0.61). The contraction ratio $q$ is useless ($\rho = 0.02$, and $-0.16$
-under idempotence training; nAURC 0.92). Each extra application multiplies by the Jacobian again,
-which attenuates the displacement without revealing anything new, so iterating the map is not a way
-out of the blind spot. This was the prediction Eq. 2 of the report made and never tested.
+**What came out.** Confirmed for the blind spot: conformal coverage on pixel masks is unchanged
+(0.60 vs 0.61). In ranking, deeper iterates are mostly worse, not merely uninformative:
+within-level $\rho$ on the bottleneck model falls with depth — $g$ 0.70, $g_2$ 0.63, $g_3$ 0.59 —
+and only the skip model with the penalty gains ($g_2$ 0.69 against 0.63). The contraction ratio $q$
+is useless ($\rho = 0.01$, and $-0.16$ under idempotence training; nAURC 0.92). Each extra
+application multiplies by the Jacobian again, which attenuates the displacement without revealing
+anything new, so iterating the map is not a way out of the blind spot.
 
 Code: `iterate_signals` in `src/fpr/signals.py`, and `iterate_steps` in `compute_signals`.
 
@@ -203,12 +209,14 @@ survives and gets stronger. Three things are new:
 1. The failure is quantified in the units a deployment would use. "The guarantee you would quote is
    marginal, it holds, and it is false on the family you care about" is a more actionable statement
    than "the rank correlation drops here", and it cannot be dismissed as a small-effect artifact.
-2. One escape route is closed by measurement rather than argument: iterating the map further makes
-   the signal worse, exactly as the first-order theory said it would.
-3. One signal beats the residual. Cross-seed disagreement ranks better within every level and is
-   much more robust to the idempotence penalty, which is a positive recommendation the original
-   study did not have. It is not a fix for the blind spot, though, so the two signals are
-   complementary rather than interchangeable.
+2. One escape route is closed by measurement rather than argument: iterating the map further does
+   not repair the blind spot, as the first-order argument suggests, and in three of the four
+   settings it ranks worse.
+3. One signal beats the residual at ranking. Cross-seed disagreement ranks better within a level in
+   three of the four settings and is much more robust to the idempotence penalty, which is a
+   positive recommendation the original study did not have. It is not a fix for the blind spot, and
+   it is worse once the corruptions are pooled, so the two signals are complementary rather than
+   interchangeable.
 
 The practical upshot: a fixed-point residual is usable as a within-corruption ranking signal, and
 defensible as an error bar only over a corruption distribution you have calibrated on. Neither is
@@ -216,23 +224,25 @@ the claim that "a fixed point is a correct output".
 
 ## Reproducing
 
-The per-image dumps are git-ignored because they are ~110 MB each, so regenerate them first:
+The per-image dumps are git-ignored because they are large (about 120 MB and 50 MB), so
+regenerate them first:
 
 ```bash
 pip install -e ".[dev]"
 pytest
 
-# per-image signals including dis, g2, g3, q (about 100 min each on 16 CPU cores)
-python scripts/evaluate_models.py --pattern "dae_*.pt"  --projectors --ensemble --no-metrics \
+# per-image signals including dis, g2, g3, q (hours; the bottleneck run also does the projectors,
+# which the summary needs, so do not pass a bare --projectors there)
+python scripts/evaluate_models.py --pattern "dae_*.pt"  --ensemble --no-metrics \
     --device cpu --jobs 4 --threads 2 --out results/models
 python scripts/evaluate_models.py --pattern "unet_*.pt" --projectors --ensemble --no-metrics \
     --device cpu --jobs 4 --threads 2 --out results/models_skip
 
-# bootstrap scores for the new signals only, appended to the existing metrics.csv
-python scripts/evaluate_models.py --from-per-image --append --signals dis g2 g3 q \
-    --models dae_lam0_seed0 dae_lam0_seed1 dae_lam0_seed2 \
-             dae_lam1w5_seed0 dae_lam1w5_seed1 dae_lam1w5_seed2 \
+# bootstrap scores for the new signals, merged into the existing metrics.csv
+python scripts/evaluate_models.py --from-per-image --signals dis g2 g3 q \
     --device cpu --jobs 4 --out results/models
+python scripts/evaluate_models.py --from-per-image --signals dis g2 g3 q \
+    --device cpu --jobs 4 --out results/models_skip
 
 # the new analyses (minutes; numpy and pandas only)
 python scripts/conformal.py
@@ -241,12 +251,9 @@ python scripts/calibrate.py
 python scripts/report_table.py
 ```
 
-## Notes on the environment
-
-`torch` and `numpy` must be ABI-compatible: with `torch 2.3.1` the project needs `numpy < 2`, or
-every tensor-to-numpy conversion fails with "Numpy is not available". The runs here were done on
-CPU with 16 cores; the machine's GPU has a CUDA-capable driver but no CUDA `torch` build
-installed, and the models are small enough that this only costs wall-clock time.
+`torch` and `numpy` must be ABI-compatible: with `torch 2.3.1`, for instance, the project needs
+`numpy < 2`, or every tensor-to-numpy conversion fails with "Numpy is not available". The models
+are small, so a CPU run only costs wall-clock time.
 
 ## File map of the additions
 
@@ -258,6 +265,6 @@ src/fpr/signals.py        + iterate_signals (g_k, q); compute_signals gained ite
 scripts/conformal.py      coverage/width/shift/SURE tables -> results/conformal/
 scripts/selective.py      selective risk tables and figure -> results/selective/
 scripts/evaluate_models.py  + --ensemble --no-metrics --signals --from-per-image --models
-scripts/report_table.py   + table_coverage.tex, dis and g2 columns in table_main.tex
+scripts/report_table.py   + table_coverage.tex, dis column in table_main.tex
 tests/test_improvements.py  coverage, AURC, disagreement and multi-step residual tests
 ```

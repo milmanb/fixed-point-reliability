@@ -139,7 +139,7 @@ Two baselines guard against scores that do not reflect model failures:
 
 - `b`, the mean brightness of $y$. Under masking and strong blur the error grows with the
   amount of content in the image, so brightness alone ranks errors well (Spearman up to
-  0.96 within a pixel-mask level). Partial Spearman correlations given $b$ show what each
+  0.97 within a pixel-mask level). Partial Spearman correlations given $b$ show what each
   signal adds beyond brightness.
 - `<signal>@level`, the median of a signal over its corruption level. In pooled scores it
   measures how much of the ranking is severity detection.
@@ -186,7 +186,7 @@ residual is in its top quartile over all levels (a random score gives 25%).
 | bottleneck, $\lambda_{id}=1$ | 0.095 | 0.009 | 0.62 | 0.60 | 0.53 | 0.49 | 0.67 | 0.83 | 10% | 89% |
 | bottleneck, $\lambda_{id}=1$, inner only | 0.097 | 0.014 | 0.61 | 0.68 | 0.61 | 0.53 | 0.72 | 0.82 | 22% | 89% |
 | bottleneck, $\lambda_{id}=1$, outer only | 0.095 | 0.011 | 0.65 | 0.64 | 0.54 | 0.50 | 0.67 | 0.77 | 11% | 79% |
-| skip, $\lambda_{id}=0$ | 0.086 | 0.019 | 0.86 | 0.92 | 0.48 | 0.52 | 0.73 | 0.49 | 68% | 0% |
+| skip, $\lambda_{id}=0$ | 0.086 | 0.019 | 0.86 | 0.92 | 0.48 | 0.52 | 0.73 | 0.49 | 68% | <1% |
 | skip, $\lambda_{id}=1$ | 0.084 | 0.007 | 0.63 | 0.60 | 0.27 | 0.40 | 0.63 | 0.28 | 31% | 2% |
 
 1. **Exact projectors carry no residual information.** The residual is zero for any exact
@@ -207,7 +207,7 @@ residual is in its top quartile over all levels (a random score gives 25%).
    image (validation error 0.2106, the same as that image's) and a black image (0.2885, the mean
    pixel value). The skip model does not start constant (output spread $8\cdot10^{-3}$ against
    $5\cdot10^{-6}$), so a near-constant start is not required (`results/checks.json`).
-5. **Calibration per level** lifts pooled $\rho$ from 0.02-0.55 to 0.85-0.94, but a predictor
+5. **Calibration per level** lifts pooled $\rho$ from 0.00-0.55 to 0.85-0.94, but a predictor
    that returns each level's mean error already reaches 0.73-0.84 (`results/calibration*`).
 
 ![Ranking quality per condition](results/models/comparison/rho_by_condition.png)
@@ -283,10 +283,11 @@ results/               result tables and figures (per-image dumps are git-ignore
 3. S. Zaman et al., "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
 4. N. Durasov et al., "IT³: Idempotent Test-Time Training," ICML 2025.
 5. A. Angelopoulos and S. Bates, "A Gentle Introduction to Conformal Prediction," arXiv:2107.07511, 2021.
-6. J. Teneggi et al., "How to Trust Your Diffusion Model" (K-RCPS), arXiv:2302.03791, 2023.
-7. "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," arXiv:2502.05127, 2025.
-8. "Selective Conformal Risk Control," arXiv:2512.12844, 2025.
-9. "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
+6. J. Teneggi, M. Tivnan, J. W. Stayman and J. Sulam, "How to Trust Your Diffusion Model" (K-RCPS), ICML 2023.
+7. J. M. Everink, B. Tamo Amougou and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," arXiv:2502.05127, 2025.
+8. Y. Geifman, G. Uziel and R. El-Yaniv, "Bias-Reduced Uncertainty Estimation for Deep Neural Classifiers," ICLR 2019 (AURC and excess AURC).
+9. Y. Xu, W. Guo and Z. Wei, "Selective Conformal Risk Control," arXiv:2512.12844, 2025.
+10. K. Hamidieh, V. Thost, W. Gerych, M. Yurochkin and M. Ghassemi, "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
 
 ## License
 
