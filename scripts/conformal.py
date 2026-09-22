@@ -63,8 +63,8 @@ def main():
             shift = shift_coverage(frame, signal, alpha=args.alpha)
             shift_rows.append({"model": model, "model_group": model_group(model), "signal": signal,
                                "coverage": shift["coverage"], "width": shift["width"],
-                               "q_hat": shift["q_hat"], "n_cal": shift["n_cal"],
-                               "n_deploy": shift["n_deploy"]})
+                               "q_hat": shift["q_hat"], "n_fit": shift["n_fit"],
+                               "n_cal": shift["n_cal"], "n_deploy": shift["n_deploy"]})
             sure = sure_self_calibrate(frame, signal=signal, alpha=args.alpha)
             sure_rows.append({"model": model, "model_group": model_group(model), "signal": signal,
                               **sure})
@@ -96,7 +96,7 @@ def main():
     print("\nPer-family coverage of the normalized bound")
     print(family.pivot_table(index=["model_group", "signal"], columns="group", values="coverage")
           .to_string(float_format=lambda v: f"{v:.3f}"))
-    print("\nShift: calibrate on noise sigma in {0.1, 0.2}, deploy elsewhere")
+    print("\nShift: calibrate on noise sigma in {0.1, 0.2}, deploy on held-out images elsewhere")
     shift_summary = (shift.groupby(["model_group", "signal"])[["coverage", "width"]]
                      .mean().reset_index())
     print(shift_summary.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
@@ -110,6 +110,7 @@ def main():
         "models": models,
         "signals": list(SIGNALS),
         "settings": ["normalized", "marginal", "severity"],
+        "split": "image % 4 == 0 fits u_hat, image % 4 == 2 calibrates, odd images are held out",
     }, indent=2))
     print(f"\nWrote {out}")
 

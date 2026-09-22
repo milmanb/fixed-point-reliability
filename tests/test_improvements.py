@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from fpr.conformal import (conformal_quantile, evaluate_signals, marginal_bound,
-                           normalized_bound, sure_self_calibrate)
+                           normalized_bound, split_masks, sure_self_calibrate)
 from fpr.ensemble import disagreement, seed_groups
 from fpr.projectors import Identity
 from fpr.selective import aurc, normalized_aurc, selective_risk, summarize
@@ -92,23 +92,33 @@ def test_seed_groups_filters_singletons():
 
 def test_conformal_quantile_finite_sample():
     scores = np.arange(1, 101, dtype=float)
-    q = conformal_quantile(scores, alpha=0.1)
-    # ceil((100+1)*0.9)/100 = ceil(90.9)/100 = 91/100 -> 91st percentile via method=higher
-    assert q >= 90
+    # ceil((100 + 1) * 0.9) = 91, so the 91st smallest score
+    assert conformal_quantile(scores, alpha=0.1) == 91
+    assert conformal_quantile(np.arange(1, 6, dtype=float), alpha=0.1) == np.inf  # rank 6 > 5
 
 
-def test_normalized_conformal_covers_under_exchangeability():
-    """With a perfect signal (= error), coverage should meet 1-alpha on average."""
+def test_normalized_conformal_covers_with_separate_fit():
+    """With u_hat fit on other images, held-out coverage meets 1 - alpha on average even for a
+    small calibration set; fitting u_hat on the calibration images themselves under-covers."""
     rng = np.random.default_rng(0)
-    coverages = []
-    for _ in range(40):
-        error = rng.exponential(0.1, size=1000)
-        signal = error.copy()  # perfect ranking and magnitude
-        calibration = np.zeros(1000, dtype=bool)
-        calibration[::2] = True
-        result = normalized_bound(signal, error, calibration, alpha=0.1)
-        coverages.append(result["coverage"])
-    assert np.mean(coverages) >= 0.88
+    image = np.arange(800)
+    fit, calibration, held = split_masks(image)
+    separate, shared = [], []
+    for _ in range(300):
+        signal = rng.exponential(1.0, 800)
+        error = signal * rng.lognormal(0.0, 0.5, 800)  # informative but noisy
+        separate.append(normalized_bound(signal, error, calibration, alpha=0.1,
+                                         fit_mask=fit)["coverage"])
+        shared.append(normalized_bound(signal, error, image % 2 == 0, alpha=0.1)["coverage"])
+    assert np.mean(separate) >= 0.895
+    assert np.mean(shared) < np.mean(separate)
+
+
+def test_split_masks_partition_the_images():
+    fit, calibration, held = split_masks(np.arange(12))
+    assert not (fit & calibration).any() and not (fit & held).any() and not (calibration & held).any()
+    assert (fit | calibration | held).all()
+    assert held.sum() == 6 and fit.sum() == 3 and calibration.sum() == 3
 
 
 def test_marginal_bound_covers():
