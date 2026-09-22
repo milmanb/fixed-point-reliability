@@ -66,11 +66,18 @@ def flagged_share(per_image, family, signal="g"):
     return pd.Series(shares)
 
 
+def per_image_columns(path, wanted=("model", "family", "e", "g", "dis")):
+    """Only the columns the table needs, and only those the dump has (dis may be missing)."""
+    available = set(pd.read_csv(path, nrows=0).columns)
+    return [c for c in wanted if c in available]
+
+
 def main():
     metrics = load("metrics.csv")
     summary = load("summary.csv")
-    per_image = pd.concat([pd.read_csv(REPO_ROOT / folder / "per_image.csv.gz")
-                           for folder in FOLDERS], ignore_index=True)
+    paths = [REPO_ROOT / folder / "per_image.csv.gz" for folder in FOLDERS]
+    per_image = pd.concat([pd.read_csv(path, usecols=per_image_columns(path)) for path in paths],
+                          ignore_index=True)
     per_image = per_image[per_image["model"].str.contains("_seed")]
 
     statistics = {
@@ -85,6 +92,8 @@ def main():
     }
     pooled = metrics[(metrics["scope"] == "all") & (metrics["target"] == "e")]
     statistics["pooled_g"] = pooled[pooled["signal"] == "g"].set_index("model")["spearman"]
+    statistics["pooled_g_level_median"] = \
+        pooled[pooled["signal"] == "g@level"].set_index("model")["spearman"]
     statistics["auroc_g"] = pooled[pooled["signal"] == "g"].set_index("model")["auroc"]
     statistics["flagged_pixel_g"] = flagged_share(per_image, "pixel_mask", "g")
     statistics["flagged_box_g"] = flagged_share(per_image, "box_mask", "g")
@@ -103,8 +112,9 @@ def main():
             continue
         row = {"architecture": architecture, "training": training, "seeds": len(seeds)}
         for column in ("error", "residual", "rho_g", "rho_g_noise", "partial_g", "rho_d", "rho_rA",
-                       "rho_d_noise", "pooled_g", "auroc_g", "rho_dis", "rho_g2",
-                       "flagged_pixel_g", "flagged_box_g", "flagged_pixel_dis", "flagged_box_dis"):
+                       "rho_d_noise", "pooled_g", "pooled_g_level_median", "auroc_g", "rho_dis",
+                       "rho_g2", "flagged_pixel_g", "flagged_box_g", "flagged_pixel_dis",
+                       "flagged_box_dis"):
             row[column] = seeds[column].mean() if column in seeds else float("nan")
         row["rho_g_min"], row["rho_g_max"] = seeds["rho_g"].min(), seeds["rho_g"].max()
         rows.append(row)
@@ -196,8 +206,10 @@ def coverage_table(groups=("dae_lam0", "dae_lam1w5", "unet_lam0", "unet_lam1w5")
 def latex_rows(table):
     """The complete tabular for the report (inputting rows inside a tabular breaks \\multicolumn).
 
-    Collapsed models get dashes: their signals are degenerate. Columns: training, e, g,
-    within/noise/partial/pooled/AUROC for g, within for d, within for dis, flagged pixel/box for g.
+    Columns: training, e, g, within/noise/partial/pooled/AUROC for g, within for d, r_A and dis,
+    flagged pixel/box for g. The runs without a warm-up collapse to a constant map, so every
+    ranking is degenerate; they stay in results/report_table.csv but not in the report's table,
+    where the text gives their error and residual.
     """
     def number(value, digits=2):
         return "--" if pd.isna(value) else f"{value:.{digits}f}".replace("-", "$-$")
@@ -205,30 +217,30 @@ def latex_rows(table):
     def percent(value):
         if pd.isna(value):
             return "--"
+        # A share that rounds to 0% but is not zero, as the text says "under 1%".
         return "$<$1\\%" if 0 < value < 0.005 else f"{100 * value:.0f}\\%"
 
     lines = [
-        r"\begin{tabular}{@{}lccccccccccc@{}}",
+        r"\setlength{\tabcolsep}{4pt}",
+        r"\begin{tabular}{@{}lcccccccccccc@{}}",
         r"\toprule",
-        r"& & & \multicolumn{5}{c}{signal $g$} & $d$ & $\mathrm{dis}$ & \multicolumn{2}{c}{$g$ flagged} \\",
-        r"\cmidrule(lr){4-8} \cmidrule(l){11-12}",
-        r"training & $e$ & $g$ & within & noise & partial & pooled & AUROC & within & within & pixel & box \\",
+        r"& & & \multicolumn{5}{c}{signal $g$} & $d$ & $r_A$ & $\mathrm{dis}$"
+        r" & \multicolumn{2}{c}{$g$ flagged} \\",
+        r"\cmidrule(lr){4-8} \cmidrule(l){12-13}",
+        r"training & $e$ & $g$ & within & noise & partial & pooled & AUROC & within & within"
+        r" & within & pixel & box \\",
         r"\midrule",
     ]
     for architecture in ("bottleneck", "skip"):
-        rows = table[table["architecture"] == architecture]
-        lines.append(rf"\multicolumn{{12}}{{@{{}}l}}{{\emph{{{architecture} model}}}} \\")
+        rows = table[(table["architecture"] == architecture)
+                     & ~table["training"].str.contains("no warm-up")]
         for _, row in rows.iterrows():
-            collapsed = "no warm-up" in row["training"]
-            training = row["training"].replace("none", "lambda 0").replace("lambda", r"$\lid =$")
-            cells = [training, number(row["error"], 3), number(row["residual"], 3)]
-            if collapsed:
-                cells += ["--"] * 9
-            else:
-                cells += [number(row[c]) for c in ("rho_g", "rho_g_noise", "partial_g", "pooled_g",
-                                                    "auroc_g", "rho_d")]
-                cells.append(number(row["rho_dis"]) if "rho_dis" in row.index else "--")
-                cells += [percent(row["flagged_pixel_g"]), percent(row["flagged_box_g"])]
+            training = row["training"].replace("none", "lambda 0").replace("lambda", r"$\lid{=}$")
+            cells = [f"{architecture}, {training}", number(row["error"], 3),
+                     number(row["residual"], 3)]
+            cells += [number(row[c]) for c in ("rho_g", "rho_g_noise", "partial_g", "pooled_g",
+                                               "auroc_g", "rho_d", "rho_rA", "rho_dis")]
+            cells += [percent(row["flagged_pixel_g"]), percent(row["flagged_box_g"])]
             lines.append(" & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(lines) + "\n"
