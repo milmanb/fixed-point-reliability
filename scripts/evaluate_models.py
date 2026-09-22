@@ -10,7 +10,10 @@ Partial Spearman correlations given b show what each signal adds beyond image br
     python scripts/evaluate_models.py                                # all checkpoints/dae_*.pt
     python scripts/evaluate_models.py --n-eval 2000 --n-boot 200     # quick run
     python scripts/evaluate_models.py --ensemble --no-metrics        # per-image only
-    python scripts/evaluate_models.py --signals dis g2 g3 q --append # score new signals
+    python scripts/evaluate_models.py --from-per-image --signals dis g2 g3 q   # score them later
+
+Re-scoring (--from-per-image, or --signals with --append) replaces only the scored
+(model, signal) rows of metrics.csv and keeps all others.
 """
 
 import argparse
@@ -69,7 +72,8 @@ def parse_args():
     parser.add_argument("--append", action="store_true",
                         help="add these models to the results already in --out, replacing re-run models")
     parser.add_argument("--from-per-image", action="store_true",
-                        help="skip signal computation; score an existing per_image.csv.gz in --out")
+                        help="skip signal computation; score an existing per_image.csv.gz in --out "
+                             "and merge the scores into its metrics.csv")
     parser.add_argument("--models", nargs="*", default=None,
                         help="with --from-per-image, restrict scoring to these models")
     return parser.parse_args()
@@ -141,11 +145,12 @@ def print_report(summary, metrics, per_image):
         print(pd.DataFrame(rhos).groupby("model_group")["rho"].median().to_string(float_format="%+.3f"))
 
 
-def merge_with_existing(out, summary, metrics, per_image, run_info):
+def merge_with_existing(out, summary, metrics, per_image, run_info, scored=None):
     """Add this run's models to an earlier run in the same folder, replacing rows of re-run models.
 
     Valid because every row is computed from one model alone with fixed seeds, so a separate run
-    produces the same rows a joint run would.
+    produces the same rows a joint run would. With `scored` (a subset of signals), only those
+    signals' metric rows of the re-run models are replaced; their other metric rows are kept.
     """
     new_models = set(run_info["models"])
     previous = json.loads((out / "run_info.json").read_text())
@@ -160,25 +165,27 @@ def merge_with_existing(out, summary, metrics, per_image, run_info):
 
     summary = combine("summary.csv", summary, pd.read_csv)
     if metrics is not None and (out / "metrics.csv").exists():
-        metrics = combine("metrics.csv", metrics, pd.read_csv)
+        metrics = (append_metrics_only(out, metrics, scored, models=new_models) if scored
+                   else combine("metrics.csv", metrics, pd.read_csv))
     per_image = combine("per_image.csv.gz", per_image, pd.read_csv)
     kept = [m for m in previous["models"] if m not in new_models]
     run_info = previous | {
         "models": kept + run_info["models"],
         "train_args": previous["train_args"] | run_info["train_args"],
         "appended_runs": previous.get("appended_runs", []) + [
-            {"models": run_info["models"], "seconds": run_info["seconds"], "args": run_info["args"]}],
+            {"models": run_info["models"], "seconds": run_info["seconds"], "args": run_info["args"],
+             "versions": run_info["versions"]}],
     }
     return summary, metrics, per_image, run_info
 
 
-def append_metrics_only(out, metrics, new_signals):
+def append_metrics_only(out, metrics, new_signals, models=None):
     """Replace metric rows for (model, signal) pairs that were re-scored; keep the rest."""
     old = pd.read_csv(out / "metrics.csv")
-    models = set(metrics["model"])
-    drop = old["model"].isin(models) & old["signal"].isin(new_signals)
-    # Also drop severity baselines of those signals.
-    drop |= old["model"].isin(models) & old["signal"].isin({f"{s}@level" for s in new_signals})
+    models = set(metrics["model"]) if models is None else set(models)
+    # A signal's rows include its severity baseline, <signal>@level.
+    signals = set(new_signals) | {f"{s}@level" for s in new_signals}
+    drop = old["model"].isin(models) & old["signal"].isin(signals)
     return pd.concat([old[~drop], metrics], ignore_index=True)
 
 
@@ -220,9 +227,9 @@ def main():
         run_models = list(models)
 
     metrics = None
+    signal_list = tuple(args.signals) if args.signals else tuple(
+        s for s in SIGNALS if s in per_image.columns)
     if not args.no_metrics:
-        signal_list = tuple(args.signals) if args.signals else tuple(
-            s for s in SIGNALS if s in per_image.columns)
         metrics = pd.concat([score(per_image, signal_list, target="e", n_boot=args.n_boot,
                                    seed=args.seed, jobs=args.jobs),
                              score(per_image, signal_list, target="e_mse", n_boot=0,
@@ -240,17 +247,19 @@ def main():
         "versions": {"python": platform.python_version(), "torch": torch.__version__,
                      "numpy": np.__version__, "pandas": pd.__version__},
     }
-    if args.append and not args.from_per_image:
-        summary, metrics, per_image, run_info = merge_with_existing(out, summary, metrics,
-                                                                    per_image, run_info)
-    elif args.from_per_image and args.append and metrics is not None and (out / "metrics.csv").exists():
-        metrics = append_metrics_only(out, metrics, tuple(args.signals or SIGNALS))
+    if args.from_per_image:
+        # Re-scoring never removes rows: replace the re-scored (model, signal) pairs, keep the rest.
+        if metrics is not None and (out / "metrics.csv").exists():
+            metrics = append_metrics_only(out, metrics, signal_list)
         previous = json.loads((out / "run_info.json").read_text())
         run_info = previous | {
             "appended_runs": previous.get("appended_runs", []) + [
                 {"models": run_models, "seconds": run_info["seconds"], "args": run_info["args"],
-                 "mode": "from_per_image"}],
+                 "versions": run_info["versions"], "mode": "from_per_image"}],
         }
+    elif args.append:
+        summary, metrics, per_image, run_info = merge_with_existing(
+            out, summary, metrics, per_image, run_info, scored=signal_list if args.signals else None)
 
     # --from-per-image only re-scores: it must not shrink the summary or rewrite the dump.
     if not args.from_per_image:
