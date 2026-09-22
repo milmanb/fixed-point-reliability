@@ -35,17 +35,31 @@ def test_g2_equals_g_for_exact_projector():
 
 
 def test_iterate_signals_on_contraction():
-    """f(y) = 0.5 y has g_k = 0.5^k * |y| mean, and q = 0.5."""
+    """f(y) = 0.5 y has g_k = |f^{k+1}(y) - f^k(y)| = 0.5^(k+1) for y = 1, and q = 0.5."""
     def f(z):
         return 0.5 * z
 
     y = torch.ones(8, 1, 4, 4)
     out = iterate_signals(f, y, steps=3)
-    expected_g1 = 0.5  # mean |0.5y - y| = 0.5
-    assert np.allclose(out["g"], expected_g1)
-    assert np.allclose(out["g2"], 0.25)
-    assert np.allclose(out["g3"], 0.125)
+    assert np.allclose(out["g"], 0.25)  # |0.25 - 0.5|; |f(y) - y| = 0.5 is d, not g
+    assert np.allclose(out["g2"], 0.125)
+    assert np.allclose(out["g3"], 0.0625)
     assert np.allclose(out["q"], 0.5)
+
+
+def test_iterate_signals_matches_compute_signals():
+    """On a nonlinear map the two functions give the same g, g2, g3 and q."""
+    def f(z):
+        return z ** 2
+
+    y = torch.rand(6, 1, 4, 4, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
+    ours = iterate_signals(f, y, steps=3)
+    reference = compute_signals(f, torch.zeros_like(y), y, lambda z: z, iterate_steps=3)
+    for key in ("g", "g2", "g3", "q"):
+        assert np.allclose(ours[key], reference[key], rtol=1e-12, atol=0), key
+    assert not np.allclose(reference["g"], reference["d"])
+    with pytest.raises(ValueError):
+        compute_signals(f, torch.zeros_like(y), y, lambda z: z, iterate_steps=0)
 
 
 def test_disagreement_zero_for_identical_models():
