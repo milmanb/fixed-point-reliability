@@ -17,7 +17,7 @@
 \titlespacing*{\section}{0pt}{1.9ex plus 0.4ex minus 0.2ex}{0.9ex plus 0.2ex}
 \titlespacing*{\subsection}{0pt}{1.5ex plus 0.3ex minus 0.2ex}{0.6ex plus 0.2ex}
 \titlespacing*{\paragraph}{0pt}{1.5ex plus 0.3ex minus 0.2ex}{1em}
-% Tighter space around floats, so three pages hold the tables, the figure and the bibliography.
+% Tighter space around floats, so three pages hold the tables, the figures and the bibliography.
 \setlength{\textfloatsep}{6pt}
 \setlength{\dblfloatsep}{6pt}
 \setlength{\dbltextfloatsep}{6pt}
@@ -67,8 +67,8 @@ models, which are only approximately idempotent, and how training for idempotenc
 a controlled setting with known errors. We find that (i)~the residual is useful within a corruption level, but each of two
 architectures has a corruption under which it misses the worst errors; (ii)~a strong idempotence
 penalty makes it a worse signal, and without a warm-up it collapses the model to a constant image;
-(iii)~as a conformal error bar it keeps its marginal guarantee but under-covers unseen masks,
-including the corruption it is blind to, which neither deeper iterates nor cross-seed disagreement
+(iii)~as a conformal error bar it keeps its marginal guarantee but under-covers some unseen masks,
+including its blind spot, which neither deeper iterates nor cross-seed disagreement
 repair;
 (iv)~brightness and level baselines are needed to read such signals correctly.
 
@@ -84,8 +84,8 @@ features include $\norm{A_s f(y) - y}$; we test the residual itself and how idem
 changes it. We also use split conformal
 prediction~\cite{angelopoulos2021gentle}, applied to imaging
 in~\cite{teneggi2023krcps,everink2025sscp}, the excess area under the risk-coverage
-curve~\cite{geifman2019bias}, and, for language models, cross-model disagreement as a complement
-to self-consistency~\cite{hamidieh2026disagreement}.
+curve~\cite{geifman2019bias}, and cross-model disagreement, proposed for language models to
+complement self-consistency~\cite{hamidieh2026disagreement}.
 
 \section{Method}
 
@@ -265,7 +265,7 @@ Deeper iterates rank worse in three of the four settings of Table~\ref{tab:cover
 against 0.70 here), with unchanged coverage.
 Ensemble disagreement ranks better within a level, except for the skip model at $\lid = 0$ (0.79
 against 0.70 here; 0.84 against 0.86 there), and loses less under the penalty, but it misses the same families
-(Fig.~\ref{fig:blind}) and its bound covers 0.59 of pixel masks: three seeds of one architecture
+(Fig.~\ref{fig:blind}) and its bound covers 0.59 of pixel masks here: three seeds of one architecture
 fail the same way on an unseen operator. Rejecting the 20\% of images with the
 largest $g$ lowers mean error from 0.092 to 0.084 (oracle 0.064); rejecting by $d$, $r_A$ or
 brightness does not (0.092, 0.100, 0.097). By nAURC, the excess area under the risk-coverage
@@ -277,8 +277,8 @@ A small idempotence residual is weak evidence of a correct restoration: for a pr
 none, and for the learned models it is useful within a level but misses an unseen corruption whose
 outputs are stable and wrong. Which corruption this is depends on the architecture, so a residual
 validated on some corruptions need not transfer. As an error bar this becomes a cost: the marginal
-guarantee holds while coverage on unseen masks, including the model's blind spot, fails with no
-warning.
+guarantee holds while coverage on some unseen masks, including the model's blind spot, fails
+silently.
 
 With $\lid = 1$ the residual became a worse signal while restoration held. A diagnostic that is
 also optimized as a loss can lose information; here the loss in brightness-controlled ranking,
