@@ -14,14 +14,15 @@
 
 \graphicspath{{../results/}}
 % Heading spacing a little tighter than the article defaults, as in two-column templates.
-\titlespacing*{\section}{0pt}{2.2ex plus 0.4ex minus 0.2ex}{1.0ex plus 0.2ex}
-\titlespacing*{\subsection}{0pt}{1.8ex plus 0.3ex minus 0.2ex}{0.7ex plus 0.2ex}
+\titlespacing*{\section}{0pt}{1.9ex plus 0.4ex minus 0.2ex}{0.9ex plus 0.2ex}
+\titlespacing*{\subsection}{0pt}{1.5ex plus 0.3ex minus 0.2ex}{0.6ex plus 0.2ex}
 \titlespacing*{\paragraph}{0pt}{1.5ex plus 0.3ex minus 0.2ex}{1em}
 % Tighter space around floats, so three pages hold the tables, the figure and the bibliography.
 \setlength{\textfloatsep}{6pt}
 \setlength{\dblfloatsep}{6pt}
 \setlength{\dbltextfloatsep}{6pt}
 \setlength{\intextsep}{6pt}
+\setlength{\floatsep}{6pt}
 \newcommand{\norm}[1]{\lVert #1 \rVert}
 \newcommand{\lid}{\lambda_{\mathrm{id}}}
 
@@ -44,9 +45,9 @@ the model's own displacement. For learned models it ranks errors within a corrup
 skip connections), but each architecture has an unseen corruption under which its outputs are
 stable but wrong and the residual misses them: pixel masks for the bottleneck model, large box
 masks for the skip model. A conformal error bar built on the residual holds its nominal 90\%
-coverage over all images but covers only 61\% and 74\% of pixel-mask images in the two models, and
-cross-seed disagreement shares the blind spots. For the bottleneck model, per-level calibration lifts
-the residual's pooled ranking from 0.55 to 0.89, but each level's mean error alone reaches 0.77. A strong idempotence
+coverage over all images but covers only 61\% and 74\% of pixel-mask images in the two models.
+Cross-seed disagreement shares the blind spots. For the bottleneck model, per-level calibration lifts
+the residual's pooled ranking from 0.55 to 0.89, but a level-mean predictor already reaches 0.77. A strong idempotence
 penalty makes the residual a worse signal, and without a warm-up both models collapse to constant
 images.
 \end{abstract}
@@ -83,8 +84,8 @@ features include $\norm{A_s f(y) - y}$; we test the residual itself and how idem
 changes it. We also use split conformal
 prediction~\cite{angelopoulos2021gentle}, applied to imaging
 in~\cite{teneggi2023krcps,everink2025sscp}, the excess area under the risk-coverage
-curve~\cite{geifman2019bias}, and, for language models, the proposal to complement
-self-consistency with cross-model disagreement~\cite{hamidieh2026disagreement}.
+curve~\cite{geifman2019bias}, and, for language models, cross-model disagreement as a complement
+to self-consistency~\cite{hamidieh2026disagreement}.
 
 \section{Method}
 
@@ -190,7 +191,7 @@ sparse dots into a dim garment and treats it as a fixed point. Pixel masks hold 
 worst-quartile errors, and $g$ flags 18\% of them, fewer than a random score (Fig.~\ref{fig:blind}).
 The skip model has the opposite blind spot: under box masks its within-level $\rho$ drops to 0.29
 and 0.12 (bottleneck: 0.83 and 0.71), it flags under 1\% of the worst box-mask errors, and 83--87\%
-of its stable-but-wrong images are large boxes.
+of its stable-but-wrong images (top-10\% error, below-median $g$) are large boxes.
 
 \begin{figure}[t]
   \centering
@@ -204,8 +205,8 @@ of its stable-but-wrong images are large boxes.
   \centering
   \includegraphics[width=\columnwidth]{blind_spots.pdf}
   \caption{Blind spots: share of each family's worst-quartile errors that a signal flags
-    (quartiles over all levels; $\lid = 0$, mean over seeds, whiskers span them; dashed: chance).
-    The residual misses pixel masks in the bottleneck model and box masks and blur in the skip
+    (quartiles over all levels; $\lid = 0$, mean over seeds, whiskers: seed range; dashed: chance).
+    The residual misses pixel masks in the bottleneck model, and box masks and blur in the skip
     model; disagreement misses the same families and is near chance on the bottleneck's blur.}
   \label{fig:blind}
 \end{figure}
@@ -215,9 +216,9 @@ of its stable-but-wrong images are large boxes.
 Without a warm-up, $\lid = 1$ collapses both architectures within one epoch to a constant image:
 the bottleneck model to the per-pixel median training image (validation error 0.2106, residual
 $10^{-6}$), the skip model to black (0.2885; residual $10^{-10}$), far above the $\lid = 0$
-solutions (about 0.05): failures of optimization. The skip model starts far from constant (its
-outputs vary across inputs by $8\cdot10^{-3}$, the bottleneck's by $5\cdot10^{-6}$), so a constant
-start is not required.
+solutions (about 0.05): failures of optimization. At initialization the outputs vary across inputs
+by $5\cdot10^{-6}$ (bottleneck) and $8\cdot10^{-3}$ (skip; clean images: 0.27), so a start as
+constant as the bottleneck's is not required.
 
 With the warm-up, mean error changes little (0.092 to 0.095; 0.086 to 0.084) but the residual
 falls by 40\% and 61\% and becomes a worse signal: within-level $\rho$ falls from 0.70 to 0.62 and
@@ -243,7 +244,7 @@ $\rho$ (0.06 and 0.05 against 0.02) and shrink $g$ more (40\% and 26\% against 6
 \end{table}
 After per-level calibration, pooled $\rho$ is
 0.89 for $g$, 0.93 for $d$ and 0.94 for $r_A$ in the bottleneck model and 0.92--0.93 in the skip
-model, whose fits reverse $d$ and $r_A$ under noise, while the level-mean predictor already
+model, whose fits reverse $d$ and $r_A$ under noise, while the level-mean predictor
 reaches 0.77 and 0.84; when only the family is
 known, $g$ is the best calibrated signal in both (0.84 and 0.79).
 
@@ -260,10 +261,10 @@ the skip model, whose residual ranks pixel-mask errors well (Table~\ref{tab:cove
 on the two training noise levels and deployed on the other eleven, coverage falls to 0.48 ($g$)
 and 0.19 ($d$, $r_A$) for the bottleneck model and to 0.16 and 0.26 for the skip model.
 
-Deeper iterates rank worse in three of the four settings ($g_2$ 0.63 against 0.70 here), with
-unchanged coverage.
-Ensemble disagreement ranks better within a level in three settings (0.79 against 0.70 here; skip
-at $\lid = 0$: 0.84 against 0.86) and loses less under the penalty, but it misses the same families
+Deeper iterates rank worse in three of the four settings of Table~\ref{tab:coverage} ($g_2$ 0.63
+against 0.70 here), with unchanged coverage.
+Ensemble disagreement ranks better within a level, except for the skip model at $\lid = 0$ (0.79
+against 0.70 here; 0.84 against 0.86 there), and loses less under the penalty, but it misses the same families
 (Fig.~\ref{fig:blind}) and its bound covers 0.59 of pixel masks: three seeds of one architecture
 fail the same way on an unseen operator. Rejecting the 20\% of images with the
 largest $g$ lowers mean error from 0.092 to 0.084 (oracle 0.064); rejecting by $d$, $r_A$ or
@@ -276,8 +277,8 @@ A small idempotence residual is weak evidence of a correct restoration: for a pr
 none, and for the learned models it is useful within a level but misses an unseen corruption whose
 outputs are stable and wrong. Which corruption this is depends on the architecture, so a residual
 validated on some corruptions need not transfer. As an error bar this becomes a cost: the marginal
-guarantee holds while coverage on unseen masks, including the family the model is blind to, fails
-with no warning.
+guarantee holds while coverage on unseen masks, including the model's blind spot, fails with no
+warning.
 
 With $\lid = 1$ the residual became a worse signal while restoration held. A diagnostic that is
 also optimized as a loss can lose information; here the loss in brightness-controlled ranking,
