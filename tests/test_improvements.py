@@ -5,15 +5,15 @@ import pandas as pd
 import pytest
 import torch
 
-from fpr.conformal import (conformal_quantile, evaluate_signals, marginal_bound,
-                           normalized_bound, split_masks, sure_self_calibrate)
+from fpr.conformal import (conformal_quantile, evaluate_signals, group_coverage, marginal_bound,
+                           normalized_bound, shift_coverage, split_masks, sure_self_calibrate)
 from fpr.ensemble import disagreement, seed_groups
 from fpr.projectors import Identity
 from fpr.selective import aurc, normalized_aurc, selective_risk, summarize
 from fpr.signals import compute_signals, iterate_signals
 
 
-def test_iterate_signals_matches_g_for_one_step():
+def test_iterate_signals_vanish_for_the_identity():
     f = Identity()
     y = torch.randn(32, 1, 8, 8)
     out = iterate_signals(f, y, steps=3)
@@ -22,16 +22,23 @@ def test_iterate_signals_matches_g_for_one_step():
     assert np.allclose(out["g3"], 0.0)
 
 
-def test_g2_equals_g_for_exact_projector():
-    """An exact projector has g = g2 = 0; compute_signals agrees with iterate_signals."""
-    f = Identity()
-    x = torch.randn(16, 1, 8, 8)
-    y = x + 0.1 * torch.randn_like(x)
-    A = lambda z: z
-    signals = compute_signals(f, x, y, A, iterate_steps=3)
+def test_residuals_vanish_for_an_exact_projector_but_displacement_does_not():
+    """An orthogonal projection has g = g2 = g3 = 0 up to round-off, and q is undefined (NaN),
+    while y itself is off the range, so d > 0."""
+    basis, _ = torch.linalg.qr(torch.randn(64, 5, generator=torch.Generator().manual_seed(0),
+                                           dtype=torch.float64))
+
+    def f(z):
+        return ((z.flatten(1) @ basis) @ basis.T).view_as(z)
+
+    x = torch.randn(16, 1, 8, 8, generator=torch.Generator().manual_seed(1), dtype=torch.float64)
+    y = x + 0.1 * torch.randn(x.shape, generator=torch.Generator().manual_seed(2), dtype=x.dtype)
+    signals = compute_signals(f, x, y, lambda z: z, iterate_steps=3)
     assert signals["g"].max() < 1e-12
     assert signals["g2"].max() < 1e-12
     assert signals["g3"].max() < 1e-12
+    assert np.isnan(signals["q"]).all()
+    assert signals["d"].min() > 0.1
 
 
 def test_iterate_signals_on_contraction():
@@ -210,3 +217,97 @@ def test_summarize_keys():
     out = summarize(signal, error)
     assert "aurc" in out and "aurc_norm" in out
     assert "risk@0.8" in out and "risk@0.5" in out
+
+
+def _levels(conditions, n_img=80, seed=0):
+    """The same n_img images under each condition, with an informative signal g."""
+    rng = np.random.default_rng(seed)
+    frames = []
+    for condition in conditions:
+        g = rng.exponential(0.05, n_img)
+        frames.append(pd.DataFrame({"image": np.arange(n_img), "condition": condition,
+                                    "family": condition.split("(")[0],
+                                    "g": g, "e": g * rng.lognormal(0.0, 0.3, n_img)}))
+    return pd.concat(frames, ignore_index=True)
+
+
+def test_evaluate_signals_fits_and_calibrates_on_separate_images():
+    frame = _levels(["noise(sigma=0.1)", "blur(std=1)"])
+    row = evaluate_signals(frame, signals=("g",)).query("setting == 'normalized'").iloc[0]
+    fit, calibration, _ = split_masks(frame["image"])
+    reference = normalized_bound(frame["g"], frame["e"], calibration, fit_mask=fit)
+    for key in ("q_hat", "coverage", "width"):
+        assert row[key] == pytest.approx(reference[key], rel=1e-12), key
+
+
+def test_severity_bound_uses_the_fitting_images_level_means():
+    """Fitting images have e = 1 and calibration images e = 2, so the level means from the
+    fitting images give scores of 2; means from the calibration images would give 1."""
+    frame = _levels(["noise(sigma=0.1)", "blur(std=1)"])
+    frame["e"] = np.where(frame["image"] % 4 == 0, 1.0, np.where(frame["image"] % 4 == 2, 2.0, 1.5))
+    row = evaluate_signals(frame, signals=("g",)).query("setting == 'severity'").iloc[0]
+    assert row["q_hat"] == pytest.approx(2.0)
+    assert row["coverage"] == 1.0 and row["width"] == pytest.approx(2.0)
+
+
+def test_shift_coverage_deploys_only_held_out_images_of_other_levels():
+    frame = _levels(["noise(sigma=0.1)", "noise(sigma=0.2)", "noise(sigma=0.3)", "blur(std=1)"])
+    result = shift_coverage(frame, "g", alpha=0.1)
+    assert (result["n_fit"], result["n_cal"], result["n_deploy"]) == (40, 40, 80)
+    expected = (frame["condition"].isin(["noise(sigma=0.3)", "blur(std=1)"])
+                & (frame["image"] % 2 == 1)).to_numpy()
+    assert np.array_equal(result["deploy_mask"], expected)
+    e_hi, error = result["e_hi"], frame["e"].to_numpy()
+    assert result["coverage"] == pytest.approx(np.mean(error[expected] <= e_hi[expected]))
+
+
+def test_group_coverage_counts_only_held_out_rows():
+    error = np.array([0.1, 0.1, 5.0, 5.0, 0.1, 5.0])
+    e_hi = np.ones(6)
+    groups = np.array(["a", "a", "a", "b", "b", "b"])
+    held = np.array([True, True, False, False, True, False])  # every miss is not held out
+    table = group_coverage(error, e_hi, groups, held).set_index("group")
+    assert table.loc["a", "coverage"] == 1.0 and table.loc["a", "n"] == 2
+    assert table.loc["b", "coverage"] == 1.0 and table.loc["b", "n"] == 1
+
+
+def test_sure_self_calibration_never_reads_the_clean_error_of_its_own_images():
+    """Corrupting e_mse on the fitting and calibration images must not change the bound."""
+    rng = np.random.default_rng(7)
+    n = 400
+    g = rng.exponential(0.05, n)
+    e_mse = 2.0 * g + rng.exponential(0.01, n)
+    frame = pd.DataFrame({"image": np.tile(np.arange(100), 4), "family": "noise",
+                          "condition": np.repeat([f"noise(sigma={s})" for s in (0.1, 0.2, 0.3, 0.5)],
+                                                 100),
+                          "e": np.sqrt(e_mse), "e_mse": e_mse,
+                          "sure": e_mse + rng.normal(0.0, 0.01, n), "g": g})
+    clean = sure_self_calibrate(frame, signal="g")
+    poisoned = frame.copy()
+    poisoned.loc[poisoned["image"] % 2 == 0, "e_mse"] = 1e6
+    corrupted = sure_self_calibrate(poisoned, signal="g")
+    for key in ("q_hat", "width", "coverage"):
+        assert corrupted[key] == clean[key], key
+    assert corrupted["width_supervised"] != clean["width_supervised"]  # that one does use e_mse
+
+
+def test_aurc_is_the_mean_selective_risk_over_all_coverages():
+    signal = np.array([0.1, 0.2, 0.3, 0.4])
+    error = np.array([1.0, 2.0, 3.0, 4.0])
+    # accepted means at k = 1..4: 1, 1.5, 2, 2.5
+    assert aurc(signal, error) == pytest.approx(1.75)
+    assert selective_risk(signal, error, coverage=0.5) == pytest.approx(1.5)
+    assert normalized_aurc(signal, error) == pytest.approx(0.0)
+    # reversed: 4, 3.5, 3, 2.5 -> 3.25; (3.25 - 1.75) / (2.5 - 1.75) = 2
+    assert aurc(-signal, error) == pytest.approx(3.25)
+    assert normalized_aurc(-signal, error) == pytest.approx(2.0)
+    # On a curved risk-coverage curve a trapezoid over the coverage grid is not exact:
+    # accepted means 4, 2, 4/3, 1 -> 25/12
+    assert aurc(signal, np.array([4.0, 0.0, 0.0, 0.0])) == pytest.approx(25 / 12)
+
+
+def test_disagreement_of_three_members():
+    """Constant outputs 0, 1 and 2: the mean is 1 and the mean absolute deviation 2/3."""
+    y = torch.zeros(5, 1, 4, 4)
+    members = [lambda z, c=c: torch.full_like(z, c) for c in (0.0, 1.0, 2.0)]
+    assert np.allclose(disagreement(members, y), 2.0 / 3.0)
