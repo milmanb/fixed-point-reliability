@@ -33,8 +33,8 @@ SIGNAL_LABELS = {"g": "g  idempotence residual", "d": "d  displacement", "r_A": 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--groups", nargs="*", default=None,
-                        help="model groups to compare (default: all autoencoder groups, at most 3)")
+    parser.add_argument("--groups", nargs="+", required=True,
+                        help=f"model groups to compare, at most {len(SERIES)}, e.g. dae_lam0 dae_lam1w5")
     parser.add_argument("--scatter-groups", nargs="*", default=None,
                         help="groups shown in g_vs_error.png (default: all compared groups)")
     parser.add_argument("--scatter-families", nargs="*", default=list(FAMILIES),
@@ -116,13 +116,11 @@ def blind_spot_table(per_image, groups):
     return pd.DataFrame(rows).groupby(["model_group", "family"], sort=False).mean().reset_index()
 
 
-def plot_training_curves(log_dir, path, groups):
+def plot_training_curves(log_dir, path, groups, colors):
     histories = {p.stem: pd.read_csv(p) for p in sorted(log_dir.glob("*_seed*.csv"))
                  if model_group(p.stem) in groups}
-    groups = list(dict.fromkeys(model_group(name) for name in histories))
-    if len(groups) > len(SERIES):
-        raise SystemExit(f"training_curves: {len(groups)} groups, but only {len(SERIES)} colours")
-    colors = dict(zip(groups, SERIES))
+    # Legend in the --groups order, with the same colours as the other figures.
+    histories = dict(sorted(histories.items(), key=lambda item: groups.index(model_group(item[0]))))
     fig, axes = plt.subplots(1, 2, figsize=(10, 3.4))
     panels = (("val_e@0.2", "validation error e"), ("val_g@0.2", "validation g"))
     for ax, (column, title) in zip(axes, panels):
@@ -142,12 +140,11 @@ def plot_training_curves(log_dir, path, groups):
     plt.close(fig)
 
 
-def plot_rho_by_condition(within, groups, path):
+def plot_rho_by_condition(within, groups, path, colors):
     conditions = [c.label for c in CONDITIONS]
     families = np.array([c.family for c in CONDITIONS])
     x = np.arange(len(conditions))
     offsets = np.linspace(-0.18, 0.18, len(groups)) if len(groups) > 1 else np.zeros(1)
-    colors = dict(zip(groups, SERIES))
     stats = (("spearman", r"Spearman $\rho$(signal, e)"), ("partial", r"partial $\rho$ given brightness b"))
     shown = within[within["signal"].isin(SIGNALS)]
     bottom = min(-0.1, np.floor(np.nanmin(shown[["spearman_min", "partial_min"]].to_numpy()) * 10) / 10)
@@ -201,7 +198,8 @@ def print_summary(errors, within, pooled, blind, groups):
     for stat in ("spearman", "partial"):
         table = (within[within["signal"].isin(SIGNALS)]
                  .groupby(["model_group", "signal"])[stat].median().unstack().reindex(index=groups))
-        show(f"Within-level {stat}, median over the 13 levels", table[list(SIGNALS)])
+        show(f"Within-level {stat}: median over the 13 levels of the mean over seeds "
+             "(Table 1 takes the median per seed, then the mean)", table[list(SIGNALS)])
     everything = pooled[(pooled["scope"] == "all")]
     for stat in ("spearman", "auroc"):
         table = everything.pivot(index="signal", columns="model_group", values=stat).reindex(columns=groups)
@@ -221,7 +219,7 @@ def main():
     per_image = pd.read_csv(results / "per_image.csv.gz")
 
     available = list(dict.fromkeys(summary["model"].map(model_group)))
-    groups = args.groups or [g for g in available if g.startswith("dae_")]
+    groups = args.groups
     missing = [g for g in groups if g not in available]
     if missing:
         raise SystemExit(f"groups not in the results: {missing}; available: {available}")
@@ -236,8 +234,9 @@ def main():
                         ("blind_spot", blind)):
         table.to_csv(out / f"{name}.csv", index=False, float_format="%.4f")
 
-    plot_training_curves(REPO_ROOT / args.logs, out / "training_curves.png", groups)
-    plot_rho_by_condition(within, groups, out / "rho_by_condition.png")
+    colors = dict(zip(groups, SERIES))  # one colour per group in every figure
+    plot_training_curves(REPO_ROOT / args.logs, out / "training_curves.png", groups, colors)
+    plot_rho_by_condition(within, groups, out / "rho_by_condition.png", colors)
     scatter_groups = [g for g in (args.scatter_groups or groups) if g in groups]
     first_model = {group: sorted(m for m in per_image["model"].unique() if model_group(m) == group)[0]
                    for group in scatter_groups}

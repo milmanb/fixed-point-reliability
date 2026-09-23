@@ -120,6 +120,11 @@ def rank_metrics(signals, error, clusters=None, n_boot=1000, seed=0, quantile=0.
     Returns a list of dicts, one per signal.
     """
     error = np.asarray(error, dtype=np.float64)
+    # Ranks would silently put NaN last; callers drop undefined signals first (see score()).
+    if not np.isfinite(error).all():
+        raise ValueError("error contains non-finite values")
+    if control is not None and not np.isfinite(np.asarray(control, dtype=np.float64)).all():
+        raise ValueError("control contains non-finite values")
     n = error.shape[0]
     labels = (error >= np.quantile(error, quantile)).astype(np.float64)[None, :]
     n_clusters = n if clusters is None else int(np.max(clusters)) + 1
@@ -127,6 +132,8 @@ def rank_metrics(signals, error, clusters=None, n_boot=1000, seed=0, quantile=0.
     prepared = {}
     for name, values in signals.items():
         values = np.asarray(values, dtype=np.float64)
+        if not np.isfinite(values).all():
+            raise ValueError(f"signal {name!r} contains non-finite values")
         constant = bool(np.ptp(values) <= atol)
         prepared[name] = (_TieGroups(np.zeros(n) if constant else values), constant)
     error_groups = _TieGroups(error)

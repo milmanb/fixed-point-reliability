@@ -12,6 +12,8 @@ since it is what we would use for a black-box CNN.
     python scripts/explore_sure.py
 """
 
+import argparse
+
 import numpy as np
 import torch
 from scipy.stats import spearmanr
@@ -71,4 +73,9 @@ def main(n_eval=2000, seed=123):
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--n-eval", type=int, default=2000)
+    parser.add_argument("--seed", type=int, default=123)
+    cli = parser.parse_args()
+    main(n_eval=cli.n_eval, seed=cli.seed)

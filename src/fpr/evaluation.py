@@ -46,7 +46,11 @@ def _map(work, items, jobs):
 
 
 def observe(condition, x, seed):
-    """Corrupt x under `condition`; the random draw depends only on `seed` and the condition."""
+    """Corrupt x under `condition`, drawing from a generator seeded by `seed` and the condition.
+
+    The draws also depend on x itself (its size, dtype and image order), so the same images in
+    the same order and dtype give the same observations.
+    """
     gen = torch.Generator().manual_seed(seed + zlib.crc32(condition.label.encode()))
     return condition(x, gen)
 
