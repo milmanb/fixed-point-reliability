@@ -10,6 +10,9 @@ results/selective. Skipped when those folders are missing.
     python scripts/report_table.py
 """
 
+import argparse
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -73,6 +76,9 @@ def per_image_columns(path, wanted=("model", "family", "e", "g", "dis")):
 
 
 def main():
+    # No options; the parser gives --help instead of silently rewriting the tables.
+    argparse.ArgumentParser(description=__doc__,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     metrics = load("metrics.csv")
     summary = load("summary.csv")
     paths = [REPO_ROOT / folder / "per_image.csv.gz" for folder in FOLDERS]
@@ -149,6 +155,9 @@ def coverage_table(groups=("dae_lam0", "dae_lam1w5", "unet_lam0", "unet_lam1w5")
     shift = pd.read_csv(conformal_dir / "shift.csv")
     selective = pd.read_csv(selective_dir / "selective.csv")
 
+    missing = [g for g in groups if g not in set(pooled["model_group"])]
+    if missing:
+        print(f"warning: no conformal results for {missing}; table_coverage.tex leaves them out")
     rows = []
     for group in groups:
         pooled_g = pooled[(pooled["model_group"] == group)]
@@ -206,7 +215,7 @@ def coverage_table(groups=("dae_lam0", "dae_lam1w5", "unet_lam0", "unet_lam1w5")
 def latex_rows(table):
     """The complete tabular for the report (inputting rows inside a tabular breaks \\multicolumn).
 
-    Columns: training, e, g, within/noise/partial/pooled/AUROC for g, within for d, r_A and dis,
+    Columns: model, e, g, within/noise/partial/pooled/AUROC for g, within for d, r_A and dis,
     flagged pixel/box for g. The runs without a warm-up collapse to a constant map, so every
     ranking is degenerate; they stay in results/report_table.csv but not in the report's table,
     where the text gives their error and residual.
@@ -218,7 +227,7 @@ def latex_rows(table):
         if pd.isna(value):
             return "--"
         # A share that rounds to 0% but is not zero, as the text says "under 1%".
-        return "$<$1\\%" if 0 < value < 0.005 else f"{100 * value:.0f}\\%"
+        return "$<$1\\%" if value > 0 and round(100 * value) == 0 else f"{100 * value:.0f}\\%"
 
     lines = [
         r"\setlength{\tabcolsep}{4pt}",
@@ -227,7 +236,7 @@ def latex_rows(table):
         r"& & & \multicolumn{5}{c}{signal $g$} & $d$ & $r_A$ & $\mathrm{dis}$"
         r" & \multicolumn{2}{c}{$g$ flagged} \\",
         r"\cmidrule(lr){4-8} \cmidrule(l){12-13}",
-        r"training & $e$ & $g$ & within & noise & partial & pooled & AUROC & within & within"
+        r"model & $e$ & $g$ & within & noise & partial & pooled & AUROC & within & within"
         r" & within & pixel & box \\",
         r"\midrule",
     ]
@@ -235,7 +244,9 @@ def latex_rows(table):
         rows = table[(table["architecture"] == architecture)
                      & ~table["training"].str.contains("no warm-up")]
         for _, row in rows.iterrows():
-            training = row["training"].replace("none", "lambda 0").replace("lambda", r"$\lid{=}$")
+            # "lambda 1, inner only" -> "$\lid{=}1$, inner only", as in Table 2's labels
+            training = re.sub(r"lambda ([0-9.]+)", r"$\\lid{=}\1$",
+                              row["training"].replace("none", "lambda 0"))
             cells = [f"{architecture}, {training}", number(row["error"], 3),
                      number(row["residual"], 3)]
             cells += [number(row[c]) for c in ("rho_g", "rho_g_noise", "partial_g", "pooled_g",
