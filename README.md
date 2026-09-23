@@ -45,7 +45,7 @@ Fashion-MNIST is downloaded to `data/` on first use.
 ### 1. Smoke check on exact projectors (proposal, Sec. 5)
 
 ```bash
-python scripts/smoke_projectors.py                              # full run, ~20 min
+python scripts/smoke_projectors.py                              # full run, ~22 min
 python scripts/smoke_projectors.py --n-eval 2000 --n-boot 200   # quick run, ~2 min
 ```
 
@@ -70,7 +70,7 @@ tested on learned, approximately idempotent models.
 "Within level" is the median [min, max] over the 13 corruption levels; "pooled" mixes
 all levels and corruption types.
 
-| projector | max $g$ | mean $e$ | $\rho(d, e)$ within level | $\rho(r_A, e)$ within level | AUROC $d$ / $r_A$ | pooled $\rho$ $d$ / $r_A$ |
+| projector | max $g$ | mean $e$ | $\rho(d, e)$ within level | $\rho(r_A, e)$ within level | AUROC $d$ / $r_A$ within level | pooled $\rho$ $d$ / $r_A$ |
 |---|---|---|---|---|---|---|
 | `identity` | 0 | 0.032-0.399 | undefined | +0.75 [+0.74, +0.97] (4/13 defined) | 0.50 / 0.50 | undefined / -0.33 |
 | `radial` | 2e-16 | 0.050-0.234 | +0.57 [-0.46, +0.89] | +0.60 [-0.46, +0.99] | 0.84 / 0.86 | +0.57 / +0.38 |
@@ -120,9 +120,10 @@ held-out noise levels, and blur and masks are unseen operators. Checkpoints go t
 `checkpoints/` (git-ignored) and training curves to `results/train/`.
 
 With $\lambda_{id} = 1$ from the first step, every seed collapses within one epoch to a
-constant output, the per-pixel median image: validation error 0.2107 against 0.2106 for that
-image, and $g = 0$. The collapse held for all 15 epochs. `--lambda-warmup 5` ramps
-$\lambda_{id}$ from 0 over five epochs and avoids it.
+constant output, the per-pixel median image: validation error 0.2107 after one epoch and
+0.2106 at epoch 15, equal to that image's, with $g$ about $10^{-6}$. Seed 0 ran all 15 epochs;
+seeds 1 and 2 were stopped after two (logs in `results/train/logs/`). `--lambda-warmup 5`
+ramps $\lambda_{id}$ from 0 over five epochs and avoids it.
 
 ### 3. Evaluate models
 
@@ -205,8 +206,9 @@ residual is in its top quartile over all levels (a random score gives 25%).
    pixel-mask flagged share, the inner route alone does not.
 4. **Without warm-up both architectures collapse** to constant images: the per-pixel median
    image (validation error 0.2106, the same as that image's) and a black image (0.2885, the mean
-   pixel value). The skip model does not start constant (output spread $8\cdot10^{-3}$ against
-   $5\cdot10^{-6}$), so a near-constant start is not required (`results/checks.json`).
+   pixel value). At initialization the skip model is far less constant than the bottleneck
+   model (output spread $8\cdot10^{-3}$ against $5\cdot10^{-6}$; clean images 0.27), so a start
+   as constant as the bottleneck's is not required (`results/checks.json`).
 5. **Calibration per level** lifts pooled $\rho$ from 0.00-0.55 to 0.85-0.94, but a predictor
    that returns each level's mean error already reaches 0.73-0.84 (`results/calibration*`).
 
@@ -282,12 +284,15 @@ results/               result tables and figures (per-image dumps are git-ignore
 2. M. Al-Jaff et al., "A Non-Adversarial Approach to Idempotent Generative Modelling," ECAI 2025.
 3. S. Zaman et al., "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
 4. N. Durasov et al., "IT³: Idempotent Test-Time Training," ICML 2025.
-5. A. Angelopoulos and S. Bates, "A Gentle Introduction to Conformal Prediction," arXiv:2107.07511, 2021.
-6. J. Teneggi, M. Tivnan, J. W. Stayman and J. Sulam, "How to Trust Your Diffusion Model" (K-RCPS), ICML 2023.
-7. J. M. Everink, B. Tamo Amougou and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," arXiv:2502.05127, 2025.
+5. A. N. Angelopoulos and S. Bates, "Conformal Prediction: A Gentle Introduction," Foundations and Trends in Machine Learning 16(4), 2023 (arXiv:2107.07511).
+6. J. Teneggi, M. Tivnan, J. W. Stayman and J. Sulam, "How to Trust Your Diffusion Model: A Convex Optimization Approach to Conformal Risk Control" (K-RCPS), ICML 2023.
+7. J. M. Everink, B. Tamo Amougou and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," SSVM 2025 (arXiv:2502.05127).
 8. Y. Geifman, G. Uziel and R. El-Yaniv, "Bias-Reduced Uncertainty Estimation for Deep Neural Classifiers," ICLR 2019 (AURC and excess AURC).
 9. Y. Xu, W. Guo and Z. Wei, "Selective Conformal Risk Control," arXiv:2512.12844, 2025.
 10. K. Hamidieh, V. Thost, W. Gerych, M. Yurochkin and M. Ghassemi, "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
+11. C. M. Stein, "Estimation of the Mean of a Multivariate Normal Distribution," Annals of Statistics 9(6), 1981.
+12. S. Ramani, T. Blu and M. Unser, "Monte-Carlo SURE: A Black-Box Optimization of Regularization Parameters for General Denoising Algorithms," IEEE Transactions on Image Processing 17(9), 2008.
+13. H. Xiao, K. Rasul and R. Vollgraf, "Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms," arXiv:1708.07747, 2017.
 
 ## License
 
