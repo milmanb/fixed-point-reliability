@@ -5,15 +5,14 @@ the mean error of the accepted set. The risk-coverage curve plots that mean agai
 kept fraction (coverage). The area under it (AURC) summarizes the curve; selective risk
 at a fixed coverage (e.g. 80%) is the operational number.
 
-Normalization: report (aurc - aurc_oracle) / (aurc_random - aurc_oracle), so 0 is perfect
-ranking by true error and 1 is a constant score (cf. selective conformal risk control,
-arXiv:2512.12844).
+AURC is the mean selective risk over all coverages k/n, as in Geifman, Uziel and El-Yaniv
+(ICLR 2019, arXiv:1805.08206), who define the excess AURC over the oracle ranking.
+Normalization: report (aurc - aurc_oracle) / (aurc_random - aurc_oracle), so 0 is ranking by
+the true error and 1 is the expected AURC of a random order, mean(e). A constant score is not a
+random order: the stable sort keeps the file order.
 """
 
 import numpy as np
-
-# NumPy 2 renamed trapz to trapezoid and later removed trapz; keep both versions working.
-_trapezoid = getattr(np, "trapezoid", None) or np.trapz
 
 
 def risk_coverage_curve(signal, error, n_points=50):
@@ -37,12 +36,18 @@ def risk_coverage_curve(signal, error, n_points=50):
     return coverage, risk
 
 
-def aurc(signal, error, n_points=200):
-    """Trapezoidal area under the risk-coverage curve."""
-    coverage, risk = risk_coverage_curve(signal, error, n_points=n_points)
-    if len(coverage) < 2:
+def aurc(signal, error):
+    """Area under the risk-coverage curve: the mean selective risk over all coverages k/n.
+
+    Exact, unlike a trapezoid on a grid, whose first interval rests on one image's error.
+    """
+    signal = np.asarray(signal, dtype=np.float64)
+    error = np.asarray(error, dtype=np.float64)
+    n = len(error)
+    if n == 0:
         return float("nan")
-    return float(_trapezoid(risk, coverage))
+    order = np.argsort(signal, kind="stable")
+    return float(np.mean(np.cumsum(error[order]) / np.arange(1, n + 1)))
 
 
 def selective_risk(signal, error, coverage=0.8):
@@ -55,22 +60,22 @@ def selective_risk(signal, error, coverage=0.8):
     return float(error[order[:k]].mean())
 
 
-def normalized_aurc(signal, error, n_points=200):
-    """AURC scaled so 0 = oracle (rank by e) and 1 = random (constant score)."""
-    aurc_s = aurc(signal, error, n_points=n_points)
-    aurc_oracle = aurc(error, error, n_points=n_points)
-    aurc_random = float(np.mean(error))  # constant score: risk = mean e at every coverage
+def normalized_aurc(signal, error):
+    """AURC scaled so 0 = oracle (rank by e) and 1 = the expected AURC of a random order."""
+    aurc_s = aurc(signal, error)
+    aurc_oracle = aurc(error, error)
+    aurc_random = float(np.mean(error))  # random order: expected risk is mean e at every coverage
     denom = aurc_random - aurc_oracle
     if abs(denom) < 1e-15:
         return float("nan")
     return float((aurc_s - aurc_oracle) / denom)
 
 
-def summarize(signal, error, coverages=(0.8, 0.5), n_points=200):
+def summarize(signal, error, coverages=(0.8, 0.5)):
     """Dict with AURC, normalized AURC, and selective risk at each coverage."""
     out = {
-        "aurc": aurc(signal, error, n_points=n_points),
-        "aurc_norm": normalized_aurc(signal, error, n_points=n_points),
+        "aurc": aurc(signal, error),
+        "aurc_norm": normalized_aurc(signal, error),
         "mean_error": float(np.mean(error)),
     }
     for c in coverages:
