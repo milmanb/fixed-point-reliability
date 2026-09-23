@@ -285,7 +285,7 @@ results/               result tables and figures (per-image dumps are git-ignore
 5. A. Angelopoulos and S. Bates, "A Gentle Introduction to Conformal Prediction," arXiv:2107.07511, 2021.
 6. J. Teneggi et al., "How to Trust Your Diffusion Model" (K-RCPS), arXiv:2302.03791, 2023.
 7. "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," arXiv:2502.05127, 2025.
-8. "Selective Conformal Risk Control," arXiv:2512.12844, 2025.
+8. Y. Xu, W. Guo, and Z. Wei, "Selective Conformal Risk Control," arXiv:2512.12844, 2025.
 9. "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
 
 ## License

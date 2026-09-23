@@ -20,8 +20,8 @@
 \newcommand{\lid}{\lambda_{\mathrm{id}}}
 
 \title{Stable but Wrong: Fixed-Point Residuals as\\Reference-Free Reliability Signals for Image Restoration}
-\author{Itay Shorian \quad Michael Bazkor \quad Boaz Cohen \quad Bar Milman \quad Assaf Fleischer\\[2pt]
-  \small Modern Computer Vision, final project\\
+\author{Assaf Fleischer \quad Bar Milman \quad Michael Bazkor \quad Boaz Cohen  \quad Itay Shorian\\[2pt]
+  \small Modern Computer Vision, Technion\\
   \small\url{https://github.com/milmanb/fixed-point-reliability}}
 \date{}
 
@@ -269,13 +269,6 @@ signal while restoration held; a diagnostic that is also a loss can lose informa
 gradients through the outer application. Methods that minimize the residual at test
 time~\cite{durasov2025it3} may face the same issue; we did not test this. Ensemble disagreement is
 the better choice for such models, but it agrees with itself where it is wrong.
-
-\paragraph{Limitations and deviations from the proposal.}
-We added box masks, SURE, brightness and level baselines, a second architecture, routing
-ablations, deeper iterates and ensemble disagreement; $\lid > 0$ needed a warm-up. Coverage is
-marginal and per family, not per pixel. Evidence is from one small dataset, two small models, three
-seeds per setting and one collapse run per architecture. Fashion-MNIST's black background makes
-brightness a strong baseline.
 
 \tiny
 \bibliographystyle{abbrv}  % ignores url/doi fields
