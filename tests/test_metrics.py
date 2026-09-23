@@ -131,3 +131,22 @@ def test_chunked_bootstrap_gives_ordered_intervals():
     for row in rows:
         assert row["spearman_lo"] <= row["spearman"] <= row["spearman_hi"]
         assert row["auroc_lo"] <= row["auroc"] <= row["auroc_hi"]
+
+
+def test_bootstrap_does_not_depend_on_the_chunk_size():
+    """The resamples are drawn in chunks to bound memory; the chunk size must not change them."""
+    rng = np.random.default_rng(3)
+    e = rng.random(500)
+    s = e + rng.normal(0, 0.3, 500)
+    clusters = np.repeat(np.arange(250), 2)
+    one_chunk = rank_metrics({"s": s}, e, clusters=clusters, n_boot=300, seed=4)[0]
+    many_chunks = rank_metrics({"s": s}, e, clusters=clusters, n_boot=300, seed=4, max_cells=5000)[0]
+    assert one_chunk == many_chunks
+
+
+def test_non_finite_input_is_rejected():
+    e = np.linspace(0, 1, 50)
+    with pytest.raises(ValueError, match="signal 's'"):
+        rank_metrics({"s": np.where(e > 0.5, np.nan, e)}, e, n_boot=0)
+    with pytest.raises(ValueError, match="error"):
+        rank_metrics({"s": e}, np.where(e > 0.5, np.inf, e), n_boot=0)

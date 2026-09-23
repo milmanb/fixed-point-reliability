@@ -71,3 +71,20 @@ def test_value_and_gradient_for_a_non_idempotent_model():
     assert loss.item() == pytest.approx(0.21 * y.abs().mean().item(), rel=1e-12)
     loss.backward()
     assert model.scale.grad is not None and model.scale.grad.abs().item() > 0
+
+
+def test_each_routing_has_its_own_gradient():
+    """For f(y) = s y with s = 0.3 the loss is s_in (1 - s_out) mean|y|, where s_in scales the
+    inner application and s_out the outer one. "inner" differentiates s_in only, (1 - s) mean|y|;
+    "outer" differentiates s_out only, -s mean|y|; "both" gives their sum, (1 - 2 s) mean|y|.
+    Swapping the two routings fails this test."""
+    y = _images()
+    mean_abs = y.abs().mean().item()
+    gradients = {}
+    for routing in ("both", "inner", "outer"):
+        model = Shrink()
+        idempotence_loss(model, model(y), routing=routing).backward()
+        gradients[routing] = model.scale.grad.item()
+    assert gradients["inner"] == pytest.approx(0.7 * mean_abs, rel=1e-12)
+    assert gradients["outer"] == pytest.approx(-0.3 * mean_abs, rel=1e-12)
+    assert gradients["both"] == pytest.approx(0.4 * mean_abs, rel=1e-12)
