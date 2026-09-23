@@ -55,9 +55,9 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, com
     conditions = {c.label: c for c in CONDITIONS}
     error_cmap = LinearSegmentedColormap.from_list("error", SEQUENTIAL)
     if compact:
-        # Drawn at the printed size of one report column, so 6-7 pt labels stay readable.
+        # Drawn at its printed size in the report (2.55 in wide), so the 6-6.5 pt labels print as set.
         row_names = ["clean", "input", "output"]
-        figsize, caption_size, label_size = (3.4, 2.55), 5.5, 6.5
+        figsize, caption_size, label_size = (2.55, 1.98), 6, 6.5
     else:
         row_names = ["clean x", "observed y", "output f(y)", "|f(y) - x|"]
         figsize, caption_size, label_size = (1.75 * len(rows), 7.35), 6.5, 8

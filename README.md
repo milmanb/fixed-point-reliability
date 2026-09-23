@@ -1,8 +1,8 @@
 # Fixed-Point Reliability
 
 **Stable but Wrong: Fixed-Point Residuals as Reference-Free Reliability Signals for Image Restoration**
-Final project, Modern Computer Vision (MCV), 2026. Proposed as "Calibrating Reference-Free
-Reliability Signals for Learned Image Projectors".
+Final project, Modern Computer Vision (MCV), Technion, 2026. Proposed as "Calibrating
+Reference-Free Reliability Signals for Learned Image Projectors".
 Itay Shorian, Michael Bazkor, Boaz Cohen, Bar Milman, Assaf Fleischer.
 
 ## Question
@@ -188,6 +188,7 @@ python scripts/report_numbers.py                                             # r
 python scripts/report_table.py                                               # Tables 1 and 2 of the report
 python scripts/plot_models.py --model dae_lam0_seed0                         # results/models/figures
 python scripts/plot_models.py --model dae_lam0_seed0 --compact --examples 5  # the report's Fig. 1
+python scripts/plot_blind_spots.py                                           # the report's Fig. 2
 python scripts/plot_models.py --model dae_lam1w5_seed0
 python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5
 python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5 \
@@ -274,6 +275,7 @@ scripts/
   add_signals.py       adds g2, g3, q and dis to a stored per-image dump (as done for the results)
   compare_models.py    tables and figures comparing model groups
   plot_models.py       per-model figures, including the stable-but-wrong examples
+  plot_blind_spots.py  share of each family's worst errors flagged by g and dis (the report's Fig. 2)
   calibrate.py         isotonic calibration per level or per family
   conformal.py         coverage and width of conformal error bars
   selective.py         risk-coverage curves and selective risk

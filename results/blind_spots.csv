@@ -1,0 +1,17 @@
+architecture,group,family,signal,flagged,flagged_min,flagged_max,seeds,worst_quartile_share
+bottleneck,dae_lam0,noise,g,0.8234,0.7684,0.8550,3,0.0273
+bottleneck,dae_lam0,noise,dis,0.8971,0.8950,0.8996,3,0.0273
+bottleneck,dae_lam0,blur,g,0.6476,0.5568,0.7181,3,0.1347
+bottleneck,dae_lam0,blur,dis,0.2884,0.2789,0.3030,3,0.1347
+bottleneck,dae_lam0,pixel_mask,g,0.1812,0.1528,0.2082,3,0.5969
+bottleneck,dae_lam0,pixel_mask,dis,0.1981,0.1967,0.1994,3,0.5969
+bottleneck,dae_lam0,box_mask,g,0.7359,0.7194,0.7648,3,0.2411
+bottleneck,dae_lam0,box_mask,dis,0.8543,0.8537,0.8550,3,0.2411
+skip,unet_lam0,noise,g,0.9996,0.9991,1.0000,3,0.1167
+skip,unet_lam0,noise,dis,1.0000,1.0000,1.0000,3,0.1167
+skip,unet_lam0,blur,g,0.1508,0.1357,0.1625,3,0.1431
+skip,unet_lam0,blur,dis,0.1094,0.1073,0.1132,3,0.1431
+skip,unet_lam0,pixel_mask,g,0.6824,0.6755,0.6908,3,0.5686
+skip,unet_lam0,pixel_mask,dis,0.5696,0.5680,0.5709,3,0.5686
+skip,unet_lam0,box_mask,g,0.0041,0.0034,0.0046,3,0.1715
+skip,unet_lam0,box_mask,dis,0.0123,0.0120,0.0126,3,0.1715
