@@ -9,11 +9,11 @@ description = "Reference-free reliability signals for learned image projectors (
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "torch>=2.1",
-    "torchvision>=0.16",
+    "torch>=2.4",          # older torch works only with numpy < 2
+    "torchvision>=0.19",
     "numpy>=1.24",
     "scipy>=1.10",
-    "pandas>=2.0",
+    "pandas>=2.2",         # groupby.apply(include_groups=...)
     "matplotlib>=3.7",
     "scikit-learn>=1.3",
 ]

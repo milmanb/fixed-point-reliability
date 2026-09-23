@@ -31,14 +31,19 @@ into a risk-coverage curve. See [IMPROVEMENTS.md](IMPROVEMENTS.md) for what thos
 
 ## Setup
 
-Python 3.10+. Install PyTorch for your platform first (https://pytorch.org), then:
+Python 3.10+ (tested with Python 3.13, PyTorch 2.12, NumPy 2.4, pandas 3.0 and scikit-learn
+1.8). Install PyTorch for your platform first (https://pytorch.org), then:
 
 ```bash
 pip install -e ".[dev]"
 pytest
 ```
 
-Fashion-MNIST is downloaded to `data/` on first use.
+PyTorch older than 2.4 needs `numpy<2`; otherwise every tensor-to-numpy conversion fails with
+"Numpy is not available". Fashion-MNIST is downloaded to `data/` on first use.
+
+The 23 trained checkpoints are in `checkpoints/`, so step 2 below is optional. The evaluation
+(step 3) writes large per-image dumps, git-ignored, that every later analysis reads.
 
 ## Reproduce
 
@@ -104,20 +109,32 @@ bootstrap.
 
 ![Spearman heatmap](results/smoke_projectors/spearman_heatmap.png)
 
-### 2. Train the denoising autoencoders
+### 2. Train the denoising autoencoders (optional)
+
+Every configuration in the report; run each line with `--seed 0`, `1` and `2` unless noted.
 
 ```bash
-python scripts/train_dae.py --lambda-id 0 --seed 0                      # repeat for seeds 1, 2
-python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --seed 0    # repeat for seeds 1, 2
-python scripts/train_dae.py --lambda-id 1 --seed 0                      # collapses, see below
+# bottleneck model (checkpoints dae_*)
+python scripts/train_dae.py --lambda-id 0 --seed 0                                    # dae_lam0
+python scripts/train_dae.py --lambda-id 0.1 --lambda-warmup 5 --seed 0                # dae_lam0.1w5
+python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --seed 0                  # dae_lam1w5
+python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --routing inner --seed 0  # dae_lam1w5_inner
+python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --routing outer --seed 0  # dae_lam1w5_outer
+python scripts/train_dae.py --lambda-id 1 --seed 0                    # dae_lam1, seed 0 only: collapses
+# skip-connection model (checkpoints unet_*)
+python scripts/train_dae.py --architecture skip --lambda-id 0 --seed 0                    # unet_lam0
+python scripts/train_dae.py --architecture skip --lambda-id 1 --lambda-warmup 5 --seed 0  # unet_lam1w5
+python scripts/train_dae.py --architecture skip --lambda-id 1 --seed 0    # unet_lam1, seed 0 only: collapses
 ```
 
-`ConvAutoencoder` (602k parameters, 64-unit bottleneck, no normalization layers) is
-trained with $\lvert f(y) - x \rvert_1 + \lambda_{id} L_{idem}$ on Gaussian noise with
-$\sigma \sim U[0.05, 0.25]$, for 15 epochs. The last 5,000 training images are used for
-validation. At test time, $\sigma = 0.1, 0.2$ are in distribution, $\sigma = 0.3, 0.5$ are
-held-out noise levels, and blur and masks are unseen operators. Checkpoints go to
-`checkpoints/` (git-ignored) and training curves to `results/train/`.
+`ConvAutoencoder` (602k parameters, 64-unit bottleneck, no normalization layers) and the skip
+model (230k) are trained with $\lvert f(y) - x \rvert_1 + \lambda_{id} L_{idem}$ on Gaussian
+noise with $\sigma \sim U[0.05, 0.25]$, for 15 epochs with Adam (learning rate $10^{-3}$, cosine
+decay per step, batch 256). The last 5,000 training images are used for validation. At test
+time, $\sigma = 0.1, 0.2$ are in distribution, $\sigma = 0.3, 0.5$ are held-out noise levels,
+and blur and masks are unseen operators. Checkpoints go to `checkpoints/` and training curves
+to `results/train/`. The three `dae_lam0` checkpoints come from an earlier version of the script
+that did not record the device; all other runs trained on CPU (`--device cpu`).
 
 With $\lambda_{id} = 1$ from the first step, every seed collapses within one epoch to a
 constant output, the per-pixel median image: validation error 0.2107 after one epoch and
@@ -128,7 +145,11 @@ ramps $\lambda_{id}$ from 0 over five epochs and avoids it.
 ### 3. Evaluate models
 
 ```bash
-python scripts/evaluate_models.py --device cpu     # all checkpoints, plus radial and pca64
+# bottleneck checkpoints (dae_*.pt) plus the radial and pca64 projectors -> results/models (hours)
+python scripts/evaluate_models.py --ensemble --device cpu --jobs 4 --threads 2
+# skip checkpoints (unet_*.pt), no projectors (a bare --projectors) -> results/models_skip
+python scripts/evaluate_models.py --pattern "unet_*.pt" --projectors --ensemble \
+    --device cpu --jobs 4 --threads 2 --out results/models_skip
 ```
 
 In addition to $g$, $d$ and $r_A$, the evaluation computes first-order signals on the
@@ -145,32 +166,36 @@ Two baselines guard against scores that do not reflect model failures:
 - `<signal>@level`, the median of a signal over its corruption level. In pooled scores it
   measures how much of the ranking is severity detection.
 
-```bash
-python scripts/plot_models.py --model dae_lam0_seed0   # figures in results/models/figures
-```
+`--ensemble` adds the cross-seed disagreement signal; it needs every seed of a group in the same
+run, so do not combine it with `--append` for a subset of seeds. `--no-metrics` writes the
+per-image dump without the bootstrap scoring. `--from-per-image` scores an existing dump and merges
+the scores into `metrics.csv` (only the listed signals with `--signals`). `--append` adds models
+to an earlier evaluation in the same folder. The committed dumps got $g_2$, $g_3$, $q$ and dis
+from `scripts/add_signals.py`, as recorded in `run_info.json`; a full `--ensemble` evaluation
+computes the same columns.
+
+#### Analyses and figures
+
+Minutes each; they read the per-image dumps.
 
 ```bash
-python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1
+python scripts/calibrate.py                                                  # results/calibration
+python scripts/calibrate.py --results results/models_skip --out results/calibration_skip
+python scripts/conformal.py                                                  # results/conformal
+python scripts/selective.py                                                  # results/selective
+python scripts/checks.py                                                     # results/checks.json
+python scripts/report_numbers.py                                             # results/report_numbers.json
+python scripts/report_table.py                                               # Tables 1 and 2 of the report
+python scripts/plot_models.py --model dae_lam0_seed0                         # results/models/figures
+python scripts/plot_models.py --model dae_lam0_seed0 --compact --examples 5  # the report's Fig. 1
+python scripts/plot_models.py --model dae_lam1w5_seed0
+python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5
+python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5 \
+    --scatter-families noise pixel_mask --scatter-name g_vs_error_compact
+python scripts/compare_models.py --groups dae_lam1w5 dae_lam1w5_inner dae_lam1w5_outer --out-dir comparison_routing
+python scripts/compare_models.py --groups dae_lam0.1w5 dae_lam1w5_inner dae_lam1w5 --out-dir comparison_ablation
+python scripts/compare_models.py --results results/models_skip --groups unet_lam0 unet_lam1w5 unet_lam1
 ```
-
-#### More experiments
-
-```bash
-python scripts/train_dae.py --architecture skip --lambda-id 0 --seed 0     # skip-connection control
-python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --routing inner --seed 0
-python scripts/evaluate_models.py --pattern "unet_*.pt" --projectors --device cpu --out results/models_skip
-python scripts/calibrate.py                                                # isotonic calibration
-python scripts/conformal.py                                                # conformal coverage and width
-python scripts/selective.py                                                # risk-coverage curves
-python scripts/checks.py                                                   # collapse, FD accuracy, init
-python scripts/report_table.py                                             # Tables 1 and 2 of the report
-```
-
-`--ensemble` adds the cross-seed disagreement signal, `--no-metrics` writes the per-image dump
-without the bootstrap scoring, and `--from-per-image --signals ...` re-scores selected signals
-from an existing dump instead of recomputing everything.
-
-`--append` adds models to an earlier evaluation instead of re-running all of them.
 
 #### Results
 
@@ -245,7 +270,8 @@ src/fpr/
 scripts/
   smoke_projectors.py  exact-projector experiment
   train_dae.py         training (architecture, lambda_id, warm-up, routing)
-  evaluate_models.py   per-image signals and scores (--jobs, --append, --ensemble)
+  evaluate_models.py   per-image signals and scores (--jobs, --append, --ensemble, --from-per-image)
+  add_signals.py       adds g2, g3, q and dis to a stored per-image dump (as done for the results)
   compare_models.py    tables and figures comparing model groups
   plot_models.py       per-model figures, including the stable-but-wrong examples
   calibrate.py         isotonic calibration per level or per family
@@ -253,6 +279,7 @@ scripts/
   selective.py         risk-coverage curves and selective risk
   checks.py            collapse, finite-difference accuracy, initialization
   report_table.py      Tables 1 and 2 (results/report_table.csv, report/table_*.tex)
+  report_numbers.py    report numbers no other file holds (results/report_numbers.json)
   explore_sure.py      SURE vs. displacement on exact projectors (exploration)
 checkpoints/           trained models
 report/                LaTeX source and bibliography of the report

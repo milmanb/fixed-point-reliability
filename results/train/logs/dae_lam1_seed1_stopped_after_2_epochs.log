@@ -1,0 +1,3 @@
+dae_lam1_seed1: 602,049 parameters, 55000 training images, device cpu
+  epoch   1  rec 0.2191  val e@0.2 0.2107  val g@0.2 0.0000  (319.5s)
+  epoch   2  rec 0.2095  val e@0.2 0.2109  val g@0.2 0.0000  (338.3s)

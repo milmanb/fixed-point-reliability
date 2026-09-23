@@ -242,36 +242,35 @@ the claim that "a fixed point is a correct output".
 
 ## Reproducing
 
-The per-image dumps are git-ignored because they are large (about 120 MB and 50 MB), so
-regenerate them first:
+The per-image dumps are git-ignored because they are large (about 120 MB and 50 MB). A fresh
+clone regenerates them, with every signal including dis, $g_2$, $g_3$ and $q$, and scores all
+signals:
 
 ```bash
 pip install -e ".[dev]"
 pytest
 
-# per-image signals including dis, g2, g3, q (hours; the bottleneck run also does the projectors,
-# which the summary needs, so do not pass a bare --projectors there)
-python scripts/evaluate_models.py --pattern "dae_*.pt"  --ensemble --no-metrics \
-    --device cpu --jobs 4 --threads 2 --out results/models
-python scripts/evaluate_models.py --pattern "unet_*.pt" --projectors --ensemble --no-metrics \
+# per-image signals and bootstrap scores for every signal (hours; the bottleneck run also does
+# the radial and pca64 projectors, which the summary needs)
+python scripts/evaluate_models.py --ensemble --device cpu --jobs 4 --threads 2
+python scripts/evaluate_models.py --pattern "unet_*.pt" --projectors --ensemble \
     --device cpu --jobs 4 --threads 2 --out results/models_skip
 
-# bootstrap scores for the new signals, merged into the existing metrics.csv
-python scripts/evaluate_models.py --from-per-image --signals dis g2 g3 q \
-    --device cpu --jobs 4 --out results/models
-python scripts/evaluate_models.py --from-per-image --signals dis g2 g3 q \
-    --device cpu --jobs 4 --out results/models_skip
-
-# the new analyses (minutes; numpy and pandas only)
+# the analyses (minutes on a CPU)
+python scripts/calibrate.py
+python scripts/calibrate.py --results results/models_skip --out results/calibration_skip
 python scripts/conformal.py
 python scripts/selective.py
-python scripts/calibrate.py
+python scripts/report_numbers.py
 python scripts/report_table.py
 ```
 
-`torch` and `numpy` must be ABI-compatible: with `torch 2.3.1`, for instance, the project needs
-`numpy < 2`, or every tensor-to-numpy conversion fails with "Numpy is not available". The models
-are small, so a CPU run only costs wall-clock time.
+The committed results took a shorter path, from dumps that already held every other column:
+`scripts/add_signals.py` added $g_2$, $g_3$, $q$ and dis to each stored dump, and
+`scripts/evaluate_models.py --from-per-image --signals dis g2 g3 q --out <folder>` scored them,
+keeping every other row of `metrics.csv`. The README lists the commands behind the figures and
+comparison tables. PyTorch older than 2.4 needs `numpy < 2`. The models are small, so a CPU run
+only costs wall-clock time.
 
 ## File map of the additions
 
