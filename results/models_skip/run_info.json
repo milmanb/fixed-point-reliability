@@ -192,6 +192,7 @@
   "appended_runs": [
     {
       "mode": "add_signals",
+      "script": "scripts/add_signals.py",
       "signals": [
         "g2",
         "g3",

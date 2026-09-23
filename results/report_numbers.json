@@ -1,0 +1,49 @@
+{
+  "projector_max_g_lin_noise": {
+    "value": 9.25805e-13,
+    "claim": "Sec. 3.1: the right side of Eq. (1) (radial and PCA-64 under noise) is at most 1e-12"
+  },
+  "taylor_rho_g_glin_bottleneck": {
+    "min": 0.8061085183690726,
+    "max": 0.9697815143329729,
+    "values": [
+      0.9587395235711077,
+      0.9194000814871337,
+      0.8700647669599831,
+      0.9530370520121759,
+      0.9154453594002608,
+      0.8061085183690726,
+      0.9697815143329729,
+      0.9406628137176436,
+      0.8724496560692221
+    ],
+    "claim": "Sec. 3.2: Spearman rho between g and its linearization, bottleneck lambda 0, 3 seeds x sigma in {0.1, 0.2, 0.3}: 0.81 to 0.97"
+  },
+  "pixel_mask_share_of_worst_quartile_bottleneck": {
+    "mean": 0.5969066561265571,
+    "values": [
+      0.6010276606873635,
+      0.5955076923076923,
+      0.5941846153846154
+    ],
+    "claim": "Sec. 3.2: pixel masks hold 60% of the worst-quartile errors (bottleneck lambda 0)"
+  },
+  "figure1_pixel_mask_share": {
+    "value": 0.982657417289221,
+    "claim": "Fig. 1 caption: 98% of top-10%-error, below-median-g images are pixel masks (bottleneck lambda 0, seed 0)"
+  },
+  "skip_large_box_share_of_stable_but_wrong": {
+    "min": 0.8300448430493274,
+    "max": 0.8694047069681587,
+    "values": [
+      0.8694047069681587,
+      0.8300448430493274,
+      0.8328853046594982
+    ],
+    "claim": "Sec. 3.2: 83-87% of the skip model's top-10%-error, below-median-g images are large boxes (per seed)"
+  },
+  "clean_image_spread_test_set": {
+    "value": 0.2743459083060467,
+    "claim": "Sec. 3.3: clean images vary by 0.27 across inputs (per-pixel std, mean over pixels), the reference for the initialization spreads in results/checks.json"
+  }
+}
