@@ -27,7 +27,7 @@ All signals are per-image mean absolute values over pixels.
 A signal is scored by Spearman's $\rho$ with $e$ and by AUROC for detecting the
 worst-error quartile, with image-level bootstrap 95% CIs. It is also turned into a split
 conformal upper bound on $e$ (coverage and width, marginally and per corruption family) and
-into a risk-coverage curve. See [IMPROVEMENTS.md](IMPROVEMENTS.md) for what those added.
+into a risk-coverage curve.
 
 ## Setup
 
@@ -303,7 +303,7 @@ results/               result tables and figures (per-image dumps are git-ignore
 - [x] Risk-coverage curves and selective risk, against an oracle and a random baseline
 - [x] Deeper iterates $g_2$, $g_3$, the contraction ratio, and cross-seed ensemble disagreement
 - [x] Checks: collapse to the median image, finite-difference accuracy, initialization
-- [x] Report (LaTeX, three pages including references) and [IMPROVEMENTS.md](IMPROVEMENTS.md)
+- [x] Report (LaTeX, three pages including references)
 
 ## References
 
