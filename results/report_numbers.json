@@ -1,7 +1,7 @@
 {
   "projector_max_g_lin_noise": {
     "value": 9.25805e-13,
-    "claim": "Sec. 3.1: the right side of Eq. (1) (radial and PCA-64 under noise) is at most 1e-12"
+    "claim": "README, finding 1: the linearized term (radial and PCA-64 under noise) is at most 1e-12"
   },
   "taylor_rho_g_glin_bottleneck": {
     "min": 0.8061085183690726,

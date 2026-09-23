@@ -1,7 +1,7 @@
-"""Numbers the report states that no other results file holds, computed from the per-image dumps.
+"""Numbers the report and the README state that no other results file holds, from the per-image dumps.
 
-Writes results/report_numbers.json. Each entry names the report sentence it supports; every other
-number in the report comes from results/*.csv, results/checks.json or the generated tables.
+Writes results/report_numbers.json. Each entry names the sentence it supports; every other number
+in the report comes from results/*.csv, results/checks.json or the generated tables.
 
     python scripts/report_numbers.py
 """
@@ -52,7 +52,7 @@ def main():
     projectors = bottleneck[noise & bottleneck["model"].isin(["radial", "pca64"])]
     numbers["projector_max_g_lin_noise"] = {
         "value": float(projectors["g_lin"].max()),
-        "claim": "Sec. 3.1: the right side of Eq. (1) (radial and PCA-64 under noise) is at most 1e-12",
+        "claim": "README, finding 1: the linearized term (radial and PCA-64 under noise) is at most 1e-12",
     }
 
     taylor = []

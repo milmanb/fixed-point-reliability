@@ -49,7 +49,7 @@ def plot(table, path):
     import matplotlib.pyplot as plt
 
     # Drawn at the printed size of one report column, so the 6-7 pt text stays readable.
-    fig, axes = plt.subplots(1, 2, figsize=(3.35, 1.4), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(3.35, 1.32), sharey=True)
     width = 0.38
     x = np.arange(len(FAMILIES))
     for ax, architecture in zip(axes, ARCHITECTURES):
@@ -71,11 +71,11 @@ def plot(table, path):
         ax.set_ylim(0, 1.0)
         ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0], ["0", "25%", "50%", "75%", "100%"])
     axes[0].set_ylabel("worst errors flagged", fontsize=6.5, color=INK_SECONDARY)
-    axes[1].text(len(FAMILIES) - 0.45, 0.27, "chance", fontsize=5.5, color=MUTED, ha="right", va="bottom")
+    axes[1].text(len(FAMILIES) - 0.45, 0.27, "chance", fontsize=6, color=MUTED, ha="right", va="bottom")
     axes[1].legend(loc="upper right", frameon=False, fontsize=6, handlelength=1.0, borderaxespad=0.1,
                    labelspacing=0.3)
     fig.tight_layout(pad=0.2, w_pad=0.6)
-    fig.savefig(path.with_suffix(".pdf"))
+    fig.savefig(path.with_suffix(".pdf"), metadata={"CreationDate": None})  # reruns give the same file
     fig.savefig(path.with_suffix(".png"), dpi=300)
     plt.close(fig)
 
