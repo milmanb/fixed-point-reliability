@@ -45,7 +45,11 @@ def conformal_quantile(scores, alpha):
 
 
 def isotonic_fit_predict(signal_fit, error_fit, signal_all, eps=1e-6):
-    """Fit e ~ signal on the fitting rows; predict for every row."""
+    """Fit e ~ signal on the fitting rows; predict for every row.
+
+    The fit is monotone in the direction the fitting rows choose (increasing="auto"), so a signal
+    that is anti-correlated with the error there is used reversed.
+    """
     model = IsotonicRegression(increasing="auto", out_of_bounds="clip")
     model.fit(np.asarray(signal_fit, dtype=np.float64),
               np.asarray(error_fit, dtype=np.float64))
@@ -53,7 +57,8 @@ def isotonic_fit_predict(signal_fit, error_fit, signal_all, eps=1e-6):
 
 
 def normalized_bound(signal, error, calibration_mask, alpha=0.1, eps=1e-6, fit_mask=None):
-    """Return (e_hi, coverage_on_held_out, mean_width_on_held_out, q_hat).
+    """Return a dict: e_hi and u_hat for every row, the conformal factor q_hat, and the coverage
+    and mean width of e_hi on the held-out rows.
 
     u_hat is fit on `fit_mask` and the scores come from `calibration_mask`; all other rows are
     held out. Without `fit_mask`, u_hat is fit on the calibration rows themselves, which makes

@@ -16,7 +16,7 @@ import torch
 
 
 def model_group(name):
-    """dae_lam0_seed2 -> dae_lam0; projectors and single-seed names keep their name."""
+    """dae_lam0_seed2 -> dae_lam0; names without a _seed suffix (the projectors) keep their name."""
     return name.rsplit("_seed", 1)[0]
 
 

@@ -6,7 +6,9 @@ r_A(y) = |A f(y) - y| needs A at inference time, so the random mask or kernel
 must travel with the observation.
 
 All randomness is drawn on the CPU from an explicit torch.Generator, so a seed
-gives the same corruptions on every machine and device.
+gives the same corruptions on every machine and device for the same batch. The draws
+also depend on the batch itself: its size, dtype and image order (a mask drawn for a
+subset of the images differs from the same images' masks in the full set).
 """
 
 import math
