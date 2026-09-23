@@ -25,10 +25,12 @@ First-order signals (`jacobian_signals`), from Jacobian-vector products:
 For Gaussian noise with known sigma, Stein's unbiased estimate of the per-pixel MSE is
     sure = d_mse - sigma^2 + 2 sigma^2 div.
 
-Multi-step residuals (`iterate_signals`):
+Multi-step residuals (`compute_signals(iterate_steps=...)`, which the pipeline uses, and the
+standalone `iterate_signals`, which the tests check against it):
 
     g_k  = (1/|Omega|) |f^{k+1}(y) - f^k(y)|_1   for k = 1, 2, 3
-    q    = g_2 / g_1                               contraction ratio (NaN when g_1 = 0)
+    q    = g_2 / g_1                               contraction ratio (NaN when g_1 <= 1e-12,
+                                                   round-off level, e.g. exact projectors)
 
 g_1 coincides with g. Deeper steps probe |J_f^k delta|; if the Jacobian cancels the
 displacement, more iterations cannot recover the information.

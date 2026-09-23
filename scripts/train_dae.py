@@ -8,9 +8,10 @@ and blur and masks are unseen operators. The last 5,000 training images are held
 for validation; the test set is used only by the evaluation scripts.
 
 With lambda_id = 1 from the first step, the network collapses within one epoch to a
-constant output, the per-pixel median image: g = 0 and validation error 0.21 for every
-seed. --lambda-warmup ramps lambda_id linearly from 0 over the given number of epochs,
-so the network learns to denoise before the idempotence term reaches full weight.
+constant output: the bottleneck model to the per-pixel median image (validation error 0.21,
+g about 1e-6), the skip model (--architecture skip) to black (0.29, g about 1e-10).
+--lambda-warmup ramps lambda_id linearly from 0 over the given number of epochs, so the
+network learns to denoise before the idempotence term reaches full weight.
 
     python scripts/train_dae.py --lambda-id 0 --seed 0
     python scripts/train_dae.py --lambda-id 1 --lambda-warmup 5 --seed 0

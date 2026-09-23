@@ -44,10 +44,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def rho(a, b):
-    return spearmanr(a, b).statistic
-
-
 def select_failures(frame, count, seed):
     """Random rows with error in the top 10% and g below the median, both over all conditions."""
     frame = frame.assign(e_pct=frame["e"].rank(pct=True), g_pct=frame["g"].rank(pct=True))

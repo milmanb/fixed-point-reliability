@@ -1,16 +1,18 @@
-"""Checks behind two claims in the report, written to results/checks.json.
+"""Three checks behind claims in the report, written to results/checks.json.
 
 collapse: the model trained with lambda_id = 1 and no warm-up outputs one constant image. We
     compare its validation error with that of the per-pixel median training image, which is the
     best constant under an L1 loss, and measure how much its output varies with the input.
 finite_differences: the pipeline estimates Jacobian-vector products with finite differences.
     We compare them with exact forward-mode products on the trained checkpoints.
-initialization: how constant each architecture is before training, which is the proposed reason
-    why the idempotence term collapses the bottleneck model.
+initialization: how constant each architecture is before training. A near-constant start was
+    the proposed reason for the collapse; the skip model starts about 1500 times less constant
+    and still collapses, so such a start is not required.
 
     python scripts/checks.py
 """
 
+import argparse
 import json
 
 import numpy as np
@@ -71,8 +73,9 @@ def finite_difference_check(n_eval=200, probes=4):
 def initialization_check(n=256, seeds=3):
     """How constant is each architecture at initialization, and how large is its residual there?
 
-    The collapse under lambda_id = 1 is explained by a network that starts almost constant: a
-    constant map is already idempotent, and becoming input-dependent first raises the residual.
+    Tests the proposed explanation of the collapse under lambda_id = 1: a constant map is already
+    idempotent, so a network that starts almost constant is pulled toward it. The skip model starts
+    far less constant than the bottleneck model and still collapses (see the report, Sec. 3.3).
     """
     x, _ = load_fashion_mnist("test", dtype=torch.float32)
     y, _ = observe(CONDITIONS[1], x[:n].double(), 0)
@@ -92,6 +95,9 @@ def initialization_check(n=256, seeds=3):
 
 
 def main():
+    # No options; the parser gives --help instead of silently rewriting checks.json.
+    argparse.ArgumentParser(description=__doc__,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     out = {"collapse": collapse_check(), "finite_differences": finite_difference_check(),
            "initialization": initialization_check()}
     path = REPO_ROOT / "results" / "checks.json"

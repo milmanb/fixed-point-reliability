@@ -2,8 +2,10 @@
 
 Writes coverage, width, shift and SURE-self-calibration tables under results/conformal/.
 
-    python scripts/conformal.py
-    python scripts/conformal.py --results results/models --out results/conformal
+    python scripts/conformal.py                    # both result folders -> results/conformal
+    python scripts/conformal.py --results results/models --out results/conformal_bottleneck
+
+Table 2 of the report reads results/conformal and needs both folders, so write a subset elsewhere.
 """
 
 import argparse

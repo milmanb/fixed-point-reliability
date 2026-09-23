@@ -20,7 +20,6 @@ import argparse
 import json
 import platform
 import time
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -154,10 +153,12 @@ def merge_with_existing(out, summary, metrics, per_image, run_info, scored=None)
     """
     new_models = set(run_info["models"])
     previous = json.loads((out / "run_info.json").read_text())
-    if previous["args"]["n_eval"] != run_info["args"]["n_eval"] or \
-            previous["args"]["seed"] != run_info["args"]["seed"] or \
-            previous["args"]["n_boot"] != run_info["args"]["n_boot"]:
-        raise SystemExit("--append needs the same --n-eval, --seed and --n-boot as the earlier run")
+    # Arguments that change the signals or the scores must match; a key the earlier run did not
+    # record (it predates the option) is not compared.
+    for key in ("n_eval", "seed", "n_boot", "probes", "jacobian_families", "iterate_steps"):
+        if key in previous["args"] and previous["args"][key] != run_info["args"][key]:
+            raise SystemExit(f"--append needs the same --{key.replace('_', '-')} as the earlier run "
+                             f"({previous['args'][key]!r}, not {run_info['args'][key]!r})")
 
     def combine(name, frame, reader):
         old = reader(out / name)
@@ -194,8 +195,20 @@ def main():
     if args.jobs > 1 and args.device != "cpu":
         raise SystemExit("--jobs > 1 needs --device cpu: CUDA models cannot be sent to worker processes")
     out = REPO_ROOT / args.out
+    # Fail before hours of computation, not after.
+    if args.append and not args.from_per_image:
+        missing = [name for name in ("run_info.json", "summary.csv", "per_image.csv.gz")
+                   if not (out / name).exists()]
+        if missing:
+            raise SystemExit(f"--append adds to an earlier run in {out}, which lacks {missing}")
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
+    if args.from_per_image:
+        previous = json.loads((out / "run_info.json").read_text()) if (out / "run_info.json").exists() else {}
+        for key in ("seed", "n_boot"):
+            if key in previous.get("args", {}) and previous["args"][key] != getattr(args, key):
+                raise SystemExit(f"--from-per-image needs the same --{key.replace('_', '-')} as the "
+                                 f"run in {out} ({previous['args'][key]!r})")
 
     x_test, y_test = load_fashion_mnist("test", dtype=torch.float64)
     x, labels = x_test[:args.n_eval], y_test[:args.n_eval]
@@ -205,6 +218,9 @@ def main():
         if args.n_eval != per_image["image"].nunique():
             raise SystemExit(f"--from-per-image has {per_image['image'].nunique()} images, "
                              f"but --n-eval={args.n_eval}")
+        absent = [s for s in (args.signals or []) if s not in per_image.columns]
+        if absent:
+            raise SystemExit(f"signals not in {out / 'per_image.csv.gz'}: {absent}")
         if args.models:
             per_image = per_image[per_image["model"].isin(args.models)].reset_index(drop=True)
             if per_image.empty:
@@ -214,6 +230,15 @@ def main():
         run_models = list(dict.fromkeys(per_image["model"]))
     else:
         models, train_args = build_models(args)
+        if args.append and args.ensemble:
+            # dis compares the seeds of a group, so all of them must be evaluated together.
+            previous = json.loads((out / "run_info.json").read_text())["models"]
+            run_groups = {model_group(m) for m in models if "_seed" in m}
+            left_out = sorted(m for m in previous if "_seed" in m and model_group(m) in run_groups
+                              and m not in models)
+            if left_out:
+                raise SystemExit(f"--ensemble with --append needs every seed of a group in the same "
+                                 f"run; also evaluate {left_out}")
         print(f"Evaluating {len(x)} test images, {len(CONDITIONS)} conditions, "
               f"models: {list(models)}")
         per_image = per_image_signals(models, x, labels, seed=args.seed, probes=args.probes,
@@ -247,14 +272,18 @@ def main():
         "versions": {"python": platform.python_version(), "torch": torch.__version__,
                      "numpy": np.__version__, "pandas": pd.__version__},
     }
+    this_run_seconds = run_info["seconds"]["total"]  # merged run_info files keep the first run's
     if args.from_per_image:
         # Re-scoring never removes rows: replace the re-scored (model, signal) pairs, keep the rest.
         if metrics is not None and (out / "metrics.csv").exists():
             metrics = append_metrics_only(out, metrics, signal_list)
         previous = json.loads((out / "run_info.json").read_text())
+        # Only the arguments that affect re-scoring; checkpoints, projectors and probes do not.
+        scoring_args = {k: v for k, v in vars(args).items()
+                        if k in ("n_eval", "n_boot", "seed", "signals", "models", "jobs", "out")}
         run_info = previous | {
             "appended_runs": previous.get("appended_runs", []) + [
-                {"models": run_models, "seconds": run_info["seconds"], "args": run_info["args"],
+                {"models": run_models, "seconds": run_info["seconds"], "args": scoring_args,
                  "versions": run_info["versions"], "mode": "from_per_image"}],
         }
     elif args.append:
@@ -270,7 +299,7 @@ def main():
         metrics.to_csv(out / "metrics.csv", index=False, float_format="%.4f")
     (out / "run_info.json").write_text(json.dumps(run_info, indent=2))
     print_report(summary, metrics if metrics is not None else pd.DataFrame(), per_image)
-    print(f"\nWrote results to {out} in {run_info['seconds']['total']}s")
+    print(f"\nWrote results to {out} in {this_run_seconds}s")
 
 
 if __name__ == "__main__":

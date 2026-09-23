@@ -1,6 +1,6 @@
 """Training losses for the convolutional denoising autoencoders (proposal, Sec. 3).
 
-    L = |f(y) - x|_1 + lambda_id * L_idem(f, f(y)),   lambda_id in {0, 1}
+    L = |f(y) - x|_1 + lambda_id * L_idem(f, f(y)),   lambda_id in {0, 0.1, 1}
 """
 
 from torch.func import functional_call

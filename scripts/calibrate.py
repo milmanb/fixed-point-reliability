@@ -38,7 +38,11 @@ def parse_args():
 
 
 def isotonic_predictions(frame, calibration, signal, by):
-    """Fit e ~ signal on the calibration half of each group and predict for the whole group."""
+    """Fit e ~ signal on the calibration half of each group and predict for the whole group.
+
+    The fit is monotone in the direction the calibration half chooses (increasing="auto"); the skip
+    model's d and r_A, anti-correlated with the error under noise, are used reversed there.
+    """
     predictions = pd.Series(np.nan, index=frame.index)
     for _, rows in frame.groupby(by, sort=False):
         fitted = rows[calibration.loc[rows.index]]
