@@ -69,7 +69,7 @@ architectures has a corruption under which it misses the worst errors; (ii)~a st
 penalty makes it a worse signal, and without a warm-up it collapses the model to a constant image;
 (iii)~as a conformal error bar it keeps its marginal guarantee but under-covers some unseen masks,
 including its blind spot, which neither deeper iterates nor cross-seed disagreement
-repair;
+repairs;
 (iv)~brightness and level baselines are needed to read such signals correctly.
 
 \paragraph{Related work.}
@@ -78,8 +78,8 @@ models~\cite{shocher2024ign,aljaff2025naign,zaman2025sign}, and NAIGN~\cite{alja
 a network as a distance to the data manifold. In supervised prediction,
 ZigZag~\cite{durasov2024zigzag} reports per-sample correlations above 0.9 between a
 self-consistency residual and the loss, while the $-0.94$ of IT$^3$~\cite{durasov2025it3} between
-idempotence error and ImageNet-C accuracy is per inference batch. Closest to our setting, Huang et
-al.~\cite{huang2023cycle} predict restoration uncertainty from forward-backward cycles, whose
+idempotence error and \mbox{ImageNet-C} accuracy is per inference batch. Closest to our setting, Huang
+et~al.~\cite{huang2023cycle} predict restoration uncertainty from forward-backward cycles, whose
 features include $\norm{A_s f(y) - y}$; we test the residual itself and how idempotence training
 changes it. We also use split conformal
 prediction~\cite{angelopoulos2021gentle}, applied to imaging
