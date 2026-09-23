@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+build/
+dist/
 .pytest_cache/
 .venv/
 venv/
@@ -18,6 +20,8 @@ results/**/per_image*
 # LaTeX build products
 *.aux
 *.log
+# ...but keep the logs of the two stopped collapse runs, which the report cites
+!results/train/logs/*.log
 *.out
 *.synctex.gz
 *.fdb_latexmk
