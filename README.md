@@ -283,10 +283,10 @@ results/               result tables and figures (per-image dumps are git-ignore
 3. S. Zaman et al., "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
 4. N. Durasov et al., "IT³: Idempotent Test-Time Training," ICML 2025.
 5. A. Angelopoulos and S. Bates, "A Gentle Introduction to Conformal Prediction," arXiv:2107.07511, 2021.
-6. J. Teneggi et al., "How to Trust Your Diffusion Model" (K-RCPS), arXiv:2302.03791, 2023.
-7. "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," arXiv:2502.05127, 2025.
+6. J. Teneggi, M. Tivnan, W. Stayman, and J. Sulam, "How to Trust Your Diffusion Model" (K-RCPS), ICML 2023.
+7. J. M. Everink, B. Tamo Amougou, and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," SSVM 2025.
 8. Y. Xu, W. Guo, and Z. Wei, "Selective Conformal Risk Control," arXiv:2512.12844, 2025.
-9. "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
+9. K. Hamidieh, V. Thost, W. Gerych, M. Yurochkin, and M. Ghassemi, "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
 
 ## License
 

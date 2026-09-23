@@ -73,10 +73,12 @@ per-sample correlations above 0.9 between a self-consistency residual and the lo
 IT$^3$~\cite{durasov2025it3} reports $-0.94$ between idempotence error and accuracy on ImageNet-C
 per inference batch. Huang et al.~\cite{huang2023cycle} predict restoration uncertainty from
 cycles that include $\norm{A_s f(y) - y}$; we test the residual itself and how idempotence training
-changes it. We also use SURE~\cite{stein1981sure,ramani2008mcsure}, conformal error
-bars~\cite{angelopoulos2021gentle,teneggi2023krcps,narnhofer2025surecp}, selective
-risk~\cite{scrc2025}, and the claim that disagreement captures the epistemic uncertainty
-self-consistency misses~\cite{disagreement2026}.
+changes it. We use SURE~\cite{stein1981sure,ramani2008mcsure} and split conformal
+intervals~\cite{angelopoulos2021gentle}. Teneggi et al.~\cite{teneggi2023krcps} control risk
+for diffusion sets, Everink et al.~\cite{everink2025surecp} calibrate imaging sets from
+SURE, and Xu et al.~\cite{scrc2025} combine abstention with conformal sets. Hamidieh et
+al.~\cite{hamidieh2026disagreement} argue that disagreement supplies the epistemic
+uncertainty self-consistency misses.
 
 \section{Method}
 
@@ -102,9 +104,9 @@ $\mathrm{SURE}(y) = \tfrac{1}{|\Omega|}\norm{f(y)-y}_2^2 - \sigma^2
 + \tfrac{2\sigma^2}{|\Omega|}\operatorname{div} f(y)$ from four Rademacher probes and finite
 differences ($\varepsilon = 10^{-3}$)~\cite{stein1981sure,ramani2008mcsure}.
 Deeper iterates $g_k = \tfrac{1}{|\Omega|}\norm{f^{k+1}(y) - f^k(y)}_1$ and $q = g_2/g_1$ probe
-the orbit~\cite{durasov2024zigzag}. Ensemble disagreement
-$\mathrm{dis}(y) = \tfrac{1}{M|\Omega|}\sum_i \norm{f_i(y) - \bar f(y)}_1$ over $M = 3$ seeds is
-the epistemic counterpart self-consistency is argued to miss~\cite{disagreement2026}.
+further steps of the same map. Ensemble disagreement
+$\mathrm{dis}(y) = \tfrac{1}{M|\Omega|}\sum_i \norm{f_i(y) - \bar f(y)}_1$ over $M = 3$ seeds
+is their mean absolute deviation from the seed mean.
 
 \paragraph{Why the residual can be blind.}
 Write $\delta(y) = f(y) - y$ for the displacement. A first-order expansion of the second
@@ -157,7 +159,7 @@ this covers with probability $1-\alpha$~\cite{angelopoulos2021gentle}; what is i
 width and the coverage \emph{within} each family. We compare a marginal bound and a level-mean
 bound, and a shift test (calibrate on the two training noise levels, deploy on the other eleven).
 nAURC is the mean error of the accepted set when the highest-signal images are rejected first,
-scaled so 0 is ranking by true error and 1 a constant score~\cite{scrc2025}.
+scaled so 0 is ranking by true error and 1 a constant score.
 
 \section{Results}
 
@@ -252,7 +254,7 @@ Ensemble disagreement ranks better within a level ($\rho = 0.79$ against 0.70; 0
 $\lid = 1$; skip: 0.88 against 0.63 at $\lid = 1$). Where $g$ loses 0.09 and 0.24 under the
 penalty, disagreement loses 0.03 and gains 0.04. It still inherits both blind spots: 0.59 coverage
 and 20\% flagged on pixel masks, 1.2\% flagged on skip box masks. Three seeds of one architecture
-fail the same way on an unseen operator~\cite{disagreement2026}. Rejecting the 20\% of images with
+fail the same way on an unseen operator. Rejecting the 20\% of images with
 the largest $g$ lowers mean error from 0.092 to 0.084 (oracle 0.064; nAURC 0.41); $r_A$ and
 brightness are worse than rejecting nothing. SURE self-calibration over-covers on noise (0.94).
 
