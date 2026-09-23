@@ -9,6 +9,7 @@
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage{stfloats}
 \usepackage{titlesec}
+\usepackage[font=small,skip=4pt]{caption}
 \usepackage[hidelinks]{hyperref}
 
 \graphicspath{{../results/}}
@@ -26,7 +27,7 @@
 
 \title{Stable but Wrong: Fixed-Point Residuals as\\Reference-Free Reliability Signals for Image Restoration}
 \author{Itay Shorian \quad Michael Bazkor \quad Boaz Cohen \quad Bar Milman \quad Assaf Fleischer\\[2pt]
-  \small Modern Computer Vision, final project\\
+  \small Modern Computer Vision final project, Technion\\
   \small\url{https://github.com/milmanb/fixed-point-reliability}}
 \date{}
 
@@ -42,13 +43,12 @@ the model's own displacement. For learned models it ranks errors within a corrup
 (Spearman $\rho = 0.70$ for a bottleneck autoencoder, below its displacement's 0.77, and 0.86 with
 skip connections), but each architecture has an unseen corruption under which its outputs are
 stable but wrong and the residual misses them: pixel masks for the bottleneck model, large box
-masks for the skip model. As a conformal error bar it holds its nominal 90\% coverage marginally,
-yet covers only 61\% and 74\% of pixel-mask images, and 48\% and 16\% of unseen levels when
-calibrated on the training noise. Per-level calibration lifts its pooled ranking from 0.55 to 0.89,
-but predicting each level's mean error already reaches 0.77. Deeper
-iterates rank worse in three of four settings; cross-seed disagreement ranks better in three, and
-inherits both blind spots. A strong penalty makes the residual a worse signal, and without a
-warm-up both models collapse to constant images.
+masks for the skip model. A conformal error bar built on the residual holds its nominal 90\%
+coverage over all images but covers only 61\% and 74\% of pixel-mask images in the two models, and
+cross-seed disagreement shares the blind spots. For the bottleneck model, per-level calibration lifts
+the residual's pooled ranking from 0.55 to 0.89, but each level's mean error alone reaches 0.77. A strong idempotence
+penalty makes the residual a worse signal, and without a warm-up both models collapse to constant
+images.
 \end{abstract}
 
 \section{Introduction}
@@ -108,8 +108,8 @@ The residual $g$ and the displacement $d$ need only $f$ and $y$; the measurement
 also needs $A_s$ and equals $d$ for denoising. For Gaussian noise we add Stein's unbiased risk
 estimate (SURE) of the squared error~\cite{stein1981sure,ramani2008mcsure}, with the divergence
 from four Rademacher probes and finite differences ($\varepsilon = 10^{-3}$). Deeper iterates
-$g_k = \tfrac{1}{|\Omega|}\norm{f^{k+1}(y) - f^k(y)}_1$ and the ratio $q = g_2/g$ probe the orbit;
-ensemble disagreement $\mathrm{dis}(y) = \tfrac{1}{M|\Omega|}\sum_i \norm{f_i(y) - \bar f(y)}_1$
+$g_k = \tfrac{1}{|\Omega|}\norm{f^{k+1}(y) - f^k(y)}_1$ probe the orbit;
+ensemble disagreement \mbox{$\mathrm{dis}(y) = \tfrac{1}{M|\Omega|}\sum_i \norm{f_i(y) - \bar f(y)}_1$}
 over the $M = 3$ seeds of a setting, with $\bar f$ their mean, is an epistemic counterpart to
 self-consistency.
 
@@ -165,6 +165,71 @@ is compared with each level's mean error. Bootstrap 95\% intervals are about $\p
   \input{table_main.tex}
 \end{table*}
 
+\subsection{Exact projectors}
+For the radial and PCA projectors $g < 2\cdot10^{-15}$ while the mean error lies between 0.04
+and 0.23: the residual cannot rank these errors, and deeper iterates only repeat it; $d$ still ranks them within a level ($\rho$ =
+0.53 to 0.91).
+
+\subsection{Learned models and their blind spots}
+For the bottleneck model, $g$ ranks errors within a level with $\rho = 0.70$
+(Table~\ref{tab:main}), below $d$ (0.77) and $r_A$ (0.80), and Eq.~\eqref{eq:taylor} holds in rank (0.81 to 0.97 between $g$ and its
+linearization for $\sigma \le 0.3$). As the noise grows the residual holds up (0.75 at
+$\sigma = 0.1$, 0.72 at 0.5) while $d$ falls from 0.93 to 0.28 and SURE from 0.91 to 0.40, though
+against squared error SURE ranks best for $\sigma \le 0.3$. The skip model's residual ranks better
+than the bottleneck's at 11 of the 13 levels (0.86; $d$ 0.49, $r_A$ 0.72), in partial $\rho$ too;
+its median partial $\rho$ is lower (0.48 against 0.59) only because of the box masks. Brightness
+alone reaches 0.51 to 0.55 within a level, and 0.96 under pixel masks, so raw scores under masks and
+blur overstate the signals.
+
+Pooled over all levels, $g$ reaches $\rho = 0.55$ and an AUROC of 0.69 for the bottleneck model,
+against 0.12 for $d$ and 0.02 for $r_A$, whose scales differ between families; replacing $g$ by
+its median per level still gives 0.46. The pooled score hides a blind spot
+(Fig.~\ref{fig:failures}). Under 75\% pixel masks the bottleneck model's mean error is 0.234, five
+times that at $\sigma = 0.1$, while its mean residual barely moves (0.014 against 0.011): it turns
+sparse dots into a dim garment and treats it as a fixed point. Pixel masks hold 60\% of the
+worst-quartile errors, and $g$ flags 18\% of them, fewer than a random score (Fig.~\ref{fig:blind}).
+The skip model has the opposite blind spot: under box masks its within-level $\rho$ drops to 0.29
+and 0.12 (bottleneck: 0.83 and 0.71), it flags under 1\% of the worst box-mask errors, and 83--87\%
+of its stable-but-wrong images are large boxes.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=2.55in]{models/figures/failures_compact_dae_lam0_seed0.png}
+  \caption{Stable but wrong: test images with top-10\% error and below-median $g$ (bottleneck,
+    $\lid = 0$, seed 0); percentiles are over all levels. 98\% of such images are pixel masks.}
+  \label{fig:failures}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{blind_spots.pdf}
+  \caption{Blind spots: share of each family's worst-quartile errors that a signal flags
+    (quartiles over all levels; $\lid = 0$, mean over seeds, whiskers span them; dashed: chance).
+    The residual misses pixel masks in the bottleneck model and box masks and blur in the skip
+    model; disagreement misses the same families and is near chance on the bottleneck's blur.}
+  \label{fig:blind}
+\end{figure}
+
+\subsection{Training for idempotence}
+\label{sec:idem}
+Without a warm-up, $\lid = 1$ collapses both architectures within one epoch to a constant image:
+the bottleneck model to the per-pixel median training image (validation error 0.2106, residual
+$10^{-6}$), the skip model to black (0.2885; residual $10^{-10}$), far above the $\lid = 0$
+solutions (about 0.05): failures of optimization. The skip model starts far from constant (its
+outputs vary across inputs by $8\cdot10^{-3}$, the bottleneck's by $5\cdot10^{-6}$), so a constant
+start is not required.
+
+With the warm-up, mean error changes little (0.092 to 0.095; 0.086 to 0.084) but the residual
+falls by 40\% and 61\% and becomes a worse signal: within-level $\rho$ falls from 0.70 to 0.62 and
+from 0.86 to 0.63, with no overlap between seeds, and so do the noise, partial and pooled scores
+and the pixel-mask flagged share; only the box-mask share rises. A weight of 0.1 leaves the
+within-level $\rho$ unchanged (0.71). All three routings lower it (0.62; 0.61 inner-only; 0.65
+outer-only). Only routes
+reaching the outer application also lose partial $\rho$ and the pixel-mask share, lose more pooled
+$\rho$ (0.06 and 0.05 against 0.02) and shrink $g$ more (40\% and 26\% against 6\%).
+
+\subsection{Calibration, coverage and selective risk}
+\label{sec:coverage}
 \begin{table}[t]
   \centering
   \footnotesize
@@ -176,64 +241,6 @@ is compared with each level's mean error. Bootstrap 95\% intervals are about $\p
   \label{tab:coverage}
   \input{table_coverage.tex}
 \end{table}
-
-\subsection{Exact projectors}
-For the radial and PCA projectors $g < 2\cdot10^{-15}$, and the right side of
-Eq.~\eqref{eq:taylor} (radial and PCA-64 under noise) is at most $10^{-12}$, the round-off of the
-finite differences, while the mean error lies between 0.04 and 0.23: the residual cannot rank
-these errors, and deeper iterates only repeat it; $d$ still ranks them within a level ($\rho$ =
-0.53 to 0.91).
-
-\subsection{Learned models and their blind spots}
-For the bottleneck model, $g$ ranks errors within a level with $\rho = 0.70$
-(Table~\ref{tab:main}), below $d$ (0.77) and $r_A$ (0.80), and Eq.~\eqref{eq:taylor} holds in rank (0.81 to 0.97 between $g$ and its
-linearization for $\sigma \le 0.3$). As the noise grows the residual holds up (0.75 at
-$\sigma = 0.1$, 0.72 at 0.5) while $d$ falls from 0.93 to 0.28 and SURE from 0.91 to 0.40, though
-against squared error SURE ranks best for $\sigma \le 0.3$. The skip model's residual ranks better
-at 11 of the 13 levels (0.86; $d$ 0.49, $r_A$ 0.72), and so does its partial $\rho$ at the same
-11 for every seed; its median partial $\rho$ is lower (0.48 against 0.59) only because of the box
-masks. Brightness alone reaches 0.51 to 0.55 within a level, and 0.96 under
-pixel masks, so raw scores under masks and blur overstate the signals.
-
-Pooled over all levels, $g$ reaches $\rho = 0.55$ and an AUROC of 0.69 for the bottleneck model,
-against 0.12 for $d$ and 0.02 for $r_A$, whose scales differ between families; replacing $g$ by
-its median per level still gives 0.46. The pooled score hides a blind spot
-(Fig.~\ref{fig:failures}). Under 75\% pixel masks the bottleneck model's mean error is 0.234, five
-times that at $\sigma = 0.1$, while its mean residual barely moves (0.014 against 0.011): it turns
-sparse dots into a dim garment and treats it as a fixed point. Pixel masks hold 60\% of the
-worst-quartile errors, and $g$ flags 18\% of them, fewer than a random score. The skip model has
-the opposite blind spot: under box masks its within-level $\rho$ drops to 0.29 and 0.12
-(bottleneck: 0.83 and 0.71), it flags under 1\% of the worst box-mask errors, and 83--87\% of its
-top-10\%-error, below-median-$g$ images are large boxes.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.78\columnwidth]{models/figures/failures_compact_dae_lam0_seed0.png}
-  \caption{Stable but wrong: test images with top-10\% error and below-median $g$ (bottleneck,
-    $\lid = 0$, seed 0); percentiles are over all levels. 98\% of such images are pixel masks.}
-  \label{fig:failures}
-\end{figure}
-
-\subsection{Training for idempotence}
-\label{sec:idem}
-Without a warm-up, $\lid = 1$ collapses both architectures within one epoch to a constant image:
-the bottleneck model to the per-pixel median training image (validation error 0.2106, residual
-$10^{-6}$), the skip model to black (0.2885, the mean pixel value; residual $10^{-10}$), far above
-the $\lid = 0$ solutions (about 0.05): failures of optimization. At initialization the outputs vary
-across inputs by $5\cdot10^{-6}$ (bottleneck) and $8\cdot10^{-3}$ (skip; clean images: 0.27), so a
-start as constant as the bottleneck's is not required.
-
-With the warm-up, mean error changes little (0.092 to 0.095; 0.086 to 0.084) but the residual
-falls by 40\% and 61\% and becomes a worse signal: within-level $\rho$ falls from 0.70 to 0.62 and
-from 0.86 to 0.63, with no overlap between seeds, and so do the noise, partial and pooled scores
-and the pixel-mask flagged share; only the box-mask share rises. A weight of 0.1 leaves the
-within-level $\rho$ unchanged (0.71) and the other scores within 0.03, except the pixel-mask share
-(18\% to 13\%). All three routings lower it (0.62; 0.61 inner-only; 0.65 outer-only). Only routes
-reaching the outer application also lose partial $\rho$ and the pixel-mask share, lose more pooled
-$\rho$ (0.06 and 0.05 against 0.02) and shrink $g$ more (40\% and 26\% against 6\%).
-
-\subsection{Calibration, coverage and selective risk}
-\label{sec:coverage}
 After per-level calibration, pooled $\rho$ is
 0.89 for $g$, 0.93 for $d$ and 0.94 for $r_A$ in the bottleneck model and 0.92--0.93 in the skip
 model, whose fits reverse $d$ and $r_A$ under noise, while the level-mean predictor already
@@ -251,21 +258,18 @@ bound is narrower in both (0.138 and 0.129). By family it covers 0.99 to 1.00 of
 but only 0.61 of pixel masks for the bottleneck model, and 0.74 of pixel and 0.76 of box masks for
 the skip model, whose residual ranks pixel-mask errors well (Table~\ref{tab:coverage}). Calibrated
 on the two training noise levels and deployed on the other eleven, coverage falls to 0.48 ($g$)
-and 0.19 ($d$, $r_A$) for the bottleneck model and to 0.16 and 0.26 for the skip model. Calibrating
-a bound on the squared error with SURE instead of the true error~\cite{everink2025sscp}
-over-covers on noise for $g$ (0.94) and slightly under-covers for $d$ and $r_A$ (0.89).
+and 0.19 ($d$, $r_A$) for the bottleneck model and to 0.16 and 0.26 for the skip model.
 
-Deeper iterates rank worse in three of the four settings ($g_2$ 0.63, $g_3$ 0.59 against 0.70
-here) and better for the skip model at $\lid = 1$ (0.69 against 0.63), with unchanged coverage;
-$q$ is uninformative ($\rho = 0.01$). Ensemble disagreement ranks better within a level (0.79
-against 0.70; 0.76 against 0.62 at $\lid = 1$; skip: 0.88 against 0.63), except for the skip model
-at $\lid = 0$ (0.84 against 0.86), and loses less under the penalty, but it inherits both blind
-spots: 0.59 coverage and 20\% flagged on pixel masks, 1.2\% flagged on skip box masks. Three seeds
-of one architecture fail the same way on an unseen operator. Rejecting the 20\% of images with the
-largest $g$ lowers mean error from 0.092 to 0.084 (oracle 0.064), and rejecting by $d$, $r_A$ or
-brightness does not (0.092, 0.100, 0.097); by nAURC --- the excess area under the risk-coverage
-curve~\cite{geifman2019bias}, scaled to 0 for ranking by the true error and 1 for a random order
---- $g$ beats disagreement in three of four settings (0.41 against 0.48 here).
+Deeper iterates rank worse in three of the four settings ($g_2$ 0.63 against 0.70 here), with
+unchanged coverage.
+Ensemble disagreement ranks better within a level in three settings (0.79 against 0.70 here; skip
+at $\lid = 0$: 0.84 against 0.86) and loses less under the penalty, but it misses the same families
+(Fig.~\ref{fig:blind}) and its bound covers 0.59 of pixel masks: three seeds of one architecture
+fail the same way on an unseen operator. Rejecting the 20\% of images with the
+largest $g$ lowers mean error from 0.092 to 0.084 (oracle 0.064); rejecting by $d$, $r_A$ or
+brightness does not (0.092, 0.100, 0.097). By nAURC, the excess area under the risk-coverage
+curve~\cite{geifman2019bias} scaled as in Table~\ref{tab:coverage}, $g$ beats disagreement in three
+of four settings (0.41 against 0.48 here).
 
 \section{Discussion}
 A small idempotence residual is weak evidence of a correct restoration: for a projector it carries
