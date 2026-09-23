@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from fpr.degradations import PixelMask, gaussian_blur
 from fpr.models import ConvAutoencoder
 from fpr.projectors import PCA, principal_components
 from fpr.signals import compute_signals, jacobian_signals
@@ -56,3 +57,41 @@ def test_sure_is_unbiased_for_a_pca_projector():
     sure = signals["d_mse"] - sigma**2 + 2 * sigma**2 * div
     assert abs(sure.mean() - signals["e_mse"].mean()) < 0.05 * signals["e_mse"].mean()
     assert abs(div.mean() - 8 / 36) < 0.02
+
+
+def test_compute_signals_matches_the_definitions_under_a_mask():
+    """Every per-image signal against its formula, with an operator for which r_A differs from d."""
+    x = _images(8, 10)
+    y, A = PixelMask(0.5)(x, torch.Generator().manual_seed(11))
+
+    def f(z):
+        return 0.5 * z + 0.1
+
+    signals = compute_signals(f, x, y, A)
+    fy = f(y)
+
+    def mean_abs(z):
+        return z.abs().flatten(1).mean(1).numpy()
+
+    def mean_sq(z):
+        return z.pow(2).flatten(1).mean(1).numpy()
+
+    expected = {"g": mean_abs(f(fy) - fy), "d": mean_abs(fy - y), "r_A": mean_abs(A(fy) - y),
+                "e": mean_abs(fy - x), "e_in": mean_abs(y - x), "b": y.flatten(1).mean(1).numpy(),
+                "d_mse": mean_sq(fy - y), "e_mse": mean_sq(fy - x)}
+    for key, value in expected.items():
+        assert np.allclose(signals[key], value, rtol=1e-12, atol=0), key
+    assert not np.allclose(signals["r_A"], signals["d"])
+
+
+def test_finite_differences_match_forward_mode_on_a_curved_map():
+    """Unlike an untrained network, this map has an O(0.1) Jacobian, so the comparison has teeth."""
+    def f(z):
+        return 0.6 * torch.tanh(2 * gaussian_blur(z, 1.0)) + 0.2
+
+    y = _images(4, 12, side=12)
+    fd = jacobian_signals(f, y, probes=8, seed=3, method="fd")
+    jvp = jacobian_signals(f, y, probes=8, seed=3, method="jvp")
+    for key in ("div", "g_lin"):
+        assert np.all(np.abs(jvp[key]) > 0.01), key
+        assert np.allclose(fd[key], jvp[key], rtol=1e-3, atol=0), key
