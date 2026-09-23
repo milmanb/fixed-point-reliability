@@ -12,19 +12,22 @@ corruption where the model is "stable but wrong" and $g$ misses it. That was arg
 correlations, which are relative: they say a signal orders images worse, not what it costs you.
 
 The main addition turns $g$ into a **conformal error bar** with a distribution-free coverage
-guarantee, which is what the project proposal actually promised and what the previous report
-listed as its first open gap. The result is sharper than the ranking version:
+guarantee. The proposal's title promised calibration, conformal bounds are one way to deliver it,
+and the previous report listed the missing coverage guarantee as its first open gap. The result is
+sharper than the ranking version:
 
 - The bound keeps its nominal 90% coverage **marginally**, exactly as the theory says it must.
 - Broken down by corruption family, the same bound covers **100% of noise images but only 61% of
-  pixel-mask images**. A "90% guarantee" silently fails on nearly two in five images of the family
-  that holds most of the worst errors.
-- Calibrate on the two noise levels the models were trained on, deploy on the other eleven, and
-  coverage drops to **48%** for $g$ (and 19% for the displacement $d$ and measurement residual
-  $r_A$).
+  the bottleneck model's pixel-mask images**, and 74% and 76% of the skip model's pixel- and
+  box-mask images. A "90% guarantee" silently fails on nearly two in five images of the family that
+  holds most of the worst errors.
+- Calibrate on the two in-distribution noise levels ($\sigma$ = 0.1, 0.2), deploy on the other
+  eleven, and the bottleneck model's coverage drops to **48%** for $g$ (and 19% for the
+  displacement $d$ and measurement residual $r_A$). The skip model's drops to 16% for $g$, below
+  $d$ and $r_A$ (26%).
 
-So the blind spot is not just a weaker correlation. It is a broken guarantee, and the calibration
-procedure gives no warning that it broke.
+So the failure is not just a weaker correlation. The guarantee breaks on unseen masks, including
+each model's blind spot, and the calibration procedure gives no warning that it broke.
 
 Two cheaper additions tested whether the blind spot is specific to the one-step residual.
 
@@ -68,25 +71,32 @@ Per-family coverage of the $g$ bound, at the same nominal 90%:
 | noise | 1.00 | 1.00 |
 | blur | 1.00 | 0.99 |
 | box mask | 0.96 | **0.76** |
-| pixel mask | **0.61** | 0.74 |
+| pixel mask | **0.61** | **0.74** |
 
-The two undercovered cells are exactly the two architecture-specific blind spots the original
-report identified by rank correlation. That is a satisfying consistency check, and it upgrades the
-finding from "the ordering is worse here" to "the stated guarantee is false here".
+Three cells are under-covered: the bottleneck model's pixel masks and both mask families of the
+skip model. So the failure is not confined to the two blind spots the original report identified
+by rank correlation. Per level, coverage collapses on the most severe unseen masks: 75% pixel
+masks (0.25 for the bottleneck model, 0.21 for the skip model) and, for the skip model, 14-pixel
+boxes (0.52). For the skip model the pixel-mask failure happens although its residual ranks those
+errors well (within-level $\rho$ 0.95 to 0.97). A single normalizer fitted across all levels
+mis-scales the most severe unseen masks; the blind spot adds to that but is not its only cause.
+Either way, the stated guarantee is false on those families, not just the ordering worse.
 
-Two further readings. First, $g$ does buy something over ignoring the signal entirely (0.174 vs
-0.182 width at equal coverage), but knowing which corruption you are looking at buys much more
-(0.138) — the same conclusion the ranking experiments reached, now in the units a user cares about.
-Second, the marginal guarantee is not protective, and nothing in the procedure flags the violation;
-you only see it if you already know which family to break the results down by, which is precisely
-what you do not know at deployment.
+Two further readings. First, for the bottleneck model $g$ buys something over ignoring the signal
+entirely (0.174 vs 0.182 width at equal coverage), but for the skip model it does not (0.173 vs
+0.170), and knowing which corruption you are looking at buys much more in both (0.138 and 0.129),
+in line with the ranking experiments, now in the units a user cares about. Second, the marginal
+guarantee is not protective, and nothing in the procedure flags the violation; you only see it if
+you already know which family to break the results down by, which is precisely what you do not
+know at deployment.
 
 There is also a **SURE-self-calibrated** variant that uses no clean image anywhere, only Stein's
 estimate from the noisy observation — the only variant of any of this that could actually be run at
 deployment time. Since SURE estimates the per-pixel squared error, it has to be scored against that
 target rather than the L1 error (getting this wrong makes the bound look catastrophically broken
-when it is only on a different scale). Done correctly, on the noise family it **over**-covers: 0.94
-against the nominal 0.90, for 17% more width than the supervised bound on the same target. Erring
+when it is only on a different scale). Done correctly, on the noise family the bound on $g$
+**over**-covers: 0.94 against the nominal 0.90, for 17% more width than the supervised bound on
+the same target. With $d$ or $r_A$ it slightly under-covers instead (0.89). For $g$, erring
 conservative is the right direction to err, so dropping the clean images from calibration is
 affordable here.
 
@@ -95,8 +105,9 @@ Code: `src/fpr/conformal.py`, `scripts/conformal.py`. Outputs: `results/conforma
 ## 2. Risk-coverage and selective risk
 
 **What it does.** Rejects the highest-signal images first and reports the mean error of what is
-left, summarized as the normalized area under the risk-coverage curve (nAURC), where 0 means
-ranking by the true error and 1 means a random order.
+left, summarized as the normalized area under the risk-coverage curve (nAURC): the mean selective
+risk over all coverages, as in Geifman et al. (ICLR 2019), scaled so that 0 means ranking by the
+true error and 1 means a random order.
 
 **Why.** Spearman $\rho$ and AUROC do not tell you whether abstention is worth doing. Selective
 risk is the operational number, and recent work pairs abstention with conformal risk control
@@ -116,11 +127,14 @@ risk is the operational number, and recent work pairs abstention with conformal 
 | brightness $b$ | 1.31 | 0.097 |
 | keep everything | — | 0.092 |
 
-$g$ is the best reference-free signal here but recovers well under half of the achievable risk
-reduction. Three results are worth flagging:
+By nAURC $g$ is the best reference-free signal here and closes 59% of the gap between a random
+order and the oracle. At 80% coverage it achieves under a third of the oracle's risk reduction
+(0.092 to 0.084, against 0.064), and $g_2$ is marginally better there. Three results are worth
+flagging:
 
-- $r_A$ and brightness are **worse than rejecting nothing**, so a plausible-looking signal can
-  actively hurt. A ranking metric would have shown them as merely mediocre.
+- At 80% coverage $r_A$ and brightness are **worse than rejecting nothing**, so a plausible-looking
+  signal can actively hurt. By nAURC $r_A$ still beats a random order, and brightness does not;
+  its pooled AUROC (0.37) already says it is worse than random.
 - Idempotence training makes selective risk worse too: nAURC rises from 0.41 to 0.50 on the
   bottleneck model and 0.51 to 0.65 on the skip model. That is the report's main claim reproduced
   in a third independent metric.
@@ -200,7 +214,9 @@ is useless ($\rho = 0.01$, and $-0.16$ under idempotence training; nAURC 0.92). 
 application multiplies by the Jacobian again, which attenuates the displacement without revealing
 anything new, so iterating the map is not a way out of the blind spot.
 
-Code: `iterate_signals` in `src/fpr/signals.py`, and `iterate_steps` in `compute_signals`.
+Code: `iterate_steps` in `compute_signals` (`src/fpr/signals.py`), passed on by
+`per_image_signals` (`src/fpr/evaluation.py`) and `--iterate-steps`; `iterate_signals` is a
+standalone helper the tests check against it.
 
 ## What this changes about the project's conclusion
 
@@ -208,7 +224,8 @@ The original conclusion — a small idempotence residual is weak evidence of a c
 survives and gets stronger. Three things are new:
 
 1. The failure is quantified in the units a deployment would use. "The guarantee you would quote is
-   marginal, it holds, and it is false on the family you care about" is a more actionable statement
+   marginal, it holds, and it is false on unseen masks, including the family you care about" is a
+   more actionable statement
    than "the rank correlation drops here", and it cannot be dismissed as a small-effect artifact.
 2. One escape route is closed by measurement rather than argument: iterating the map further does
    not repair the blind spot, as the first-order argument suggests, and in three of the four
@@ -262,10 +279,12 @@ are small, so a CPU run only costs wall-clock time.
 src/fpr/conformal.py      split conformal bounds, shift test, SURE self-calibration
 src/fpr/selective.py      risk-coverage curve, AURC, selective risk
 src/fpr/ensemble.py       cross-seed disagreement
-src/fpr/signals.py        + iterate_signals (g_k, q); compute_signals gained iterate_steps
+src/fpr/signals.py        + compute_signals gained iterate_steps (g_k, q); iterate_signals helper
+src/fpr/evaluation.py     + per_image_signals passes iterate_steps to every model
 scripts/conformal.py      coverage/width/shift/SURE tables -> results/conformal/
 scripts/selective.py      selective risk tables and figure -> results/selective/
 scripts/evaluate_models.py  + --ensemble --no-metrics --signals --from-per-image --models
-scripts/report_table.py   + table_coverage.tex, dis column in table_main.tex
+                            --iterate-steps
+scripts/report_table.py   + table_coverage.tex, r_A and dis columns in table_main.tex
 tests/test_improvements.py  coverage, AURC, disagreement and multi-step residual tests
 ```
