@@ -94,7 +94,7 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, com
             if j == 0:
                 ax.set_ylabel(row_names[i], fontsize=label_size, color=INK)
     shares = candidates["condition"].value_counts(normalize=True).head(3)
-    composition = ", ".join(f"{share:.0%} {condition}" for condition, share in shares.items())
+    composition = "; ".join(f"{share:.0%} {pretty_condition(condition)}" for condition, share in shares.items())
     if compact:
         # The caption of the figure carries the selection rule in the report.
         fig.tight_layout(pad=0.2, h_pad=0.3, w_pad=0.2)
