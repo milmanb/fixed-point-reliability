@@ -4,7 +4,7 @@ A group is a model name without its seed, e.g. dae_lam0 or dae_lam1w5. Tables ar
 to results/models/comparison/ and the key numbers are printed.
 
 Figures (results/models/comparison/):
-  training_curves.png    validation error and g per epoch, for every training log
+  training_curves.png    validation error and g per epoch, for the compared groups
   rho_by_condition.png   within-level Spearman and partial rho given brightness, per signal
   g_vs_error.png         g vs. true error per corruption family, one row per group (first seed)
 

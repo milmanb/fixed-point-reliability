@@ -26,8 +26,7 @@ def idempotence_loss(model, fy, routing="both"):
       "outer" the fixed-point set is reshaped around the current outputs, held constant.
 
     The gradient of "both" is exactly the sum of the gradients of "inner" and "outer"
-    (tests/test_losses.py). On a trained lambda_id = 0 model its norm is 4.6 times that of the
-    reconstruction gradient, against 1.8 for "inner" and 3.8 for "outer".
+    (tests/test_losses.py).
     """
     if routing not in ("both", "inner", "outer"):
         raise ValueError(f"routing must be 'both', 'inner' or 'outer', got {routing!r}")
