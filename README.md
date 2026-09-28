@@ -228,8 +228,9 @@ residual is in its top quartile over all levels (a random score gives 25%).
    (within-level 0.70 to 0.62 and 0.86 to 0.63, no overlap between seeds), and lowers every
    score except the box-mask flagged share, while mean error changes little. $\lambda_{id} = 0.1$
    leaves the within-level $\rho$ unchanged. All three gradient routings lower the within-level
-   $\rho$; the outer route alone reproduces the losses in partial and pooled $\rho$ and in the
-   pixel-mask flagged share, the inner route alone does not.
+   $\rho$; only the routes through the outer application also lose partial $\rho$ and the
+   pixel-mask flagged share, and they lose more pooled $\rho$ (0.06 and 0.05, against 0.02 for
+   the inner route alone).
 4. **Without warm-up both architectures collapse** to constant images: the per-pixel median
    image (validation error 0.2106, the same as that image's) and a black image (0.2885, the mean
    pixel value). At initialization the skip model is far less constant than the bottleneck
@@ -237,6 +238,14 @@ residual is in its top quartile over all levels (a random score gives 25%).
    as constant as the bottleneck's is not required (`results/checks.json`).
 5. **Calibration per level** lifts pooled $\rho$ from 0.00-0.55 to 0.85-0.94, but a predictor
    that returns each level's mean error already reaches 0.73-0.84 (`results/calibration*`).
+6. **Conformal error bars and disagreement inherit the blind spots.** A conformal bound on $g$
+   holds its nominal 90% coverage over all images but covers only 61% (bottleneck) and 74% (skip)
+   of pixel-mask images, and 48% and 16% of the other eleven levels when calibrated on the two
+   training noise levels (`results/conformal`). Ensemble disagreement ranks better within a
+   level, except for the skip model at $\lambda_{id} = 0$, but misses the same corruption
+   families as $g$ (`results/blind_spots.csv`).
+
+![Blind spots per corruption family (the report's Fig. 2)](results/blind_spots.png)
 
 ![Ranking quality per condition](results/models/comparison/rho_by_condition.png)
 
@@ -309,19 +318,22 @@ results/               result tables and figures (per-image dumps are git-ignore
 
 ## References
 
-1. A. Shocher et al., "Idempotent Generative Network," ICLR 2024.
-2. M. Al-Jaff et al., "A Non-Adversarial Approach to Idempotent Generative Modelling," ECAI 2025.
-3. S. Zaman et al., "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
+The report's bibliography, numbered as in the report.
+
+1. M. Al-Jaff et al., "A Non-Adversarial Approach to Idempotent Generative Modelling," ECAI 2025.
+2. A. N. Angelopoulos and S. Bates, "Conformal Prediction: A Gentle Introduction," Foundations and Trends in Machine Learning 16(4), 2023 (arXiv:2107.07511).
+3. N. Durasov, N. Dorndorf, H. Le and P. Fua, "ZigZag: Universal Sampling-free Uncertainty Estimation Through Two-Step Inference," Transactions on Machine Learning Research, 2024 (arXiv:2211.11435).
 4. N. Durasov et al., "IT³: Idempotent Test-Time Training," ICML 2025.
-5. A. N. Angelopoulos and S. Bates, "Conformal Prediction: A Gentle Introduction," Foundations and Trends in Machine Learning 16(4), 2023 (arXiv:2107.07511).
-6. J. Teneggi, M. Tivnan, J. W. Stayman and J. Sulam, "How to Trust Your Diffusion Model: A Convex Optimization Approach to Conformal Risk Control" (K-RCPS), ICML 2023.
-7. J. M. Everink, B. Tamo Amougou and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," SSVM 2025 (arXiv:2502.05127).
-8. Y. Geifman, G. Uziel and R. El-Yaniv, "Bias-Reduced Uncertainty Estimation for Deep Neural Classifiers," ICLR 2019 (AURC and excess AURC).
-9. Y. Xu, W. Guo and Z. Wei, "Selective Conformal Risk Control," arXiv:2512.12844, 2025.
-10. K. Hamidieh, V. Thost, W. Gerych, M. Yurochkin and M. Ghassemi, "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
+5. J. M. Everink, B. T. Amougou and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," SSVM 2025 (arXiv:2502.05127).
+6. Y. Geifman, G. Uziel and R. El-Yaniv, "Bias-Reduced Uncertainty Estimation for Deep Neural Classifiers," ICLR 2019.
+7. K. Hamidieh, V. Thost, W. Gerych, M. Yurochkin and M. Ghassemi, "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," arXiv:2604.17112, 2026.
+8. L. Huang et al., "Cycle-Consistency-Based Uncertainty Quantification of Neural Networks in Inverse Imaging Problems," Intelligent Computing 2, 2023 (arXiv:2305.12852).
+9. S. Ramani, T. Blu and M. Unser, "Monte-Carlo SURE: A Black-Box Optimization of Regularization Parameters for General Denoising Algorithms," IEEE Transactions on Image Processing 17(9), 2008.
+10. A. Shocher et al., "Idempotent Generative Network," ICLR 2024.
 11. C. M. Stein, "Estimation of the Mean of a Multivariate Normal Distribution," Annals of Statistics 9(6), 1981.
-12. S. Ramani, T. Blu and M. Unser, "Monte-Carlo SURE: A Black-Box Optimization of Regularization Parameters for General Denoising Algorithms," IEEE Transactions on Image Processing 17(9), 2008.
+12. J. Teneggi, M. Tivnan, J. W. Stayman and J. Sulam, "How to Trust Your Diffusion Model: A Convex Optimization Approach to Conformal Risk Control," ICML 2023.
 13. H. Xiao, K. Rasul and R. Vollgraf, "Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms," arXiv:1708.07747, 2017.
+14. S. Zaman, C. Liu and K. Chiu, "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
 
 ## License
 
