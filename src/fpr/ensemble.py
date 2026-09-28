@@ -4,9 +4,9 @@ For a seed group {f_1, ..., f_M} and the mean prediction bar_f = (1/M) sum_i f_i
 
     dis(y) = (1/(M |Omega|)) sum_i ||f_i(y) - bar_f(y)||_1
 
-attached to every member's per-image rows. Self-consistency (the idempotence residual)
-tracks aleatoric uncertainty and can collapse on unseen operators; cross-model disagreement
-targets the epistemic part (cf. arXiv:2604.17112).
+attached to every member's per-image rows. Following Hamidieh et al. (ICLR 2026,
+arXiv:2604.17112), disagreement is meant to capture the epistemic uncertainty that
+self-consistency misses; the report tests this against the idempotence residual.
 """
 
 import time

@@ -20,7 +20,7 @@ results/**/per_image*
 # LaTeX build products
 *.aux
 *.log
-# ...but keep the logs of the two stopped collapse runs, which the report cites
+# ...but keep the logs of the two stopped collapse runs, which the README cites
 !results/train/logs/*.log
 *.out
 *.synctex.gz
