@@ -262,7 +262,7 @@ on the two training noise levels and deployed on the other eleven, coverage fall
 and 0.19 ($d$, $r_A$) for the bottleneck model and to 0.16 and 0.26 for the skip model.
 
 Deeper iterates rank worse in three of the four settings of Table~\ref{tab:coverage} ($g_2$ 0.63
-against 0.70 here), with unchanged coverage.
+against 0.70 for the bottleneck at $\lid = 0$, ``here''), with similar coverage.
 Ensemble disagreement ranks better within a level, except for the skip model at $\lid = 0$ (0.79
 against 0.70 here; 0.84 against 0.86 there), and loses less under the penalty, but it misses the same families
 (Fig.~\ref{fig:blind}) and its bound covers 0.59 of pixel masks here: three seeds of one architecture
@@ -287,7 +287,7 @@ that minimize the residual at
 test time~\cite{durasov2025it3} may face the same issue, which we did not test. Cross-seed
 disagreement ranks better for penalized models, at the cost of three trainings, but agrees with
 itself where it is wrong. Neither $d$ nor $r_A$ is safer: within a level they rank the bottleneck
-model's errors better than $g$, the skip model's worse. No signal compares
+model's errors better than $g$, the skip model's mostly worse. No signal compares
 corruptions without calibration, and a level-mean predictor already reaches most of the calibrated
 performance.
 
