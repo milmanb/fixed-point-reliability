@@ -135,7 +135,7 @@ def test_per_seed_median_takes_the_median_level_of_each_seed():
     metrics = pd.DataFrame([{"scope": "condition", "target": "e", "signal": "g", "model": model,
                              "group": level, "spearman": value}
                             for model, values in (("m_seed0", (0.1, 0.5, 0.9)), ("m_seed1", (0.3, 0.2, 0.4)))
-                            for level, value in zip(levels, values)])
+                            for level, value in zip(levels, values, strict=True)])
     other = metrics.assign(target="e_mse", spearman=-1.0)  # ignored: another target
     medians = report_table.per_seed_median(pd.concat([metrics, other]), "g", "spearman")
     assert medians.to_dict() == {"m_seed0": 0.5, "m_seed1": 0.3}
@@ -182,7 +182,7 @@ def test_blind_spot_shares_follow_the_flagged_rule(tmp_path):
                                   ("box_mask", (9, 10, 11, 12), (9, 10, 11, 12)),
                                   ("blur", (5, 6, 7, 8), (5, 6, 7, 8))):
             rows += [{"model": f"dae_lam0_seed{seed}", "family": family, "e": e, "g": v, "dis": v}
-                     for e, v in zip(errors, g)]
+                     for e, v in zip(errors, g, strict=True)]
     pd.DataFrame(rows).to_csv(tmp_path / "per_image.csv.gz", index=False)
     table = pd.DataFrame(plot_blind_spots.family_shares("bottleneck", tmp_path, "dae_lam0"))
     g = table[table["signal"] == "g"].set_index("family")

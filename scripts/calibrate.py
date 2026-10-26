@@ -24,6 +24,7 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import roc_auc_score
 
 from fpr.data import REPO_ROOT, per_image_dump
+from fpr.ensemble import model_group
 
 SIGNALS = ("g", "d", "r_A")
 
@@ -90,7 +91,7 @@ def main():
     tables = []
     for model in models:
         table = evaluate_model(per_image[per_image["model"] == model].reset_index(drop=True))
-        tables.append(table.assign(model=model, group=model.rsplit("_seed", 1)[0]))
+        tables.append(table.assign(model=model, group=model_group(model)))
     table = pd.concat(tables, ignore_index=True)
     table.to_csv(out / "calibration.csv", index=False, float_format="%.4f")
 

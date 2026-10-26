@@ -58,6 +58,21 @@ def test_evaluation_writes_signals_scores_and_provenance(tmp_path, monkeypatch):
     assert run_info["models"] == ["dae_lam0_seed0"] and run_info["args"]["n_eval"] == 20
 
 
+def test_add_signals_completes_a_dump_and_records_the_run(tmp_path, monkeypatch):
+    # A dump as the committed results were first written: no deeper iterates, no disagreement.
+    _run("evaluate_models", monkeypatch, "--pattern", "dae_lam0_seed*.pt", "--projectors", "--n-eval", 10,
+         "--iterate-steps", 1, "--no-metrics", "--device", "cpu", "--out", tmp_path)
+    before = pd.read_csv(tmp_path / "per_image.csv.gz")
+    assert not {"g2", "g3", "q", "dis"} & set(before.columns)
+    _run("add_signals", monkeypatch, "--folder", tmp_path, "--pattern", "dae_lam0_seed*.pt", "--threads", 1)
+    after = pd.read_csv(tmp_path / "per_image.csv.gz")
+    assert {"g2", "g3", "q", "dis"} <= set(after.columns) and after[["g2", "g3", "q", "dis"]].notna().all().all()
+    assert after[["g", "d", "e"]].equals(before[["g", "d", "e"]])  # the stored values are kept
+    record = json.loads((tmp_path / "run_info.json").read_text())["appended_runs"][-1]
+    assert record["mode"] == "add_signals" and record["check"]["rows"] == len(after)
+    assert max(record["check"]["max_rel"].values()) < 1e-5  # recomputed g, d, e agree with the dump
+
+
 def test_checks_reproduce_the_reported_relations():
     checks = _script("checks")
     initialization = checks.initialization_check(n=64, seeds=1)

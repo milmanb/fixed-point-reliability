@@ -14,6 +14,7 @@ import pandas as pd
 import torch
 
 from fpr.data import REPO_ROOT, load_fashion_mnist, per_image_dump
+from fpr.ensemble import model_group
 
 COLUMNS = ["condition", "family", "model", "image", "e", "g", "g_lin"]
 
@@ -31,7 +32,7 @@ def load(folder):
 
 
 def seeds(frame, group):
-    return sorted(m for m in frame["model"].cat.categories if m.rsplit("_seed", 1)[0] == group)
+    return sorted(m for m in frame["model"].cat.categories if model_group(m) == group)
 
 
 def stable_but_wrong(rows):
