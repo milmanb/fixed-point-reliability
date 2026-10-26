@@ -23,7 +23,7 @@ import pandas as pd  # noqa: E402
 import torch  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 
-from fpr.data import REPO_ROOT, load_fashion_mnist  # noqa: E402
+from fpr.data import REPO_ROOT, load_fashion_mnist, per_image_dump  # noqa: E402
 from fpr.evaluation import CONDITIONS, observe  # noqa: E402
 from fpr.models import load_restorer  # noqa: E402
 from fpr.plotting import INK, INK_SECONDARY, SEQUENTIAL, family_scatter, pretty_condition  # noqa: E402
@@ -114,7 +114,7 @@ def main():
     args = parse_args()
     results = REPO_ROOT / args.results
     run_info = json.loads((results / "run_info.json").read_text())
-    per_image = pd.read_csv(results / "per_image.csv.gz")
+    per_image = pd.read_csv(per_image_dump(args.results))
     frame = per_image[per_image["model"] == args.model].reset_index(drop=True)
     if frame.empty:
         raise SystemExit(f"model {args.model!r} not found in {results / 'per_image.csv.gz'}")

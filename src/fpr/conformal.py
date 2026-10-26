@@ -6,7 +6,9 @@ u_hat = Isotonic(s -> e) on the fitting images, form nonconformity scores
 s_i = e_i / max(u_hat(y_i), eps) on the calibration images, take the split-conformal quantile
 q_hat = the ceil((n+1)(1-alpha))-th smallest of the n calibration scores, and report the upper
 bound e_hi(y) = q_hat * u_hat(y). Because u_hat never sees the calibration scores, coverage is
-P(e <= e_hi) >= 1 - alpha under exchangeability of calibration and held-out images.
+P(e <= e_hi) >= 1 - alpha when the rows are exchangeable. Here each image gives m rows (one per
+corruption level) and only images are exchangeable, which lowers the guarantee to
+1 - alpha - (m - 1)/n for n calibration rows (m = 13 levels: 12/n).
 
 Baselines that ignore the per-image signal:
   marginal   one constant bound = the conformal quantile of e on the calibration images
@@ -31,10 +33,12 @@ def split_masks(image):
 def conformal_quantile(scores, alpha):
     """The ceil((n+1)(1-alpha))-th smallest score: the split-conformal finite-sample quantile.
 
-    Infinite when that rank exceeds n (too few scores for the requested level).
+    Infinite when that rank exceeds n (too few scores for the requested level). Infinite scores
+    count as the largest ones; NaN scores raise, since dropping them would shrink n silently.
     """
     scores = np.asarray(scores, dtype=np.float64)
-    scores = scores[np.isfinite(scores)]
+    if np.isnan(scores).any():
+        raise ValueError("conformal scores contain NaN")
     n = len(scores)
     if n == 0:
         return float("nan")

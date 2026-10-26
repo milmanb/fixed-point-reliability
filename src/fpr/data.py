@@ -1,4 +1,4 @@
-"""Fashion-MNIST as dense tensors in [0, 1]."""
+"""Fashion-MNIST as dense tensors in [0, 1], and the paths of the per-image result dumps."""
 
 from pathlib import Path
 
@@ -6,6 +6,20 @@ import torch
 from torchvision.datasets import FashionMNIST
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def per_image_dump(folder):
+    """Path of a result folder's per-image dump; exits with instructions if it is missing.
+
+    The dumps are git-ignored. scripts/download_dumps.py fetches the committed results' dumps,
+    and scripts/evaluate_models.py recreates them (hours).
+    """
+    path = REPO_ROOT / folder / "per_image.csv.gz"
+    if not path.exists():
+        raise SystemExit(f"{Path(folder) / 'per_image.csv.gz'} is missing: download the dumps with "
+                         "`python scripts/download_dumps.py`, or recreate them with "
+                         "scripts/evaluate_models.py (README, step 3)")
+    return path
 
 
 def load_fashion_mnist(split="train", root=None, dtype=torch.float32):

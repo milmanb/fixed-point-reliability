@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from fpr.data import REPO_ROOT  # noqa: E402
+from fpr.data import REPO_ROOT, per_image_dump  # noqa: E402
 from fpr.evaluation import CONDITIONS  # noqa: E402
 from fpr.plotting import (AXIS, FAMILIES, GRID, INK, INK_SECONDARY, SERIES,  # noqa: E402
                           family_scatter, pretty_condition, style_axes)
@@ -216,7 +216,7 @@ def main():
     out.mkdir(exist_ok=True)
     metrics = pd.read_csv(results / "metrics.csv")
     summary = pd.read_csv(results / "summary.csv")
-    per_image = pd.read_csv(results / "per_image.csv.gz")
+    per_image = pd.read_csv(per_image_dump(args.results))
 
     available = list(dict.fromkeys(summary["model"].map(model_group)))
     groups = args.groups

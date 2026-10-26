@@ -28,6 +28,17 @@ def test_restorer_keeps_dtype_and_supports_forward_mode():
         assert out["div"].shape == (3,) and out["g_lin"].shape == (3,)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA device")
+def test_restorer_on_cuda_turns_off_tf32_convolutions():
+    previous = torch.backends.cudnn.allow_tf32
+    try:
+        torch.backends.cudnn.allow_tf32 = True
+        Restorer(ConvAutoencoder(width=4, latent=4), name="tiny", device="cuda")
+        assert not torch.backends.cudnn.allow_tf32
+    finally:
+        torch.backends.cudnn.allow_tf32 = previous
+
+
 @pytest.mark.parametrize("architecture", sorted(ARCHITECTURES))
 def test_checkpoint_round_trip(architecture, tmp_path):
     torch.manual_seed(1)

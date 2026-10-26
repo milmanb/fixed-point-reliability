@@ -10,8 +10,11 @@ venv/
 # Datasets are downloaded on demand
 data/
 
-# Large per-image dumps; regenerate them with scripts/evaluate_models.py
+# Large per-image dumps; download them with scripts/download_dumps.py or regenerate them with
+# scripts/evaluate_models.py and scripts/smoke_projectors.py
 results/**/per_image*
+# Output of the README's quick smoke check
+results/smoke_quick/
 *.ckpt
 *.pt
 # Trained models are published so the results can be checked without retraining
@@ -26,11 +29,9 @@ results/**/per_image*
 *.synctex.gz
 *.fdb_latexmk
 *.fls
-
-# Local scratch comparisons
-.cache/
-
-# LaTeX build products in report/
-report/main.pdf
 *.bbl
 *.blg
+report/main.pdf
+
+# Local scratch files
+.cache/

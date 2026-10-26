@@ -47,7 +47,8 @@ def main():
         if path.exists():
             frames.append(pd.read_csv(path))
     if not frames:
-        raise SystemExit("no per_image.csv.gz found; run evaluate_models.py first")
+        raise SystemExit("no per_image.csv.gz found: download the dumps with "
+                         "`python scripts/download_dumps.py`, or run evaluate_models.py first")
     per_image = pd.concat(frames, ignore_index=True)
     models = args.models or [m for m in per_image["model"].unique() if "_seed" in m]
 

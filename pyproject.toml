@@ -1,12 +1,21 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "fpr"
-version = "0.1.0"
-description = "Reference-free reliability signals for learned image projectors (MCV final project)"
+version = "1.0.0"
+description = "Stable but Wrong: fixed-point residuals as reference-free reliability signals for image restoration (MCV final project)"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Itay Shorian"},
+    {name = "Michael Bazkor"},
+    {name = "Boaz Cohen"},
+    {name = "Bar Milman"},
+    {name = "Assaf Fleischer"},
+]
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.4",          # older torch works only with numpy < 2
@@ -21,8 +30,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 
+[project.urls]
+Repository = "https://github.com/milmanb/fixed-point-reliability"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

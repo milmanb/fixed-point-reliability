@@ -104,6 +104,14 @@ def test_conformal_quantile_finite_sample():
     assert conformal_quantile(np.arange(1, 6, dtype=float), alpha=0.1) == np.inf  # rank 6 > 5
 
 
+def test_conformal_quantile_keeps_infinite_scores_and_rejects_nan():
+    """An infinite score is the largest one, not a missing one: dropping it would lower the rank."""
+    scores = np.append(np.arange(1.0, 10.0), np.inf)
+    assert conformal_quantile(scores, alpha=0.1) == np.inf  # ceil(11 * 0.9) = 10, the inf score
+    with pytest.raises(ValueError, match="NaN"):
+        conformal_quantile(np.append(np.arange(1.0, 10.0), np.nan), alpha=0.1)
+
+
 def test_normalized_conformal_covers_with_separate_fit():
     """With u_hat fit on other images, held-out coverage meets 1 - alpha on average even for a
     small calibration set; fitting u_hat on the calibration images themselves under-covers."""

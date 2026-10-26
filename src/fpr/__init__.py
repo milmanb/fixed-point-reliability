@@ -1,3 +1,3 @@
-"""Reference-free reliability signals for learned image projectors."""
+"""Fixed-point residuals and other reference-free reliability signals for image restoration."""
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"

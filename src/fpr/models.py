@@ -80,6 +80,11 @@ class Restorer:
         self.net = net.to(device).eval()
         self.name = name
         self.device = torch.device(device)
+        if self.device.type == "cuda":
+            # cuDNN convolutions default to TF32 on Ampere and newer GPUs. Its rounding (about 1e-3
+            # relative) is as large as the input changes of the finite differences in
+            # signals.jacobian_signals (eps = 1e-3), so div, g_lin and SURE would be noise.
+            torch.backends.cudnn.allow_tf32 = False
 
     def __call__(self, y):
         return self.net(y.to(self.device, torch.float32)).to(y)

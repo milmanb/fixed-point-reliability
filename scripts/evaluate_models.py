@@ -136,7 +136,7 @@ def print_report(summary, metrics, per_image):
         return
     print("\nTaylor check: Spearman rho(g, g_lin) within level, median over levels")
     rhos = []
-    for (condition, model), frame in per_image.groupby(["condition", "model"], sort=False):
+    for (_, model), frame in per_image.groupby(["condition", "model"], sort=False):
         if frame["g_lin"].notna().all() and np.ptp(frame["g"]) > 1e-9:
             rhos.append({"model_group": model_group(model),
                          "rho": frame["g"].rank().corr(frame["g_lin"].rank())})

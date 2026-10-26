@@ -16,7 +16,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from fpr.data import REPO_ROOT
+from fpr.data import REPO_ROOT, per_image_dump
 
 FOLDERS = ("results/models", "results/models_skip")
 VARIANTS = [  # (group, architecture, training)
@@ -61,7 +61,8 @@ def flagged_share(per_image, family, signal="g"):
     """
     shares = {}
     for model, frame in per_image.groupby("model", sort=False):
-        if signal not in frame or frame[signal].isna().all() or np.ptp(frame[signal].dropna()) <= 1e-9:
+        # As in the rank metrics: skip a signal that is missing on some image or constant.
+        if signal not in frame or frame[signal].isna().any() or np.ptp(frame[signal]) <= 1e-9:
             continue
         worst = frame["e"] >= frame["e"].quantile(0.75)
         flagged = frame[signal] >= frame[signal].quantile(0.75)
@@ -81,7 +82,7 @@ def main():
                             formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     metrics = load("metrics.csv")
     summary = load("summary.csv")
-    paths = [REPO_ROOT / folder / "per_image.csv.gz" for folder in FOLDERS]
+    paths = [per_image_dump(folder) for folder in FOLDERS]
     per_image = pd.concat([pd.read_csv(path, usecols=per_image_columns(path)) for path in paths],
                           ignore_index=True)
     per_image = per_image[per_image["model"].str.contains("_seed")]

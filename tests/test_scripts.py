@@ -85,8 +85,81 @@ def test_flagged_share_takes_both_quartiles_over_all_levels():
         "g": [0.1, 0.2, 0.3, 0.9, 0.4, 0.5, 0.8, 0.6],
     })
     constant = per_image.assign(model="constant", g=0.5)
-    shares = report_table.flagged_share(pd.concat([per_image, constant]), "pixel_mask")
-    assert shares.to_dict() == {"m": 0.5}  # a constant signal flags nothing and is skipped
+    partial = per_image.assign(model="partial", g=per_image["g"].where(per_image.index != 6))
+    shares = report_table.flagged_share(pd.concat([per_image, constant, partial]), "pixel_mask")
+    assert shares.to_dict() == {"m": 0.5}  # constant or partly missing signals are skipped
+
+
+def test_missing_dump_names_the_download_script(tmp_path):
+    from fpr.data import per_image_dump
+    with pytest.raises(SystemExit, match="download_dumps.py"):
+        per_image_dump(tmp_path)
+    (tmp_path / "per_image.csv.gz").write_bytes(b"")
+    assert per_image_dump(tmp_path) == tmp_path / "per_image.csv.gz"
+
+
+def test_download_checks_the_digest_and_keeps_identical_files(tmp_path):
+    download_dumps = _script("download_dumps")
+    source = tmp_path / "asset.csv.gz"
+    source.write_bytes(b"per-image rows")
+    digest = download_dumps.sha256(source)
+    target = tmp_path / "results" / "per_image.csv.gz"
+    assert download_dumps.fetch(source.as_uri(), target, digest) == "downloaded"
+    assert target.read_bytes() == b"per-image rows"
+    assert download_dumps.fetch(source.as_uri(), target, digest) == "present"
+    with pytest.raises(SystemExit, match="differs"):
+        download_dumps.fetch(source.as_uri(), target, "0" * 64)
+    with pytest.raises(SystemExit, match="SHA-256"):
+        download_dumps.fetch(source.as_uri(), target, "0" * 64, force=True)
+    assert target.read_bytes() == b"per-image rows"  # a failed download leaves the file alone
+    assert not list(target.parent.glob("*.part"))
+    with pytest.raises(SystemExit, match="could not download"):
+        download_dumps.fetch((tmp_path / "missing.csv.gz").as_uri(), tmp_path / "new" / "per_image.csv.gz", digest)
+    assert not list((tmp_path / "new").glob("*"))
+
+
+def test_add_signals_appends_its_record_to_run_info(tmp_path):
+    add_signals = _script("add_signals")
+    path = tmp_path / "run_info.json"
+    path.write_text(json.dumps({"models": ["a"], "appended_runs": [{"models": ["b"]}]}))
+    add_signals.append_run_record(path, {"mode": "add_signals"})
+    add_signals.append_run_record(tmp_path / "new.json", {"mode": "add_signals"})
+    assert json.loads(path.read_text()) == {
+        "models": ["a"], "appended_runs": [{"models": ["b"]}, {"mode": "add_signals"}]}
+    assert json.loads((tmp_path / "new.json").read_text()) == {"appended_runs": [{"mode": "add_signals"}]}
+
+
+def _calibration_frame(n=200, seed=0):
+    """Two noise levels on different error scales. Within each level g ranks e perfectly, but
+    between levels g runs the wrong way, so raw g fails pooled and per-level calibration fixes it."""
+    rng = np.random.default_rng(seed)
+    rows = []
+    for condition, offset, scale in (("noise(sigma=0.1)", 0.0, 1.0), ("noise(sigma=0.5)", 1.0, -1.0)):
+        e = offset + rng.random(n)
+        rows.append(pd.DataFrame({"image": np.arange(n), "condition": condition, "family": "noise",
+                                  "e": e, "g": 5.0 - offset + 0.1 * scale * e}))
+    frame = pd.concat(rows, ignore_index=True)
+    return frame.assign(d=frame["g"], r_A=frame["g"])
+
+
+def test_calibration_fits_on_even_images_and_reverses_where_needed():
+    calibrate = _script("calibrate")
+    frame = _calibration_frame()
+    calibration = frame["image"] % 2 == 0
+    predictions = calibrate.isotonic_predictions(frame, calibration, "g", "condition")
+    changed = frame.assign(e=frame["e"].where(calibration, 0.0))  # alter only held-out errors
+    assert predictions.equals(calibrate.isotonic_predictions(changed, calibration, "g", "condition"))
+    held = frame[~calibration]
+    reversed_level = held["condition"] == "noise(sigma=0.5)"  # g falls as e grows there
+    assert predictions[held.index][reversed_level].corr(held["e"][reversed_level], "spearman") > 0.99
+
+
+def test_per_level_calibration_beats_raw_scores_and_the_level_mean():
+    calibrate = _script("calibrate")
+    table = calibrate.evaluate_model(_calibration_frame()).set_index(["signal", "setting"])
+    raw, per_level = table.loc[("g", "raw"), "spearman"], table.loc[("g", "per level"), "spearman"]
+    severity = table.loc[("-", "severity only"), "spearman"]
+    assert raw < 0 < severity < per_level and per_level > 0.99
 
 
 def test_report_table_rows_and_percent_formatting():

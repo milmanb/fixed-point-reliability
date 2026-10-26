@@ -23,7 +23,7 @@ from scipy.stats import spearmanr
 from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import roc_auc_score
 
-from fpr.data import REPO_ROOT
+from fpr.data import REPO_ROOT, per_image_dump
 
 SIGNALS = ("g", "d", "r_A")
 
@@ -82,10 +82,9 @@ def evaluate_model(frame):
 
 def main():
     args = parse_args()
-    results = REPO_ROOT / args.results
     out = REPO_ROOT / args.out
     out.mkdir(parents=True, exist_ok=True)
-    per_image = pd.read_csv(results / "per_image.csv.gz")
+    per_image = pd.read_csv(per_image_dump(args.results))
     models = args.models or [m for m in per_image["model"].unique() if "_seed" in m]
 
     tables = []

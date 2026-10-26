@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from fpr.data import REPO_ROOT
+from fpr.data import REPO_ROOT, per_image_dump
 from fpr.plotting import FAMILIES, INK, INK_SECONDARY, MUTED, SERIES, style_axes
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -28,7 +28,7 @@ SHORT = {"noise": "noise", "blur": "blur", "pixel_mask": "pixel\nmask", "box_mas
 
 
 def family_shares(architecture, folder, group):
-    path = REPO_ROOT / folder / "per_image.csv.gz"
+    path = per_image_dump(folder)
     frame = pd.read_csv(path, usecols=per_image_columns(path))
     frame = frame[frame["model"].str.fullmatch(rf"{group}_seed\d")]
     rows = []

@@ -43,7 +43,8 @@ def main():
         if path.exists():
             frames.append(pd.read_csv(path))
     if not frames:
-        raise SystemExit("no per_image.csv.gz found; run evaluate_models.py first")
+        raise SystemExit("no per_image.csv.gz found: download the dumps with "
+                         "`python scripts/download_dumps.py`, or run evaluate_models.py first")
     per_image = pd.concat(frames, ignore_index=True)
     per_image = per_image[per_image["model"].str.contains("_seed")].copy()
     per_image["group"] = per_image["model"].map(model_group)
@@ -54,10 +55,12 @@ def main():
     for (group, model), frame in per_image.groupby(["group", "model"], sort=False):
         error = frame["e"].to_numpy()
         for signal in SIGNALS:
-            if signal not in frame or frame[signal].isna().all():
+            # A signal must be defined on every image (argsort would rank NaN as the largest
+            # value) and must vary (1e-9, the tolerance of the rank metrics).
+            if signal not in frame or frame[signal].isna().any():
                 continue
             values = frame[signal].to_numpy()
-            if np.ptp(values[np.isfinite(values)]) <= 1e-12:
+            if np.ptp(values) <= 1e-9:
                 continue
             stats = summarize(values, error)
             rows.append({"group": group, "model": model, "signal": signal, **stats})

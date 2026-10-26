@@ -1,11 +1,12 @@
-"""Add g2, g3, q and dis to a stored per-image dump (the "add_signals" step in run_info.json).
+"""Add g2, g3, q and dis to a stored per-image dump that lacks them.
 
 The committed results were produced this way: the per-image dumps of the original evaluation were
 kept as stored, and the new columns were computed with the pipeline's own functions,
 fpr.signals.compute_signals(iterate_steps=3) and fpr.ensemble.disagreement, on the same
 observations (seed 0). As a check, the recomputed g, d and e are compared with the stored values
-(written with 6 significant digits). A full `scripts/evaluate_models.py --ensemble` run computes the
-same columns from scratch.
+(written with 6 significant digits). The run is recorded as an "add_signals" entry in the
+folder's run_info.json. A full `scripts/evaluate_models.py --ensemble` run computes the same
+columns from scratch, so its dumps need no further step.
 
     python scripts/add_signals.py --folder results/models --pattern "dae_*.pt" --projectors radial pca64 --threads 7
     python scripts/add_signals.py --folder results/models_skip --pattern "unet_*.pt" --threads 7
@@ -115,15 +116,21 @@ def main():
         stored[column] = new[column]
     out = REPO_ROOT / args.out if args.out else folder / "per_image.csv.gz"
     stored.to_csv(out, index=False, float_format="%.6g")
-    info = {"folder": args.folder, "pattern": args.pattern, "projectors": args.projectors,
-            "models": list(models), "dis_groups": sorted(dis_checked), "threads": args.threads,
-            "seconds": round(time.perf_counter() - t0, 1), "check": check,
+    info = {"mode": "add_signals", "script": "scripts/add_signals.py", "signals": list(NEW),
+            "models": list(models), "pattern": args.pattern, "projectors": args.projectors,
+            "dis_groups": sorted(dis_checked), "threads": args.threads,
+            "seconds": {"signals": round(time.perf_counter() - t0, 1)}, "check": check,
             "versions": {"python": platform.python_version(), "torch": torch.__version__,
                          "numpy": np.__version__, "pandas": pd.__version__}}
-    record = REPO_ROOT / ".cache" / f"add_new_signals_{folder.name}.json"  # git-ignored
-    record.parent.mkdir(exist_ok=True)
-    record.write_text(json.dumps(info, indent=2))
+    append_run_record(out.with_name("run_info.json"), info)
     print(json.dumps(info, indent=2))
+
+
+def append_run_record(path, record):
+    """Add `record` to the `appended_runs` list of a run_info.json, creating the file if needed."""
+    run_info = json.loads(path.read_text()) if path.exists() else {}
+    run_info["appended_runs"] = run_info.get("appended_runs", []) + [record]
+    path.write_text(json.dumps(run_info, indent=2))
 
 
 if __name__ == "__main__":

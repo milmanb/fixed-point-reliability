@@ -109,7 +109,7 @@ def iterate_signals(f, y, steps=3, batch_size=2048):
     return residuals
 
 
-def jacobian_signals(f, y, probes=8, batch_size=1024, seed=0, method="fd", eps=1e-3):
+def jacobian_signals(f, y, probes=4, batch_size=1024, seed=0, method="fd", eps=1e-3):
     """Per-image `div` and `g_lin` (see module docstring) from Jacobian-vector products.
 
     method="fd" takes the products as finite differences, (f(y + eps v) - f(y)) / eps, which is
