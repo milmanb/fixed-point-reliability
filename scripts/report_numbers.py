@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from fpr.data import REPO_ROOT, load_fashion_mnist
+from fpr.data import REPO_ROOT, load_fashion_mnist, per_image_dump
 
 COLUMNS = ["condition", "family", "model", "image", "e", "g", "g_lin"]
 
@@ -26,7 +26,7 @@ def parse_args():
 
 
 def load(folder):
-    return pd.read_csv(REPO_ROOT / folder / "per_image.csv.gz", usecols=COLUMNS,
+    return pd.read_csv(per_image_dump(folder), usecols=COLUMNS,
                        dtype={"condition": "category", "family": "category", "model": "category"})
 
 
@@ -64,6 +64,26 @@ def main():
         "min": min(taylor), "max": max(taylor), "values": taylor,
         "claim": "Sec. 3.2: Spearman rho between g and its linearization, bottleneck lambda 0, "
                  "3 seeds x sigma in {0.1, 0.2, 0.3}: 0.81 to 0.97",
+    }
+    skip = load("results/models_skip")
+    above_median = []
+    for model in seeds(skip, "unet_lam0"):
+        rows = skip[skip["model"] == model]
+        worst_blur = rows[(rows["e"] >= rows["e"].quantile(0.75)) & (rows["family"] == "blur")]
+        above_median.append(float((worst_blur["g"] >= rows["g"].median()).mean()))
+    numbers["skip_worst_blur_above_median_g"] = {
+        "mean": float(np.mean(above_median)), "values": above_median,
+        "claim": "Sec. 3.2: most of the skip model's worst-quartile blur errors have an above-median g "
+                 "(lambda 0, per seed; median over all levels)",
+    }
+
+    taylor_high = []
+    for model in seeds(bottleneck, "dae_lam0"):
+        rows = bottleneck[(bottleneck["model"] == model) & (bottleneck["condition"] == "noise(sigma=0.5)")]
+        taylor_high.append(spearman(rows["g"], rows["g_lin"]))
+    numbers["taylor_rho_g_glin_bottleneck_sigma05"] = {
+        "min": min(taylor_high), "max": max(taylor_high), "values": taylor_high,
+        "claim": "Sec. 3.2: the same at sigma 0.5, 3 seeds: 0.20 to 0.81",
     }
 
     worst_pixel = []
