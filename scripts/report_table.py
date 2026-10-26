@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from fpr.data import REPO_ROOT, per_image_dump
+from fpr.ensemble import model_group
 
 FOLDERS = ("results/models", "results/models_skip")
 VARIANTS = [  # (group, architecture, training)
@@ -32,16 +33,12 @@ VARIANTS = [  # (group, architecture, training)
 ]
 
 
-def group_of(model):
-    return model.rsplit("_seed", 1)[0]
-
-
 def load(name):
     frames = [pd.read_csv(REPO_ROOT / folder / name) for folder in FOLDERS]
     frame = pd.concat(frames, ignore_index=True)
     frame = frame[frame["model"].str.contains("_seed")]
-    return frame.assign(group=frame["model"].map(group_of)) if "group" not in frame else \
-        frame.assign(model_group=frame["model"].map(group_of))
+    # In metrics.csv "group" is the corruption level, so the model group gets its own column.
+    return frame.assign(model_group=frame["model"].map(model_group))
 
 
 def per_seed_median(metrics, signal, statistic, families=None):
@@ -110,11 +107,11 @@ def main():
     per_model = pd.DataFrame(statistics)
     per_model["error"] = summary.groupby("model")["e"].mean()
     per_model["residual"] = summary.groupby("model")["g"].mean()
-    per_model["group"] = per_model.index.map(group_of)
+    per_model["model_group"] = per_model.index.map(model_group)
 
     rows = []
     for group, architecture, training in VARIANTS:
-        seeds = per_model[per_model["group"] == group]
+        seeds = per_model[per_model["model_group"] == group]
         if seeds.empty:
             continue
         row = {"architecture": architecture, "training": training, "seeds": len(seeds)}

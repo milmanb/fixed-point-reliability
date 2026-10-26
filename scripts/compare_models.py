@@ -22,6 +22,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from fpr.data import REPO_ROOT, per_image_dump  # noqa: E402
+from fpr.ensemble import model_group  # noqa: E402
 from fpr.evaluation import CONDITIONS  # noqa: E402
 from fpr.plotting import (AXIS, FAMILIES, GRID, INK, INK_SECONDARY, SERIES,  # noqa: E402
                           family_scatter, pretty_condition, style_axes)
@@ -46,10 +47,6 @@ def parse_args():
     parser.add_argument("--out-dir", default="comparison",
                         help="output folder inside --results (use a second name for ablations)")
     return parser.parse_args()
-
-
-def model_group(name):
-    return name.rsplit("_seed", 1)[0]
 
 
 def group_label(group):

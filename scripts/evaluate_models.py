@@ -26,7 +26,7 @@ import pandas as pd
 import torch
 
 from fpr.data import REPO_ROOT, load_fashion_mnist
-from fpr.ensemble import attach_disagreement
+from fpr.ensemble import attach_disagreement, model_group
 from fpr.evaluation import CONDITIONS, per_image_signals, score
 from fpr.models import load_restorer
 from fpr.projectors import PCA, Radial, principal_components
@@ -96,11 +96,6 @@ def build_models(args):
         models[restorer.name] = restorer
         train_args[restorer.name] = checkpoint["train_args"]
     return models, train_args
-
-
-def model_group(name):
-    """dae_lam0_seed2 -> dae_lam0; projectors keep their name."""
-    return name.rsplit("_seed", 1)[0]
 
 
 def summarize(per_image):
@@ -210,9 +205,6 @@ def main():
                 raise SystemExit(f"--from-per-image needs the same --{key.replace('_', '-')} as the "
                                  f"run in {out} ({previous['args'][key]!r})")
 
-    x_test, y_test = load_fashion_mnist("test", dtype=torch.float64)
-    x, labels = x_test[:args.n_eval], y_test[:args.n_eval]
-
     if args.from_per_image:
         per_image = pd.read_csv(out / "per_image.csv.gz")
         if args.n_eval != per_image["image"].nunique():
@@ -229,6 +221,8 @@ def main():
         t_signals = time.perf_counter()
         run_models = list(dict.fromkeys(per_image["model"]))
     else:
+        x_test, y_test = load_fashion_mnist("test", dtype=torch.float64)
+        x, labels = x_test[:args.n_eval], y_test[:args.n_eval]
         models, train_args = build_models(args)
         if args.append and args.ensemble:
             # dis compares the seeds of a group, so all of them must be evaluated together.

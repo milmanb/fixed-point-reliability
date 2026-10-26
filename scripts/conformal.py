@@ -15,6 +15,7 @@ import pandas as pd
 
 from fpr.conformal import evaluate_signals, shift_coverage, sure_self_calibrate
 from fpr.data import REPO_ROOT
+from fpr.ensemble import model_group
 
 SIGNALS = ("g", "d", "r_A", "dis", "g2", "q")
 ALPHA = 0.1
@@ -30,10 +31,6 @@ def parse_args():
                         help="default: every autoencoder with a seed in its name")
     parser.add_argument("--alpha", type=float, default=ALPHA)
     return parser.parse_args()
-
-
-def model_group(name):
-    return name.rsplit("_seed", 1)[0]
 
 
 def main():

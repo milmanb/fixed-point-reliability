@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from fpr.data import REPO_ROOT
+from fpr.ensemble import model_group
 from fpr.plotting import style_axes
 from fpr.selective import risk_coverage_curve, summarize
 
@@ -28,8 +29,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def model_group(name):
-    return name.rsplit("_seed", 1)[0]
+def scorable(values):
+    """A signal must be defined on every image (argsort would rank NaN as the largest value) and
+    must vary (1e-9, the tolerance of the rank metrics)."""
+    return not np.isnan(values).any() and np.ptp(values) > 1e-9
 
 
 def main():
@@ -55,13 +58,9 @@ def main():
     for (group, model), frame in per_image.groupby(["group", "model"], sort=False):
         error = frame["e"].to_numpy()
         for signal in SIGNALS:
-            # A signal must be defined on every image (argsort would rank NaN as the largest
-            # value) and must vary (1e-9, the tolerance of the rank metrics).
-            if signal not in frame or frame[signal].isna().any():
+            if signal not in frame or not scorable(frame[signal].to_numpy(dtype=float)):
                 continue
             values = frame[signal].to_numpy()
-            if np.ptp(values) <= 1e-9:
-                continue
             stats = summarize(values, error)
             rows.append({"group": group, "model": model, "signal": signal, **stats})
     table = pd.DataFrame(rows)

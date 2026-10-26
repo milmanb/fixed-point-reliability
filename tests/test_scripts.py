@@ -129,6 +129,74 @@ def test_add_signals_appends_its_record_to_run_info(tmp_path):
     assert json.loads((tmp_path / "new.json").read_text()) == {"appended_runs": [{"mode": "add_signals"}]}
 
 
+def test_per_seed_median_takes_the_median_level_of_each_seed():
+    report_table = _script("report_table")
+    levels = ["noise(sigma=0.1)", "noise(sigma=0.5)", "blur(std=1)"]
+    metrics = pd.DataFrame([{"scope": "condition", "target": "e", "signal": "g", "model": model,
+                             "group": level, "spearman": value}
+                            for model, values in (("m_seed0", (0.1, 0.5, 0.9)), ("m_seed1", (0.3, 0.2, 0.4)))
+                            for level, value in zip(levels, values)])
+    other = metrics.assign(target="e_mse", spearman=-1.0)  # ignored: another target
+    medians = report_table.per_seed_median(pd.concat([metrics, other]), "g", "spearman")
+    assert medians.to_dict() == {"m_seed0": 0.5, "m_seed1": 0.3}
+    noise = report_table.per_seed_median(metrics, "g", "spearman", families="noise")
+    assert noise.round(6).to_dict() == {"m_seed0": 0.3, "m_seed1": 0.25}
+
+
+def test_coverage_table_averages_the_conformal_and_selective_results(tmp_path, monkeypatch):
+    report_table = _script("report_table")
+    monkeypatch.setattr(report_table, "REPO_ROOT", tmp_path)
+    (tmp_path / "results" / "conformal").mkdir(parents=True)
+    (tmp_path / "results" / "selective").mkdir(parents=True)
+    (tmp_path / "report").mkdir()
+    pd.DataFrame([
+        {"model_group": "dae_lam0", "signal": "g", "setting": "normalized", "coverage": 0.9, "width": 0.2},
+        {"model_group": "dae_lam0", "signal": "-", "setting": "marginal", "coverage": 0.9, "width": 0.3},
+        {"model_group": "dae_lam0", "signal": "-", "setting": "severity", "coverage": 0.9, "width": 0.1},
+    ]).to_csv(tmp_path / "results" / "conformal" / "coverage.csv", index=False)
+    pd.DataFrame([
+        {"model_group": "dae_lam0", "signal": "g", "group": "pixel_mask", "coverage": 0.6},
+        {"model_group": "dae_lam0", "signal": "g", "group": "box_mask", "coverage": 0.95},
+    ]).to_csv(tmp_path / "results" / "conformal" / "coverage_family.csv", index=False)
+    pd.DataFrame([{"model_group": "dae_lam0", "signal": "g", "coverage": c} for c in (0.4, 0.6)]
+                 ).to_csv(tmp_path / "results" / "conformal" / "shift.csv", index=False)
+    pd.DataFrame([{"group": "dae_lam0", "model": f"dae_lam0_seed{k}", "signal": s, "aurc_norm": v}
+                  for k in range(2) for s, v in (("g", 0.4 + 0.1 * k), ("dis", 0.5))]
+                 ).to_csv(tmp_path / "results" / "selective" / "selective.csv", index=False)
+    report_table.coverage_table(groups=("dae_lam0",))
+    row = pd.read_csv(tmp_path / "results" / "report_coverage.csv").iloc[0]
+    assert (row["width_g"], row["width_marginal"], row["width_severity"]) == (0.2, 0.3, 0.1)
+    assert (row["cov_pixel_g"], row["cov_box_g"], row["shift_g"]) == (0.6, 0.95, 0.5)
+    assert (row["aurc_g"], row["aurc_dis"]) == (0.45, 0.5) and np.isnan(row["cov_pixel_dis"])
+    tex = (tmp_path / "report" / "table_coverage.tex").read_text()
+    assert r"bottleneck, $\lid{=}0$ & 0.200 & 0.100 & 0.60 & 0.95 & 0.50 & 0.45 & 0.50 \\" in tex
+
+
+def test_blind_spot_shares_follow_the_flagged_rule(tmp_path):
+    plot_blind_spots = _script("plot_blind_spots")
+    rows = []
+    for seed in range(2):
+        # Four images per family; the worst errors are the pixel masks and one box mask.
+        for family, errors, g in (("noise", (1, 2, 3, 4), (1, 2, 3, 4)),
+                                  ("pixel_mask", (13, 14, 15, 16), (1, 1, 1, 1)),
+                                  ("box_mask", (9, 10, 11, 12), (9, 10, 11, 12)),
+                                  ("blur", (5, 6, 7, 8), (5, 6, 7, 8))):
+            rows += [{"model": f"dae_lam0_seed{seed}", "family": family, "e": e, "g": v, "dis": v}
+                     for e, v in zip(errors, g)]
+    pd.DataFrame(rows).to_csv(tmp_path / "per_image.csv.gz", index=False)
+    table = pd.DataFrame(plot_blind_spots.family_shares("bottleneck", tmp_path, "dae_lam0"))
+    g = table[table["signal"] == "g"].set_index("family")
+    assert g.loc["pixel_mask", "flagged"] == 0.0 and g.loc["pixel_mask", "worst_quartile_share"] == 1.0
+    assert g.loc["box_mask", "worst_quartile_share"] == 0.0 and (g["seeds"] == 2).all()
+
+
+def test_selective_risk_scores_only_complete_varying_signals():
+    selective = _script("selective")
+    assert selective.scorable(np.array([0.1, 0.2, 0.3]))
+    assert not selective.scorable(np.array([0.1, np.nan, 0.3]))
+    assert not selective.scorable(np.full(3, 0.2))
+
+
 def _calibration_frame(n=200, seed=0):
     """Two noise levels on different error scales. Within each level g ranks e perfectly, but
     between levels g runs the wrong way, so raw g fails pooled and per-level calibration fixes it."""

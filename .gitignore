@@ -13,8 +13,9 @@ data/
 # Large per-image dumps; download them with scripts/download_dumps.py or regenerate them with
 # scripts/evaluate_models.py and scripts/smoke_projectors.py
 results/**/per_image*
-# Output of the README's quick smoke check
+# Output of the README's quick checks
 results/smoke_quick/
+results/quick/
 *.ckpt
 *.pt
 # Trained models are published so the results can be checked without retraining
