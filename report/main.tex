@@ -26,6 +26,12 @@
 \setlength{\dbltextfloatsep}{6pt}
 \setlength{\intextsep}{6pt}
 \setlength{\floatsep}{6pt}
+% A tighter title block than article's: less space above the title and no empty date line.
+\makeatletter
+\renewcommand{\@maketitle}{\newpage\null\vskip 0.5em
+  \begin{center}{\LARGE \@title\par}\vskip 1.5em
+    {\large \lineskip .5em \begin{tabular}[t]{c}\@author\end{tabular}\par}\end{center}\par\vskip 1em}
+\makeatother
 \newcommand{\norm}[1]{\lVert #1 \rVert}
 \newcommand{\lid}{\lambda_{\mathrm{id}}}
 
@@ -40,8 +46,8 @@
 
 \begin{abstract}
 Idempotent networks are trained so that $f(f(y)) = f(y)$, and recent work reads a small
-idempotence residual as a sign of a reliable prediction. We test it on small Fashion-MNIST
-denoisers against the true per-image error. The residual is zero for any exact
+idempotence residual as a sign of a reliable prediction. We test it on two small Fashion-MNIST
+denoisers, trained on Gaussian noise, against the true per-image error on 13 corruption levels. The residual is zero for any exact
 projector, whatever the error, and a first-order expansion shows that it probes the Jacobian along
 the model's own displacement. For learned models it ranks errors within a corruption level
 (Spearman $\rho = 0.70$ for a bottleneck autoencoder, below its displacement's 0.77, and 0.86 with
@@ -73,7 +79,8 @@ penalty makes it a worse signal, and without a warm-up it collapses the model to
 (iii)~as a conformal error bar it keeps its marginal guarantee but under-covers some unseen masks,
 including its blind spot, which neither deeper iterates nor cross-seed disagreement
 repairs;
-(iv)~brightness and level baselines are needed to read such signals correctly.
+(iv)~brightness and level baselines are needed to read such signals correctly: a level-mean
+predictor already reaches most of the calibrated ranking.
 
 \paragraph{Related work.}
 Idempotence has been used to train one-step generative
@@ -127,8 +134,8 @@ application of $f$ gives
 \end{equation}
 so the residual probes the Jacobian along the model's own displacement.
 For the nearest-point projection onto a smooth set, $\delta$ is normal to that set while $J_f$
-annihilates the normal directions, so $J_f\delta = 0$ whatever the error. A learned model is informative
-only where $J_f$ does not cancel its own displacement.
+annihilates the normal directions, so $J_f\delta = 0$ whatever the error. To first order, a learned model is
+informative only where $J_f$ does not cancel $\delta$.
 
 \paragraph{Models.}
 The \emph{bottleneck} model is a convolutional autoencoder (602k parameters): three convolutions
@@ -151,8 +158,8 @@ all levels (an unknown corruption), and the AUROC for the worst quartile of $e$.
 levels, so a random score flags 25\% of any subset. Under masking the error grows with image
 content, so we add brightness $b(y) = \operatorname{mean}(y)$ as a model-free baseline and report
 partial $\rho$ given $b$. Calibration fits a monotone map from a signal to $e$
-per level or per family on half the images, scores the other half, and is compared with
-each level's mean error. Per-level bootstrap 95\% intervals are about $\pm 0.01$ to $\pm 0.02$.
+per level or per family on half the images, scores the rest, and is compared with
+each level's mean error. Per-level bootstrap 95\% intervals over test images are about $\pm 0.01$ to $\pm 0.02$.
 
 \section{Results}
 
@@ -200,7 +207,7 @@ of its stable-but-wrong images (top-10\% error, below-median $g$) are large boxe
   \includegraphics[width=2.55in]{models/figures/failures_compact_dae_lam0_seed0.png}
   \caption{Stable but wrong: test images with top-10\% error and below-median $g$ (bottleneck,
     $\lid = 0$, seed 0); labels: percentiles of $e$ and $g$ over all levels. 98\% of such images
-    are pixel masks.}
+    are pixel masks; the five shown drop 75\% of the pixels.}
   \label{fig:failures}
 \end{figure}
 
