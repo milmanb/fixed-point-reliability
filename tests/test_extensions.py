@@ -6,7 +6,8 @@ import pytest
 import torch
 
 from fpr.conformal import (conformal_quantile, evaluate_signals, group_coverage, marginal_bound,
-                           normalized_bound, shift_coverage, split_masks, sure_self_calibrate)
+                           normalized_bound, severity_bound, shift_coverage, split_masks,
+                           sure_self_calibrate)
 from fpr.ensemble import disagreement, seed_groups
 from fpr.projectors import Identity
 from fpr.selective import aurc, normalized_aurc, selective_risk, summarize
@@ -145,7 +146,7 @@ def test_marginal_bound_covers():
     assert 0.85 <= result["coverage"] <= 0.98
 
 
-def test_evaluate_signals_returns_baselines():
+def test_evaluate_signals_scores_held_out_images_and_the_baselines():
     rng = np.random.default_rng(2)
     n, n_img = 200, 50
     frame = pd.DataFrame({
@@ -159,10 +160,21 @@ def test_evaluate_signals_returns_baselines():
         "r_A": rng.exponential(0.05, n),
     })
     table = evaluate_signals(frame, signals=("g",), alpha=0.1)
-    settings = set(table["setting"])
-    assert "normalized" in settings
-    assert "marginal" in settings
-    assert "severity" in settings
+    fit, calibration, held = split_masks(frame["image"].to_numpy())
+    error = frame["e"].to_numpy()
+    rows = table.set_index("setting")
+    # Baselines: the marginal bound is the conformal quantile of e on the calibration images,
+    # and every coverage is measured on the held-out (odd) images only.
+    bound = conformal_quantile(error[calibration], 0.1)
+    assert rows.loc["marginal", "width"] == bound
+    assert rows.loc["marginal", "coverage"] == np.mean(error[held] <= bound)
+    severity = severity_bound(frame, calibration, alpha=0.1, fit_mask=fit)
+    assert rows.loc["severity", "coverage"] == severity["coverage"]
+    normalized = normalized_bound(frame["g"], error, calibration, alpha=0.1, fit_mask=fit)
+    assert rows.loc["normalized", "coverage"] == normalized["coverage"]
+    family = table[table["setting"] == "normalized/family"].set_index("group")
+    assert set(family.index) == {"noise", "blur", "pixel_mask"}
+    assert family["n"].sum() == held.sum()
 
 
 def test_sure_self_calibrate_covers_when_sure_tracks_e_mse():
@@ -186,7 +198,11 @@ def test_sure_self_calibrate_covers_when_sure_tracks_e_mse():
     })
     result = sure_self_calibrate(frame, signal="g", alpha=0.1)
     assert np.isfinite(result["coverage"]) and np.isfinite(result["width"])
-    assert result["coverage"] > 0.7, result["coverage"]
+    # Over 20 seeds of this construction the coverage is 0.865 to 0.97 and the width 0.95 to 1.31
+    # times the supervised width; a bound calibrated at alpha = 0.3 instead gives 0.64 to 0.84 and
+    # 0.76 to 0.93, so these limits tell the two apart.
+    assert 0.85 <= result["coverage"] <= 1.0, result["coverage"]
+    assert 0.94 <= result["width"] / result["width_supervised"] <= 1.35
     # the supervised bound on the same target is the reference point; 200 held-out
     # images leave a few points of sampling slack around the nominal 0.9
     assert abs(result["coverage_supervised"] - 0.9) < 0.1
@@ -218,13 +234,18 @@ def test_selective_risk_at_full_coverage_is_mean():
     assert selective_risk(signal, error, coverage=1.0) == pytest.approx(error.mean())
 
 
-def test_summarize_keys():
+def test_summarize_reports_risk_against_the_oracle():
     rng = np.random.default_rng(6)
     error = rng.random(100)
-    signal = error + 0.01 * rng.random(100)
-    out = summarize(signal, error)
-    assert "aurc" in out and "aurc_norm" in out
-    assert "risk@0.8" in out and "risk@0.5" in out
+    ascending = np.sort(error)
+    best = summarize(error, error)  # ranking by the error itself is the oracle
+    assert best["aurc_norm"] == pytest.approx(0.0, abs=1e-12)
+    assert best["risk@0.8"] == best["risk_oracle@0.8"] == pytest.approx(ascending[:80].mean())
+    assert best["mean_error"] == pytest.approx(error.mean())
+    worst = summarize(-error, error)  # keeps the largest errors first
+    assert worst["risk@0.5"] == pytest.approx(ascending[50:].mean())
+    assert worst["risk_oracle@0.5"] == pytest.approx(ascending[:50].mean())
+    assert worst["aurc_norm"] > 1.0
 
 
 def _levels(conditions, n_img=80, seed=0):

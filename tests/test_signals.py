@@ -20,15 +20,23 @@ def test_divergence_is_exact_for_diagonal_maps():
 
 
 def test_finite_differences_agree_with_forward_mode_ad():
-    """The pipeline uses finite differences; they must match exact products on a smooth model."""
+    """The pipeline uses finite differences; they must match exact products on a smooth model.
+
+    An untrained network is nearly constant (g_lin ~ 1e-6), which would make the comparison
+    trivial, so the weights are doubled to give the Jacobian a scale like a trained model's.
+    """
     torch.manual_seed(0)
     net = ConvAutoencoder(width=4, latent=8).double()
     y = _images(8, 7, side=28)
     with torch.no_grad():
+        for parameter in net.parameters():
+            parameter.mul_(2.0)
         exact = jacobian_signals(net, y, probes=2, method="jvp")
         approximate = jacobian_signals(net, y, probes=2, method="fd")
-    for key in ("div", "g_lin"):
-        assert np.allclose(exact[key], approximate[key], rtol=1e-4, atol=1e-8), key
+    assert np.abs(exact["g_lin"]).mean() > 1e-4 and np.abs(exact["div"]).mean() > 1e-5
+    assert np.allclose(exact["g_lin"], approximate["g_lin"], rtol=1e-3, atol=0)
+    # Rademacher probes take larger steps, so the second-order error of div is larger.
+    assert np.allclose(exact["div"], approximate["div"], rtol=2e-2, atol=0)
 
 
 def test_linearized_idempotence_residual_is_exact_for_affine_maps():

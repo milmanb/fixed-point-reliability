@@ -190,6 +190,16 @@ def test_blind_spot_shares_follow_the_flagged_rule(tmp_path):
     assert g.loc["box_mask", "worst_quartile_share"] == 0.0 and (g["seeds"] == 2).all()
 
 
+def test_stable_but_wrong_takes_both_percentiles_over_all_levels():
+    report_numbers = _script("report_numbers")
+    rows = pd.DataFrame({"e": np.arange(20.0), "g": np.r_[np.full(10, 5.0), np.arange(10.0)]})
+    picked = report_numbers.stable_but_wrong(rows)
+    # Top-10% error: rows 18 and 19 (e >= 17.1); their g (8 and 9) is not below the median (5).
+    assert picked.empty
+    rows.loc[19, "g"] = 0.0
+    assert report_numbers.stable_but_wrong(rows).index.tolist() == [19]
+
+
 def test_selective_risk_scores_only_complete_varying_signals():
     selective = _script("selective")
     assert selective.scorable(np.array([0.1, 0.2, 0.3]))

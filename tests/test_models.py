@@ -29,6 +29,19 @@ def test_restorer_keeps_dtype_and_supports_forward_mode():
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA device")
+def test_restorer_on_cuda_returns_the_input_device_and_dtype():
+    torch.manual_seed(0)
+    net = ConvAutoencoder(width=8, latent=8)
+    on_cpu = Restorer(net, name="tiny", device="cpu")
+    y = torch.rand(3, 1, 28, 28, dtype=torch.float64)
+    expected = on_cpu(y)
+    on_cuda = Restorer(net, name="tiny", device="cuda")
+    out = on_cuda(y)
+    assert out.device == y.device and out.dtype == torch.float64
+    assert torch.allclose(out, expected, atol=1e-5)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA device")
 def test_restorer_on_cuda_turns_off_tf32_convolutions():
     previous = torch.backends.cudnn.allow_tf32
     try:
