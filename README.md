@@ -104,6 +104,20 @@ downloads the per-image results that the analyses read, so step 3 is optional to
 
 ## Reproduce
 
+### Quick check of the main blind spot (about 2 minutes)
+
+```bash
+python scripts/evaluate_models.py --pattern "dae_lam0_seed*.pt" --projectors --n-eval 1000 --n-boot 50 \
+    --ensemble --device cpu --out results/quick
+python scripts/compare_models.py --results results/quick --groups dae_lam0
+```
+
+This evaluates the three bottleneck checkpoints on the first 1,000 test images (a bare
+`--projectors` skips the projectors). Among other tables, the second command prints each
+family's share of the worst-quartile errors and the share of them that each signal flags
+(`recall_g`): pixel masks hold about 60% of the worst errors and $g$ flags about 19% of them
+(18% on all 10,000 images, below the 25% of a random score), against 74% for box masks.
+
 ### 0. Download the per-image dumps
 
 ```bash
