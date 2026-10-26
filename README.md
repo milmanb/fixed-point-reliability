@@ -142,6 +142,9 @@ subspace), as in the proposal, plus two references: `identity` and `nn` (nearest
 training image). Corruptions: Gaussian noise, Gaussian blur, random pixel masks and
 random box masks, 13 levels in total, on the 10,000 Fashion-MNIST test images.
 
+<details>
+<summary>Outputs, results and figures of the smoke check (it holds by construction)</summary>
+
 Outputs in `results/smoke_projectors/` (the full run): `summary.csv` (signal and error means
 per condition), `metrics.csv` (Spearman and AUROC with CIs, per condition, pooled per
 corruption family, and pooled over everything), figures, and `run_info.json`. The quick run
@@ -191,6 +194,8 @@ bootstrap.
 ![Signals vs. true error](results/smoke_projectors/scatter.png)
 
 ![Spearman heatmap](results/smoke_projectors/spearman_heatmap.png)
+
+</details>
 
 ### 2. Train the denoising autoencoders (optional)
 
@@ -299,7 +304,7 @@ The run without warm-up (green) collapsed to a constant image, so its $d$ and $r
 how far each observation is from that image and rank the error almost perfectly; Table 1 omits
 it.
 
-![Idempotence residual vs. error](results/models/comparison/g_vs_error.png)
+![Fixed-point residual vs. error](results/models/comparison/g_vs_error.png)
 
 ![Training curves](results/models/comparison/training_curves.png)
 
