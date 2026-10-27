@@ -1,7 +1,7 @@
 {
   "projector_max_g_lin_noise": {
     "value": 9.25805e-13,
-    "claim": "README, finding 1: the linearized term (radial and PCA-64 under noise) is at most 1e-12"
+    "claim": "README, exact projectors: the linearized term (radial and PCA-64 under noise) is at most 1e-12"
   },
   "taylor_rho_g_glin_bottleneck": {
     "min": 0.8061085183690726,
@@ -17,16 +17,7 @@
       0.9406628137176436,
       0.8724496560692221
     ],
-    "claim": "Sec. 3.2: Spearman rho between g and its linearization, bottleneck lambda 0, 3 seeds x sigma in {0.1, 0.2, 0.3}: 0.81 to 0.97"
-  },
-  "skip_worst_blur_above_median_g": {
-    "mean": 0.8413308332642795,
-    "values": [
-      0.8178154825026511,
-      0.8541478809738503,
-      0.8520291363163371
-    ],
-    "claim": "Sec. 3.2: most of the skip model's worst-quartile blur errors have an above-median g (lambda 0, per seed; median over all levels)"
+    "claim": "Sec. 2, why the residual can be blind: Spearman rho between g and its linearization, bottleneck lambda 0, 3 seeds x sigma in {0.1, 0.2, 0.3}: 0.81 to 0.97"
   },
   "taylor_rho_g_glin_bottleneck_sigma05": {
     "min": 0.1996895401371918,
@@ -36,7 +27,7 @@
       0.1996895401371918,
       0.4594592845393494
     ],
-    "claim": "Sec. 3.2: the same at sigma 0.5, 3 seeds: 0.20 to 0.81"
+    "claim": "Sec. 2, why the residual can be blind: the same at sigma 0.5, 3 seeds: 0.20 to 0.81"
   },
   "pixel_mask_share_of_worst_quartile_bottleneck": {
     "mean": 0.5969066561265571,
@@ -45,7 +36,7 @@
       0.5955076923076923,
       0.5941846153846154
     ],
-    "claim": "Sec. 3.2: pixel masks hold 60% of the worst-quartile errors (bottleneck lambda 0)"
+    "claim": "Sec. 3.3: pixel masks hold 60% of the worst-quartile errors (bottleneck lambda 0)"
   },
   "figure1_pixel_mask_share": {
     "value": 0.982657417289221,
@@ -57,12 +48,181 @@
     "values": [
       0.8694047069681587,
       0.8300448430493274,
-      0.8328853046594982
+      0.8325123152709359
     ],
-    "claim": "Sec. 3.2: 83-87% of the skip model's top-10%-error, below-median-g images are large boxes (per seed)"
+    "claim": "Sec. 3.3: 83-87% of the skip model's top-10%-error, below-median-g images are boxes of side 14 (per seed)"
+  },
+  "skip_worst_blur_above_median_g": {
+    "mean": 0.8413308332642795,
+    "values": [
+      0.8178154825026511,
+      0.8541478809738503,
+      0.8520291363163371
+    ],
+    "claim": "Fig. 2 caption: the skip model's worst-quartile blur errors are mostly not stable, their g is above its median (lambda 0, per seed; median over all levels)"
+  },
+  "pretrained_blur_error_share_of_input": {
+    "min": 0.7816210710840601,
+    "max": 0.9094603582226083,
+    "values": {
+      "dncnn_b blur(std=0.5)": 0.7873109297189836,
+      "dncnn_b blur(std=1)": 0.8790454434768492,
+      "dncnn_b blur(std=1.5)": 0.8960145957729125,
+      "dncnn_b blur(std=2)": 0.9094603582226083,
+      "restormer blur(std=0.5)": 0.7816210710840601,
+      "restormer blur(std=1)": 0.8727866742425121,
+      "restormer blur(std=1.5)": 0.8951189460714625,
+      "restormer blur(std=2)": 0.9093092979684493
+    },
+    "claim": "Sec. 3.5: under blur their mean error is 78-91% of the input's (outputs clipped)"
+  },
+  "pretrained_blur_error_growth": {
+    "values": {
+      "dncnn_b": 2.6959704453718274,
+      "restormer": 2.715144870790916
+    },
+    "claim": "Sec. 3.5: from blur width 0.5 to 2 their mean error grows 2.7-fold"
+  },
+  "pretrained_blur_g_change": {
+    "values": {
+      "dncnn_b": -0.24763111069369814,
+      "restormer": -0.10665822761778376
+    },
+    "claim": "Sec. 3.5: over the same widths their mean g falls by 25% (DnCNN-B) and 11% (Restormer)"
+  },
+  "pretrained_within_level_interval_halfwidth": {
+    "values": {
+      "dncnn_b": 0.118,
+      "restormer": 0.1234
+    },
+    "claim": "Sec. 3.5: per-level bootstrap 95% intervals of rho(g, e), resampling source images, are about +-0.12 (median half-width over the 13 levels)"
+  },
+  "pretrained_unclipped_within_level_rho": {
+    "values": {
+      "dncnn_b": 0.4285,
+      "restormer": 0.1072
+    },
+    "claim": "Sec. 3.5: without the clip the median within-level rho(g, e) is 0.43 (DnCNN-B) and 0.11 (Restormer)"
+  },
+  "pretrained_unclipped_flagged_box_share": {
+    "values": {
+      "dncnn_b": 0.010309278350515464,
+      "restormer": 0.9444444444444444
+    },
+    "claim": "Sec. 3.5, Fig. 2 caption and README: without the clip g flags 94% of Restormer's worst-quartile box-mask errors (DnCNN-B: 1%)"
+  },
+  "pretrained_stable_but_wrong": {
+    "values": {
+      "dncnn_b": 16,
+      "restormer": 2
+    },
+    "rows": 5304,
+    "claim": "README: 16 (DnCNN-B) and 2 (Restormer) of their 5,304 crops and levels are stable but wrong (top-10% error, below-median g; outputs clipped)"
+  },
+  "displacement_flagged_blur_box": {
+    "max_seed_mean": 0.018690492887208265,
+    "max_single_run": 0.023490345590948224,
+    "values": {
+      "dae_lam0 d blur": 0.00022987450895106413,
+      "dae_lam0 d box_mask": 0.001954117572810882,
+      "dae_lam0 r_A blur": 0.00386232687692948,
+      "dae_lam0 r_A box_mask": 0.012018314391292797,
+      "dae_lam0.1w5 d blur": 0.00023334199706683825,
+      "dae_lam0.1w5 d box_mask": 0.002173677456513441,
+      "dae_lam0.1w5 r_A blur": 0.0036025556077227752,
+      "dae_lam0.1w5 r_A box_mask": 0.01153007212676386,
+      "dae_lam1w5 d blur": 0.00042465142585429997,
+      "dae_lam1w5 d box_mask": 0.004846691119134626,
+      "dae_lam1w5 r_A blur": 0.007179304969333847,
+      "dae_lam1w5 r_A box_mask": 0.01702188210669824,
+      "dae_lam1w5_inner d blur": 0.000382786813013747,
+      "dae_lam1w5_inner d box_mask": 0.005941870917487393,
+      "dae_lam1w5_inner r_A blur": 0.006994049696931939,
+      "dae_lam1w5_inner r_A box_mask": 0.018690492887208265,
+      "dae_lam1w5_outer d blur": 0.0002967591221979379,
+      "dae_lam1w5_outer d box_mask": 0.0022238323630886553,
+      "dae_lam1w5_outer r_A blur": 0.004687676751282858,
+      "dae_lam1w5_outer r_A box_mask": 0.013320609213447627,
+      "dncnn_b d box_mask": 0.0,
+      "dncnn_b r_A box_mask": 0.0,
+      "restormer d blur": 0.0,
+      "restormer d box_mask": 0.0,
+      "restormer r_A blur": 0.0,
+      "restormer r_A box_mask": 0.0,
+      "unet_lam0 d blur": 0.0,
+      "unet_lam0 d box_mask": 0.0,
+      "unet_lam0 r_A blur": 0.0012218956911930331,
+      "unet_lam0 r_A box_mask": 0.0010165961151244458,
+      "unet_lam1w5 d blur": 0.0,
+      "unet_lam1w5 d box_mask": 0.0001233664897896195,
+      "unet_lam1w5 r_A blur": 0.0008746164929928826,
+      "unet_lam1w5 r_A box_mask": 0.0024092826061083952
+    },
+    "claim": "Discussion: averaged over seeds, d and r_A flag at most 2% of the worst blur and box-mask errors of each model in Table 1 (DnCNN-B has no worst-quartile blur errors)"
+  },
+  "collapse_validation_sigma02": {
+    "values": {
+      "dae_lam1_seed0": 0.210594,
+      "unet_lam1_seed0": 0.288497,
+      "dae_lam1w5 (seeds)": [
+        0.0508664,
+        0.0534473,
+        0.054364
+      ],
+      "unet_lam1w5 (seeds)": [
+        0.0365404,
+        0.0366151,
+        0.036296
+      ]
+    },
+    "claim": "Sec. 3.4: at sigma 0.2 the collapsed runs' validation errors are 0.21 and 0.29, against 0.05 and 0.04 for lambda 1 with the warm-up (every seed)"
+  },
+  "skip_box_left_empty": {
+    "max_output_in_box": 0.004809816388912094,
+    "min_clean_in_box": 0.39177611519607847,
+    "residual_smaller_in_box": true,
+    "values": {
+      "unet_lam0_seed0 box_mask(size=8)": {
+        "output_in_box": 0.004681328670775029,
+        "clean_in_box": 0.39177611519607847,
+        "residual_in_box": 0.003482940467661818,
+        "residual_outside": 0.009729438968819368
+      },
+      "unet_lam0_seed0 box_mask(size=14)": {
+        "output_in_box": 0.0016820399896837676,
+        "clean_in_box": 0.42181372949179674,
+        "residual_in_box": 0.000990312918922109,
+        "residual_outside": 0.009738545742168989
+      },
+      "unet_lam0_seed1 box_mask(size=8)": {
+        "output_in_box": 0.004809816388912094,
+        "clean_in_box": 0.39177611519607847,
+        "residual_in_box": 0.0036810605289929513,
+        "residual_outside": 0.009981558754183299
+      },
+      "unet_lam0_seed1 box_mask(size=14)": {
+        "output_in_box": 0.0016158168174804982,
+        "clean_in_box": 0.42181372949179674,
+        "residual_in_box": 0.0010053765783561877,
+        "residual_outside": 0.009977182443702466
+      },
+      "unet_lam0_seed2 box_mask(size=8)": {
+        "output_in_box": 0.0042651731398655884,
+        "clean_in_box": 0.39177611519607847,
+        "residual_in_box": 0.003160753733475946,
+        "residual_outside": 0.00961651263830567
+      },
+      "unet_lam0_seed2 box_mask(size=14)": {
+        "output_in_box": 0.001396609308757991,
+        "clean_in_box": 0.42181372949179674,
+        "residual_in_box": 0.000829449076851529,
+        "residual_outside": 0.009642391653584662
+      }
+    },
+    "claim": "Sec. 3.3: the skip model leaves the box empty (mean output in the box under 0.01, against about 0.4 in the clean image), and a second pass keeps it empty (its residual is smaller inside the box than outside)"
   },
   "clean_image_spread_test_set": {
     "value": 0.2743459083060467,
-    "claim": "Sec. 3.3: clean images vary by 0.27 across inputs (per-pixel std, mean over pixels), the reference for the initialization spreads in results/checks.json"
+    "claim": "README, collapse without warm-up: clean images vary by 0.27 across inputs (per-pixel std, mean over pixels), the reference for the initialization spreads in results/checks.json"
   }
 }

@@ -9,6 +9,7 @@
     "seed": 0,
     "iterate_steps": 2,
     "device": "cuda",
+    "no_clip": false,
     "out": "results/pretrained"
   },
   "conditions": [
@@ -43,8 +44,8 @@
   "crops": 408,
   "source_images": 68,
   "seconds": {
-    "signals": 2226.5,
-    "total": 2238.6
+    "signals": 2362.9,
+    "total": 2376.4
   },
   "versions": {
     "python": "3.13.14",

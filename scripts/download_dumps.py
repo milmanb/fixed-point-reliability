@@ -23,9 +23,9 @@ DUMPS = {  # release asset -> (result folder, SHA-256 of the file)
     "smoke_projectors_per_image.csv.gz":
         ("results/smoke_projectors", "5e51663a6bae249e020667c8270ce91f6c473af9e368880e62c40efb69ab8246"),
     "pretrained_per_image.csv.gz":
-        ("results/pretrained", "28c240f0a4d26d0cf4f3113af979510718c1c3984f568e0db8e1ae42f4ddde55"),
+        ("results/pretrained", "61db723b493a2af46e5b7615f2f2d5e8698b0405f15346f44977e6df74125c23"),
     "pretrained_noclip_per_image.csv.gz":
-        ("results/pretrained_noclip", "db5d3ce08adbf4778320fe61252ef921ddba690b47731984c4eea1594f0dfabd"),
+        ("results/pretrained_noclip", "e2d2202b52469b72e37c91b1f92154367583637d4222ce318b1ef4a04c9340d9"),
 }
 
 
