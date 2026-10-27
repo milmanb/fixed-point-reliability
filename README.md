@@ -41,7 +41,8 @@ each seed, then the mean over three seeds. The noise, partial, pooled and AUROC 
 $g$: "partial" controls for brightness, and "pooled" and AUROC mix all levels. The $d$, $r_A$
 and dis columns are within-level $\rho$. "flagged" is the share of the worst-quartile errors
 under pixel or box masks whose residual is in its top quartile over all levels (a random score
-gives 25%).
+gives 25%). The two BSD68 rows are single runs of the pretrained denoisers on crops of natural
+images, with outputs clipped to $[0, 1]$ (step 4).
 
 | model | error | $g$ | $\rho(g,e)$ within | noise | partial | pooled | AUROC | $\rho(d,e)$ | $\rho(r_A,e)$ | $\rho(\mathrm{dis},e)$ | flagged pixel | flagged box |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -52,6 +53,8 @@ gives 25%).
 | bottleneck, $\lambda_{id}=1$, outer only | 0.095 | 0.011 | 0.65 | 0.64 | 0.54 | 0.50 | 0.67 | 0.77 | 0.81 | 0.82 | 11% | 79% |
 | skip, $\lambda_{id}=0$ | 0.086 | 0.019 | 0.86 | 0.92 | 0.48 | 0.52 | 0.73 | 0.49 | 0.72 | 0.84 | 68% | <1% |
 | skip, $\lambda_{id}=1$ | 0.084 | 0.007 | 0.63 | 0.60 | 0.27 | 0.40 | 0.63 | 0.28 | 0.66 | 0.88 | 31% | 2% |
+| DnCNN-B, BSD68 | 0.100 | 0.003 | 0.45 | 0.36 | 0.31 | 0.69 | 0.88 | -0.79 | 0.58 | -- | 52% | 1% |
+| Restormer, BSD68 | 0.091 | 0.002 | 0.19 | 0.26 | 0.07 | 0.75 | 0.95 | -0.34 | 0.61 | -- | 99% | 1% |
 
 1. **Exact projectors carry no residual information.** The residual is zero for any exact
    projector, whatever the error. A first-order expansion gives
@@ -83,8 +86,22 @@ gives 25%).
    ($\sigma$ = 0.1 and 0.2; `results/conformal`). Ensemble disagreement ranks better within a
    level, except for the skip model at $\lambda_{id} = 0$, but misses the same corruption families
    as $g$ (`results/blind_spots.csv`).
+7. **On natural images, the residual ranks the errors of two standard denoisers less well still.**
+   DnCNN-B and Restormer on 408 crops of the BSD68 images (step 4), with outputs clipped to
+   $[0, 1]$: within a level, median $\rho$ = 0.45 and 0.19 (0.43 and 0.11 without the clip;
+   per-level intervals about $\pm 0.12$). Both leave blurred images almost as they are: their
+   error is 78-91% of the input's and grows 2.7-fold from width 0.5 to 2, while $g$ falls by 25%
+   and 11% (the same without the clip). Box masks hold 8% and 16% of their worst errors, and $g$
+   flags 1% of them. For Restormer this depends on the clip, which sets its negative outputs inside
+   the box to zero on both passes: without the clip, $g$ flags 94% of these errors (DnCNN-B: 1%).
+   Pooled over levels, $g$ reaches $\rho$ = 0.69 and 0.75 (AUROC 0.88 and 0.95), but its level
+   medians alone reach 0.74 and 0.71. Outputs that are stable and wrong in the sense of the
+   report's Fig. 1b (top-10% error, below-median $g$) are rare for both: 16 and 2 of 5,304
+   (`results/pretrained`, `results/pretrained_noclip`).
 
 ![Blind spots per corruption family (the report's Fig. 2)](results/blind_spots.png)
+
+![Stable but wrong: one test image per architecture, with the second pass (the report's Fig. 1b)](results/examples.png)
 
 ## Setup
 
@@ -282,10 +299,11 @@ python scripts/conformal.py                                                  # r
 python scripts/selective.py                                                  # results/selective
 python scripts/checks.py                                                     # results/checks.json
 python scripts/report_numbers.py                                             # results/report_numbers.json
-python scripts/report_table.py                                               # Tables 1 and 2 of the report
+python scripts/report_table.py                                               # Table 1, results/report_coverage.csv
 python scripts/plot_models.py --model dae_lam0_seed0                         # results/models/figures
-python scripts/plot_models.py --model dae_lam0_seed0 --compact --examples 5  # the report's Fig. 1
-python scripts/plot_blind_spots.py                                           # the report's Fig. 2
+python scripts/plot_models.py --model dae_lam0_seed0 --compact --examples 5  # five bottleneck examples
+python scripts/plot_examples.py                                              # the report's Fig. 1b
+python scripts/plot_blind_spots.py                                           # the report's Fig. 2 (with step 4)
 python scripts/plot_models.py --model dae_lam1w5_seed0
 python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5
 python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5 \
@@ -310,7 +328,32 @@ it.
 
 ![Stable but wrong outputs](results/models/figures/failures_dae_lam0_seed0.png)
 
-### 4. Build the report
+### 4. Standard denoisers on natural images (optional with step 0)
+
+```bash
+pip install -e ".[pretrained]"                   # deepinv, for the Restormer architecture
+python scripts/download_pretrained.py            # two weight files and the 68 BSD68 images (115 MB)
+python scripts/check_pretrained.py               # PSNR on full BSD68 images against the papers (5 minutes)
+python scripts/evaluate_pretrained.py            # about 45 minutes on a 4 GB laptop GPU
+python scripts/evaluate_pretrained.py --no-clip  # the same with unclipped outputs
+```
+
+DnCNN-B [17] and Restormer [16] are blind Gaussian denoisers trained on natural images, with
+noise up to $\sigma = 55/255$ and $50/255$; their pretrained weights are used as published. The
+68 BSD68 images [8], held out from both training sets, are cut into six $128\times128$ crops
+each, and every crop is corrupted at the 13 levels of the main grid. Box sides keep their share of
+the image side (37 and 64 pixels); blur widths stay in pixels and reflect at the crop border.
+`scripts/check_pretrained.py` confirms that the wrappers in `src/fpr/pretrained.py` reproduce the
+papers' BSD68 PSNR (`results/pretrained/psnr.csv`; DnCNN-B: 31.61, 29.16, 26.21 dB at
+$\sigma$ = 15, 25, 50, against 31.61, 29.16, 26.23; Restormer: 31.93, 29.50, 26.60 against
+31.95, 29.51, 26.62). Restormer is run with reflection padding, as its authors test it; deepinv's
+default replication padding lowers its full-image PSNR by up to 1.6 dB. Outputs are clipped to
+$[0, 1]$, as when they are saved as images; `--no-clip` keeps the raw outputs
+(`results/pretrained_noclip`). The bootstrap resamples whole source images, since the six crops of
+an image are not independent. `scripts/report_table.py` and `scripts/plot_blind_spots.py` add the
+clipped results to Table 1 and Fig. 2.
+
+### 5. Build the report
 
 ```bash
 cd report && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex
@@ -320,7 +363,9 @@ cd report && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex m
 
 ```
 src/fpr/
-  data.py          Fashion-MNIST loading; paths of the per-image dumps
+  data.py          Fashion-MNIST and BSD68-crop loading; paths of the per-image dumps
+  download.py      downloads checked against SHA-256 digests
+  pretrained.py    pretrained DnCNN-B and Restormer, for the natural-image check
   degradations.py  operators A_s: noise, blur, pixel mask, box mask
   projectors.py    exact projectors: identity, radial, PCA, nearest neighbour
   models.py        bottleneck and skip-connection autoencoders, checkpoint loading
@@ -334,6 +379,9 @@ src/fpr/
   plotting.py      shared figure style
 scripts/
   download_dumps.py    fetches the per-image dumps of the committed results (v1.0 release)
+  download_pretrained.py  fetches the pretrained denoisers' weights and the BSD68 images
+  evaluate_pretrained.py  DnCNN-B and Restormer on BSD68 crops (results/pretrained)
+  check_pretrained.py  PSNR of the pretrained denoisers on full BSD68 images
   smoke_projectors.py  exact-projector experiment
   train_dae.py         training (architecture, lambda_id, warm-up, routing)
   evaluate_models.py   per-image signals and scores (--jobs, --append, --ensemble, --from-per-image)
@@ -341,11 +389,12 @@ scripts/
   compare_models.py    tables and figures comparing model groups
   plot_models.py       per-model figures, including the stable-but-wrong examples
   plot_blind_spots.py  share of each family's worst errors flagged by g and dis (the report's Fig. 2)
+  plot_examples.py     one stable-but-wrong test image per architecture (the report's Fig. 1b)
   calibrate.py         isotonic calibration per level or per family
   conformal.py         coverage and width of conformal error bars
   selective.py         risk-coverage curves and selective risk
   checks.py            collapse, finite-difference accuracy, initialization
-  report_table.py      Tables 1 and 2 (results/report_table.csv, report_coverage.csv, report/table_*.tex)
+  report_table.py      Table 1 (results/report_table.csv, report/table_main.tex) and results/report_coverage.csv
   report_numbers.py    report numbers no other file holds (results/report_numbers.json)
   explore_sure.py      SURE vs. displacement on exact projectors (exploration)
 checkpoints/           trained models
@@ -369,6 +418,7 @@ results/               result tables and figures (per-image dumps are git-ignore
   SURE-self-calibrated variant that needs no clean images
 - Risk-coverage curves and selective risk, against an oracle and a random baseline
 - Deeper iterates $g_2$, $g_3$, the contraction ratio, and cross-seed ensemble disagreement
+- Two pretrained standard denoisers, DnCNN-B and Restormer, on crops of the BSD68 natural images
 - Checks: collapse to the median image, finite-difference accuracy, initialization
 - Report (LaTeX, three pages including references)
 
@@ -381,9 +431,9 @@ The report's bibliography, numbered as in the report.
 3. N. Durasov, N. Dorndorf, H. Le and P. Fua, "ZigZag: Universal Sampling-free Uncertainty Estimation Through Two-Step Inference," Transactions on Machine Learning Research, 2024 (arXiv:2211.11435).
 4. N. Durasov et al., "IT³: Idempotent Test-Time Training," ICML 2025.
 5. J. M. Everink, B. T. Amougou and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," SSVM 2025 (arXiv:2502.05127).
-6. Y. Geifman, G. Uziel and R. El-Yaniv, "Bias-Reduced Uncertainty Estimation for Deep Neural Classifiers," ICLR 2019.
-7. K. Hamidieh, V. Thost, W. Gerych, M. Yurochkin and M. Ghassemi, "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," ICLR 2026 (arXiv:2604.17112).
-8. L. Huang et al., "Cycle-Consistency-Based Uncertainty Quantification of Neural Networks in Inverse Imaging Problems," Intelligent Computing 2, 2023 (arXiv:2305.12852).
+6. K. Hamidieh, V. Thost, W. Gerych, M. Yurochkin and M. Ghassemi, "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," ICLR 2026 (arXiv:2604.17112).
+7. L. Huang et al., "Cycle-Consistency-Based Uncertainty Quantification of Neural Networks in Inverse Imaging Problems," Intelligent Computing 2, 2023 (arXiv:2305.12852).
+8. D. Martin, C. Fowlkes, D. Tal and J. Malik, "A Database of Human Segmented Natural Images and its Application to Evaluating Segmentation Algorithms and Measuring Ecological Statistics," ICCV 2001.
 9. A. Radhakrishnan, M. Belkin and C. Uhler, "Overparameterized Neural Networks Implement Associative Memory," PNAS 117(44), 2020 (arXiv:1909.12362).
 10. S. Ramani, T. Blu and M. Unser, "Monte-Carlo SURE: A Black-Box Optimization of Regularization Parameters for General Denoising Algorithms," IEEE Transactions on Image Processing 17(9), 2008.
 11. A. Shocher et al., "Idempotent Generative Network," ICLR 2024.
@@ -391,6 +441,8 @@ The report's bibliography, numbered as in the report.
 13. J. Teneggi, M. Tivnan, J. W. Stayman and J. Sulam, "How to Trust Your Diffusion Model: A Convex Optimization Approach to Conformal Risk Control," ICML 2023.
 14. H. Xiao, K. Rasul and R. Vollgraf, "Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms," arXiv:1708.07747, 2017.
 15. S. Zaman, C. Liu and K. Chiu, "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
+16. S. W. Zamir, A. Arora, S. Khan, M. Hayat, F. S. Khan and M.-H. Yang, "Restormer: Efficient Transformer for High-Resolution Image Restoration," CVPR 2022 (arXiv:2111.09881).
+17. K. Zhang, W. Zuo, Y. Chen, D. Meng and L. Zhang, "Beyond a Gaussian Denoiser: Residual Learning of Deep CNN for Image Denoising," IEEE Transactions on Image Processing 26(7), 2017 (arXiv:1608.03981).
 
 ## License
 
