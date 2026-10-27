@@ -33,7 +33,7 @@ All signals are per-image mean absolute values over pixels.
 | deeper iterates | $g_k(y) = \lvert f^{k+1}(y) - f^k(y) \rvert$, $q = g_2/g_1$ | $f, y$ |
 | displacement | $d(y) = \lvert f(y) - y \rvert$ | $f, y$ |
 | measurement residual | $r_A(y) = \lvert A_s f(y) - y \rvert$ | $f, y, A_s$ |
-| ensemble disagreement | $\mathrm{dis}(y) = \frac{1}{M}\sum_i \lvert f_i(y) - \bar f(y) \rvert$ | $f_1..f_M, y$ |
+| ensemble disagreement | $\mathrm{dis}(y) = \frac{1}{M}\sum_i \lvert f_i(y) - \bar f(y) \rvert$ | $f_1, \dots, f_M, y$ |
 | true error (offline only) | $e(y) = \lvert f(y) - x \rvert$ | clean $x$ |
 
 A signal is scored by Spearman's $\rho$ with $e$ and by AUROC for detecting the
@@ -97,10 +97,10 @@ residual can be blind.
    at $\lambda_{id} = 0$: 0.89-0.94, against 0.77 and 0.84.
 6. **Conformal error bars and disagreement inherit the blind spots.** A conformal bound on $g$
    holds its nominal 90% coverage over all images but covers only 61% of the bottleneck model's
-   pixel-mask images and 74% and 76% of the skip model's pixel- and box-mask images, and 48% and
-   16% of the other eleven levels when calibrated on the two in-range noise levels
-   ($\sigma$ = 0.1 and 0.2, `results/conformal`). Ensemble disagreement ranks better within a
-   level, except for the skip model at $\lambda_{id} = 0$, but misses the same corruption families
+   pixel-mask images and 74% and 76% of the skip model's pixel- and box-mask images. Calibrated on
+   the two in-range noise levels ($\sigma$ = 0.1 and 0.2), it covers 48% (bottleneck) and 16%
+   (skip) of the images at the other eleven levels (`results/conformal`). Ensemble disagreement
+   ranks better within a level, except for the skip model at $\lambda_{id} = 0$, but misses the same corruption families
    as $g$ (`results/blind_spots.csv`).
 7. **On natural images, the residual ranks the errors of two standard denoisers even less well.**
    DnCNN-B and Restormer on 408 crops of the BSD68 images (step 4), with outputs clipped to
@@ -117,7 +117,7 @@ residual can be blind.
 
 ![Blind spots per corruption family (the report's Fig. 2)](results/blind_spots.png)
 
-*Share of each family's worst-quartile errors that a signal flags ($\lambda_{id} = 0$, mean and
+*Share of each family's worst-quartile errors that a signal flags ($`\lambda_{id} = 0`$, mean and
 range over seeds, dashed line: chance). The BSD68 panel shows the residual of the two pretrained
 denoisers, with clipped outputs. Blur holds 0% and 0.3% of their worst errors, and its bars are
 empty.*
@@ -126,8 +126,8 @@ empty.*
 
 ## Setup
 
-Python 3.10+ (tested with Python 3.13, PyTorch 2.12, NumPy 2.4, pandas 3.0, scikit-learn 1.8
-and, for step 4, deepinv 0.5). Install PyTorch for your platform first (https://pytorch.org),
+Python 3.10+ (tested with Python 3.13, PyTorch 2.12, NumPy 2.4, pandas 3.0, scikit-learn 1.8,
+matplotlib 3.10 and, for step 4, deepinv 0.5). Install PyTorch for your platform first (https://pytorch.org),
 then:
 
 ```bash
@@ -135,7 +135,9 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Fashion-MNIST is downloaded to `data/` on first use.
+Fashion-MNIST [14] (MIT license, © 2017 Zalando SE) is downloaded to `data/` on first use. The
+scripts read and write `data/` and `results/` inside the repository, so install it in editable
+mode (`-e`), as above.
 
 The 23 trained checkpoints are in `checkpoints/`, and step 2 below is optional. Step 0 downloads
 the per-image results that the analyses read, which makes steps 3 and 4 optional too.
@@ -255,20 +257,22 @@ python scripts/train_dae.py --architecture skip --lambda-id 1 --device cpu --see
 ```
 
 `ConvAutoencoder` (602k parameters, 64-unit bottleneck, no normalization layers) and the skip
-model (230k) are trained with $\lvert f(y) - x \rvert_1 + \lambda_{id} L_{idem}$ on Gaussian
-noise with $\sigma \sim U[0.05, 0.25]$, for 15 epochs with Adam (learning rate $10^{-3}$, cosine
-decay per step, batch 256). The last 5,000 training images are used for validation. At test
+model (230k) are trained with $\lvert f(y) - x \rvert + \lambda_{id} \lvert f(f(y)) - f(y) \rvert$,
+averaged over pixels, on Gaussian noise with $\sigma \sim U[0.05, 0.25]$, for 15 epochs with
+Adam (learning rate $10^{-3}$, cosine decay per step, batch 256). The last 5,000 training images are used for validation. At test
 time, $\sigma = 0.1, 0.2$ are in distribution, $\sigma = 0.3, 0.5$ are held-out noise levels,
 and blur and masks are unseen operators. Checkpoints go to `checkpoints/` and training curves to
 `results/train/`. The three `dae_lam0` checkpoints were trained on a GPU by an earlier version
 of the script, which did not record the device. All other runs trained on CPU, as in the
 commands above.
 
-With $\lambda_{id} = 1$ from the first step, every seed collapses within one epoch to a
-constant output, the per-pixel median image: validation error 0.2107 after one epoch and
-0.2106 at epoch 15, equal to that image's, with $g$ about $10^{-6}$. Seed 0 ran all 15 epochs,
-and seeds 1 and 2 were stopped after two (logs in `results/train/logs/`). `--lambda-warmup 5`
-ramps $\lambda_{id}$ from 0 over five epochs and avoids it.
+With $\lambda_{id} = 1$ from the first step, both architectures collapse within one epoch to a
+constant output. Every seed of the bottleneck model outputs the per-pixel median image:
+validation error 0.2107 after one epoch and 0.2106 at epoch 15, equal to that image's, with $g$
+about $10^{-6}$. Seed 0 ran all 15 epochs, and seeds 1 and 2 were stopped after two (logs in
+`results/train/logs/`). The skip model's run (seed 0) outputs a black image: validation error
+0.2885, the mean pixel value. `--lambda-warmup 5` ramps $\lambda_{id}$ from 0 over five epochs
+and avoids the collapse.
 
 ### 3. Evaluate models (optional with step 0)
 
@@ -281,9 +285,11 @@ python scripts/evaluate_models.py --pattern "unet_*.pt" --projectors --ensemble 
 ```
 
 Besides $g$, $d$ and $r_A$, the evaluation computes first-order signals on the
-noise levels: the divergence $\mathrm{div} = \tfrac{1}{D}\mathrm{tr}(J_f(y))$ (Hutchinson
-estimate with finite differences), the linearized residual $\lvert J_f(y)(f(y) - y) \rvert$, and
-Stein's unbiased risk estimate $\mathrm{SURE} = d_{mse} - \sigma^2 + 2\sigma^2 \mathrm{div}$.
+noise levels: the divergence $\mathrm{div} = \tfrac{1}{D}\mathrm{tr}(J_f(y))$ (Hutchinson estimate
+with finite differences), with $D$ the number of pixels, the linearized residual
+$\lvert J_f(y)(f(y) - y) \rvert$, and Stein's unbiased risk estimate
+$\mathrm{SURE} = d_{mse} - \sigma^2 + 2\sigma^2 \mathrm{div}$, where $d_{mse}$ is the mean squared
+displacement.
 Signals are scored per corruption level, pooled per family, and pooled over all levels.
 Two baselines guard against scores that do not reflect model failures:
 
@@ -312,9 +318,10 @@ python scripts/evaluate_models.py --from-per-image --signals dis g2 g3 q --out r
 
 #### Analyses and figures
 
-Seconds to two minutes each. All but `checks.py` and `explore_sure.py` read the per-image dumps.
-The figures of the report use Times New Roman when it is installed (else DejaVu Serif), and they
-match the committed files byte for byte only with the same font.
+Seconds to a few minutes each. All but `checks.py` and `explore_sure.py` read the per-image dumps.
+The figures of the report use Times New Roman when it is installed (else DejaVu Serif). All
+figures match the committed files byte for byte only with the same fonts and matplotlib version
+(3.10.8).
 
 ```bash
 python scripts/calibrate.py                                                  # results/calibration
@@ -366,7 +373,7 @@ each, and every crop is corrupted at the 13 levels of the main grid. Box sides k
 the image side (37 and 64 pixels). Blur widths stay in pixels and reflect at the crop border.
 `scripts/check_pretrained.py` adds noise as the authors' test scripts do and confirms that the
 wrappers in `src/fpr/pretrained.py` reproduce the papers' BSD68 PSNR within 0.01 dB
-(`results/pretrained/psnr.csv`: DnCNN-B 31.62, 29.16, 26.23 dB at $\sigma$ = 15, 25, 50, against
+(`results/pretrained/psnr.csv`: DnCNN-B 31.62, 29.16, 26.23 dB at $\sigma$ = 15, 25, 50 on the 0-255 scale, against
 31.61, 29.16, 26.23, and Restormer 31.95, 29.51, 26.62, as published). Restormer is run with
 reflection padding, as its authors test it. With deepinv's default replication padding its mean
 PSNR is 0.7 to 1.7 dB lower (rows `restormer_replicate`). Outputs are clipped to $[0, 1]$, as when
