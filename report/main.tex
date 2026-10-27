@@ -55,11 +55,12 @@ within a level, but each architecture has an unseen corruption with stable wrong
 masks for a bottleneck autoencoder, box masks for a network with skip connections. There the
 residual flags fewer of the worst errors than a random score, and conformal error bars built on it
 cover only 61\% and 76\% of the images, against a nominal 90\%. Disagreement between seeds misses
-the same corruptions, and the displacement and the measurement residual have blind spots of their
-own. For two pretrained denoisers on natural images, the residual ranks errors within a level even
-less well. Second, a strong idempotence penalty barely changes the error but makes the residual a
-worse signal. Third, a level's mean error alone gives most of the calibrated signals' ranking
-across levels. A small fixed-point residual is thus weak evidence of a correct restoration.
+the same corruptions, and two other signals, the displacement and the measurement residual, have
+blind spots of their own. For two pretrained denoisers on natural images, the residual ranks errors
+within a level even less well. Second, a strong idempotence penalty barely changes the error but
+makes the residual a worse signal. Third, across levels, each level's mean error alone reaches most
+of the calibrated signals' rank correlation. A small fixed-point residual is thus weak evidence of a
+correct restoration.
 \end{abstract}
 
 \section{Introduction}
@@ -127,8 +128,8 @@ between idempotence error and \mbox{ImageNet-C} accuracy per inference batch. Cl
 et~al.~\cite{huang2023cycle} estimate uncertainty from forward-backward cycles and from
 $\norm{A_s f(y) - y}$. For denoising, their cycle differences are our $g$ and its iterates. We score the residual
 against each image's known error, per corruption family, and test how idempotence training
-changes it. We use split conformal prediction~\cite{angelopoulos2021gentle} to turn a signal into error bars,
-as in imaging~\cite{teneggi2023krcps,everink2025sscp}, and cross-model disagreement, proposed for
+changes it. We use split conformal prediction~\cite{angelopoulos2021gentle}, as in
+imaging~\cite{teneggi2023krcps,everink2025sscp}, and cross-model disagreement, proposed for
 language models to complement self-consistency~\cite{hamidieh2026disagreement}.
 
 \begin{table*}[t]
@@ -181,10 +182,10 @@ application of $f$ gives
 and the residual thus probes the Jacobian $J_f$ along the model's own step. For the nearest-point
 projection onto a smooth set (within its reach), $\delta$ is normal to the set and $J_f$
 annihilates the normal directions. Hence $J_f\delta = 0$ whatever the error
-(Fig.~\ref{fig:concept}a). To first order, a learned model is informative only where $J_f$ does
-not cancel $\delta$. For the bottleneck model under noise with $\sigma \le 0.3$, Eq.~\eqref{eq:taylor}
-holds in rank ($\rho = 0.81$ to 0.97 between $g$ and its linearization), but not reliably at
-$\sigma = 0.5$ (0.20 to 0.81).
+(Fig.~\ref{fig:concept}a). To first order, a learned model's $g$ is informative only where $J_f$
+does not cancel $\delta$. For the bottleneck model under noise with $\sigma \le 0.3$, Eq.~\eqref{eq:taylor}
+holds in rank ($\rho = 0.81$--0.97 between $g$ and its linearization), but not reliably at
+$\sigma = 0.5$ (0.20--0.81).
 
 \paragraph{Models.}
 The \emph{bottleneck} model is a convolutional autoencoder (602k parameters) with three
@@ -206,13 +207,13 @@ unknown corruption, and the AUROC for detecting the worst quartile of $e$. An im
 \emph{flagged} when its signal is in the top quartile over all levels, which a random score does
 for 25\% of any subset. Under masks the error grows with the image content, and we
 therefore report partial $\rho$ given $b$. Per-level bootstrap 95\% intervals over test images are
-about $\pm 0.01$ to $\pm 0.02$. Calibration fits a monotone map from a signal to $e$ per level on
+at most about $\pm 0.02$. Calibration fits a monotone map from a signal to $e$ per level on
 half of the images and scores the rest. Split conformal prediction~\cite{angelopoulos2021gentle}
 turns a signal into an upper bound $\hat e_{\mathrm{hi}}$ on $e$. An isotonic fit of $e$ on the
 signal (a quarter of the test images) is scaled by the conformal quantile of the $n$ ratios of $e$
 to the fit on a second quarter. The bound covers $e$ on the held-out half with probability at least
 $1-\alpha-12/n$ for exchangeable images of 13 rows each (adapting~\cite{angelopoulos2021gentle}).
-When two models are compared, the bottleneck model and DnCNN-B come first.
+When two models are compared, the first number is for the bottleneck model or DnCNN-B.
 
 \section{Results}
 
@@ -220,20 +221,20 @@ When two models are compared, the bottleneck model and DnCNN-B come first.
 \subsection{Exact projectors are blind}
 For the radial and PCA projectors $g < 2\cdot10^{-15}$, but their mean error lies between 0.04
 and 0.23. The displacement $d$ still ranks their errors within most
-levels (median $\rho = 0.53$ to 0.91).
+levels (median $\rho = 0.53$--0.91).
 
 \subsection{Within a level the residual ranks errors}
 For the learned models $g$ ranks errors within a level (Table~\ref{tab:main}): $\rho = 0.70$ for
 the bottleneck model, below $d$ and $r_A$, and 0.86 for the skip model, well above them. As the
 noise grows from $\sigma = 0.1$ to 0.5, the bottleneck model's $g$ keeps its ranking (0.75 to 0.72),
-but $d$ falls from 0.93 to 0.28 and SURE from 0.91 to 0.40. Brightness alone reaches $\rho = 0.51$ to 0.55
-within a level and 0.87 to 0.97 under pixel masks, and raw scores under masks and blur thus
-overstate the signals.
+but $d$ falls from 0.93 to 0.28 and SURE from 0.91 to 0.40. Brightness alone reaches $\rho = 0.51$--0.55
+within a level and 0.87--0.97 under pixel masks, and raw $\rho$ under masks and blur thus
+overstates the signals.
 
 Across levels the residual mostly detects the level. Pooled over all levels, $g$ reaches
 $\rho = 0.55$ for the bottleneck model, against only 0.12 for $d$ and 0.02 for $r_A$, whose scales
 differ between families. Replacing $g$ by its median per level still gives 0.46. Calibrated per
-level, all three signals reach a pooled $\rho$ of 0.89 to 0.94 in both models, but a predictor that
+level, all three signals reach a pooled $\rho$ of 0.89--0.94 in both models, but a predictor that
 knows only the level's mean error already reaches 0.77 and 0.84.
 
 \subsection{Each architecture has a blind spot}
@@ -242,8 +243,8 @@ Pixel masks hold 60\% of the bottleneck model's worst-quartile errors, and $g$ f
 fewer than a random score. Under 75\% pixel masks the mean error is 5.4 times that at
 $\sigma = 0.1$, but the mean residual rises only from 0.011 to 0.014: the model turns sparse dots
 into a dim garment and treats it as a fixed point. The skip model's $g$ flags 68\% of its worst
-pixel-mask errors, but the model fails on box masks: it leaves the box empty, and a second pass
-keeps it empty. For boxes of side 8 and 14 its within-level $\rho$ is 0.29 and 0.12, $g$ flags
+pixel-mask errors but misses box masks: the model leaves the box empty, and a second pass keeps it
+empty. For boxes of side 8 and 14 its within-level $\rho$ is 0.29 and 0.12, $g$ flags
 under 1\% of the worst errors, and 83--87\% of its stable-but-wrong images (Fig.~\ref{fig:concept}b)
 are boxes of side 14.
 
@@ -260,19 +261,21 @@ are boxes of side 14.
 \end{figure}
 
 The conformal bound on $g$ falls short on both blind spots and one more family. At
-$\alpha = 0.1$ it covers 90\% of all images and 99 to 100\% of noise and blur, but only 61\% of
+$\alpha = 0.1$ it covers 90\% of all images and 99--100\% of noise and blur, but only 61\% of
 the bottleneck's pixel-mask images, 76\% of the skip model's box-mask images, and 74\% of its
-pixel-mask images, although $g$ flags most of their worst errors. It is about as wide as a bound
-without the signal, and a bound on the level mean is narrower. Calibrated on two in-range noise
+pixel-mask images, although there $g$ flags 68\% of the worst errors. It is about as wide as a
+bound without the signal, and a bound from the level mean is narrower. Calibrated on two in-range noise
 levels, it covers only 48\% and 16\% of the other eleven. Disagreement between seeds ranks better
 than $g$ within a level in three of the four settings with $\lid \in \{0, 1\}$, but it misses the
 same families (Fig.~\ref{fig:blind}), and its bound covers 59\% of the bottleneck's pixel-mask
-images. Deeper iterates $g_k$ rank worse in three settings.
+images. Deeper iterates $g_k$ rank worse than $g$ in three of these settings. Neither $d$ nor
+$r_A$ is safer: averaged over seeds, they flag at most 2\% of the worst blur and box-mask errors of
+each model in Table~\ref{tab:main}.
 
 \subsection{Idempotence training weakens the residual}
 \label{sec:idem}
-Without a warm-up (one run per architecture), $\lid = 1$ collapses both models within one epoch to
-a constant map with zero residual, the per-pixel median training image and black. This is a
+Without a warm-up (one full run each), $\lid = 1$ collapses both models within one epoch to
+a constant map with zero residual: the per-pixel median training image and a black image. This is a
 failure of optimization: at $\sigma = 0.2$ their validation errors are 0.21 and 0.29, against 0.05
 and 0.04 for $\lid = 1$ with the warm-up. With the warm-up, the mean error changes little
 (0.092 to 0.095 and 0.086 to 0.084), but the residual falls by 40\% and 61\% and becomes a worse
@@ -303,13 +306,12 @@ A small fixed-point residual is weak evidence of a correct restoration. For a pr
 none, and for our learned models it ranks errors within a level but misses an unseen corruption
 whose outputs are stable and wrong. Which corruption this is depends on the architecture, and a
 residual checked on some corruptions can fail on others. Conformal error bars inherit the blind
-spots: the 90\% guarantee holds over all images, but coverage on some unseen masks falls to 61 to
-76\% without warning, and a bound that covers every family must be sized for the worst one. Fixed
+spots: the 90\% guarantee holds over all images, but coverage on some unseen masks falls to
+61--76\% without warning, and a bound that covers every family must be sized for the worst one. Fixed
 points also arise for reasons unrelated to the error: clipping the output to the image range makes
 Restormer's output nearly fixed inside the box.
 
-Neither $d$ nor $r_A$ is safer: averaged over seeds, they flag at most 2\% of the worst blur and
-box-mask errors of each model in Table~\ref{tab:main}. With $\lid = 1$ the residual shrank by 40\%
+With $\lid = 1$ the residual shrank by 40\%
 and 61\% and ranked the errors worse while restoration held. Methods that minimize it at test
 time~\cite{durasov2025it3} may face this issue too.
 
