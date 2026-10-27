@@ -48,19 +48,18 @@
 \begin{abstract}
 Idempotent networks are trained so that $f(f(y)) = f(y)$, and recent work reads a small
 fixed-point residual as a sign of a reliable output. We test this reading on two small
-Fashion-MNIST denoisers, trained on Gaussian noise and evaluated on 13 corruption levels with known
-per-image errors. The residual is zero for any exact projector, whatever its error, and to first
-order it only measures the Jacobian along the model's own step. First, for learned
-models it ranks errors within a corruption level, but each architecture has an unseen corruption
-whose wrong outputs are stable: pixel masks for a bottleneck autoencoder and box masks for a
-network with skip connections. There the residual flags fewer of the worst errors than a random
-score, a conformal error bar built on it covers 61\% and 76\% of the images against a nominal
-90\%, and disagreement between seeds misses the same corruptions. The displacement and the
-measurement residual have their own blind spots. For two pretrained standard denoisers on natural
-images the residual ranks errors within a level even less well. Second, a strong idempotence penalty
-barely changes the error but makes the residual a worse signal. Third, each level's mean error
-alone gives most of the pooled $\rho$ of calibrated signals. A small fixed-point residual is thus
-weak evidence of a correct restoration.
+Fashion-MNIST denoisers trained on Gaussian noise, with known per-image errors on 13 corruption
+levels. An exact projector has zero residual whatever its error, and to first order the residual
+only measures the Jacobian along the model's own step. First, for learned models it ranks errors
+within a level, but each architecture has an unseen corruption with stable wrong outputs: pixel
+masks for a bottleneck autoencoder, box masks for a network with skip connections. There the
+residual flags fewer of the worst errors than a random score, and conformal error bars built on it
+cover only 61\% and 76\% of the images, against a nominal 90\%. Disagreement between seeds misses
+the same corruptions, and the displacement and the measurement residual have blind spots of their
+own. For two pretrained denoisers on natural images, the residual ranks errors within a level even
+less well. Second, a strong idempotence penalty barely changes the error but makes the residual a
+worse signal. Third, a level's mean error alone gives most of the calibrated signals' ranking
+across levels. A small fixed-point residual is thus weak evidence of a correct restoration.
 \end{abstract}
 
 \section{Introduction}
@@ -125,11 +124,11 @@ a network's drift as a distance to the data manifold. In supervised tasks,
 ZigZag~\cite{durasov2024zigzag} reports per-sample correlations above 0.9 between a
 self-consistency residual and the loss, and IT$^3$~\cite{durasov2025it3} a correlation of $-0.94$
 between idempotence error and \mbox{ImageNet-C} accuracy per inference batch. Closest to our work, Huang
-et~al.~\cite{huang2023cycle} estimate uncertainty from forward-backward cycles, whose differences
-are our $g$ and its iterates for denoising, and from $\norm{A_s f(y) - y}$. We score the residual
+et~al.~\cite{huang2023cycle} estimate uncertainty from forward-backward cycles and from
+$\norm{A_s f(y) - y}$. For denoising, their cycle differences are our $g$ and its iterates. We score the residual
 against each image's known error, per corruption family, and test how idempotence training
-changes it. We use split conformal prediction~\cite{angelopoulos2021gentle}, as in
-imaging~\cite{teneggi2023krcps,everink2025sscp}, and cross-model disagreement, proposed for
+changes it. We use split conformal prediction~\cite{angelopoulos2021gentle} to turn a signal into error bars,
+as in imaging~\cite{teneggi2023krcps,everink2025sscp}, and cross-model disagreement, proposed for
 language models to complement self-consistency~\cite{hamidieh2026disagreement}.
 
 \begin{table*}[t]
@@ -232,8 +231,8 @@ within a level and 0.87 to 0.97 under pixel masks, and raw scores under masks an
 overstate the signals.
 
 Across levels the residual mostly detects the level. Pooled over all levels, $g$ reaches
-$\rho = 0.55$ for the bottleneck model, against 0.12 for $d$ and 0.02 for $r_A$, whose scales
-differ between families, and replacing $g$ by its median per level still gives 0.46. Calibrated per
+$\rho = 0.55$ for the bottleneck model, against only 0.12 for $d$ and 0.02 for $r_A$, whose scales
+differ between families. Replacing $g$ by its median per level still gives 0.46. Calibrated per
 level, all three signals reach a pooled $\rho$ of 0.89 to 0.94 in both models, but a predictor that
 knows only the level's mean error already reaches 0.77 and 0.84.
 
@@ -263,12 +262,12 @@ are boxes of side 14.
 The conformal bound on $g$ falls short on both blind spots and one more family. At
 $\alpha = 0.1$ it covers 90\% of all images and 99 to 100\% of noise and blur, but only 61\% of
 the bottleneck's pixel-mask images, 76\% of the skip model's box-mask images, and 74\% of its
-pixel-mask images, whose worst errors its residual flags well. It is about as wide as a bound without
-the signal, and a bound on the level mean is narrower. Calibrated on two in-range noise
-levels, it covers only 48\% and 16\% of the other eleven. Over the four settings with
-$\lid \in \{0, 1\}$, disagreement between seeds ranks better than $g$ within a level in
-three, but it misses the same families (Fig.~\ref{fig:blind}), and its bound covers 59\% of the
-bottleneck's pixel-mask images. Deeper iterates $g_k$ rank worse in three settings.
+pixel-mask images, although $g$ flags most of their worst errors. It is about as wide as a bound
+without the signal, and a bound on the level mean is narrower. Calibrated on two in-range noise
+levels, it covers only 48\% and 16\% of the other eleven. Disagreement between seeds ranks better
+than $g$ within a level in three of the four settings with $\lid \in \{0, 1\}$, but it misses the
+same families (Fig.~\ref{fig:blind}), and its bound covers 59\% of the bottleneck's pixel-mask
+images. Deeper iterates $g_k$ rank worse in three settings.
 
 \subsection{Idempotence training weakens the residual}
 \label{sec:idem}
@@ -279,20 +278,20 @@ and 0.04 for $\lid = 1$ with the warm-up. With the warm-up, the mean error chang
 (0.092 to 0.095 and 0.086 to 0.084), but the residual falls by 40\% and 61\% and becomes a worse
 signal. Within-level $\rho$ falls from 0.70 to 0.62 and from 0.86 to 0.63, with no overlap between
 seeds, and the noise, partial and pooled scores fall too (Table~\ref{tab:main}). A weight of 0.1
-leaves the within-level $\rho$ unchanged (0.71), and routing the penalty's gradient through the
-inner or the outer application only lowers it as well (0.61 and 0.65).
+leaves the within-level $\rho$ unchanged (0.71), and routing the penalty's gradient through only
+the inner or only the outer application lowers it as well (0.61 and 0.65).
 
 \subsection{Two standard denoisers on natural images}
 \label{sec:standard}
-We ran two pretrained blind Gaussian denoisers trained on natural images with noise up to
-$\sigma = 55/255$ and $50/255$, \mbox{DnCNN-B}~\cite{zhang2017dncnn} (0.67M parameters) and
-Restormer~\cite{zamir2022restormer} (26M), on 408 crops ($128\times128$) of the 68 BSD68
+\mbox{DnCNN-B}~\cite{zhang2017dncnn} (0.67M parameters) and Restormer~\cite{zamir2022restormer}
+(26M) are pretrained blind Gaussian denoisers, trained on natural images with noise up to
+$\sigma = 55/255$ and $50/255$. We ran them on 408 crops ($128\times128$) of the 68 BSD68
 images~\cite{martin2001bsd}, held out from their training. Both reproduce their published BSD68
 PSNR within 0.01 dB. We use the 13 levels of Sec.~2, with boxes of side 37 and 64 and blur
 reflected at the crop border, and clip outputs to $[0, 1]$, as when they are saved. Within a level
-their residual ranks errors less well than for our models (median $\rho = 0.45$ and 0.19, or 0.43
+their residual ranks errors less well than for our models: median $\rho = 0.45$ and 0.19, or 0.43
 and 0.11 without the clip, with per-level intervals of about $\pm 0.12$ when resampling source
-images). Both leave the blur in place: their error is
+images. Both leave the blur in place: their error is
 78--91\% of the input's, and from width 0.5 to 2 it grows 2.7-fold while $g$ falls by 25\% and
 11\%. Box masks hold 8\% and 16\% of their worst errors, and $g$ flags 1\% of them
 (Fig.~\ref{fig:blind}). For Restormer this needs the clip: its output dips below zero inside the
