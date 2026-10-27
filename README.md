@@ -325,13 +325,10 @@ python scripts/checks.py                                                     # r
 python scripts/report_numbers.py                                             # results/report_numbers.json
 python scripts/report_table.py                                               # Table 1, results/report_coverage.csv
 python scripts/plot_models.py --model dae_lam0_seed0                         # results/models/figures
-python scripts/plot_models.py --model dae_lam0_seed0 --compact --examples 5  # five bottleneck examples
 python scripts/plot_examples.py                                              # the report's Fig. 1b
 python scripts/plot_blind_spots.py                                           # the report's Fig. 2 (BSD68 panel: dump of step 0 or 4)
 python scripts/plot_models.py --model dae_lam1w5_seed0
 python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5
-python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5 \
-    --scatter-families noise pixel_mask --scatter-name g_vs_error_compact
 python scripts/compare_models.py --groups dae_lam1w5 dae_lam1w5_inner dae_lam1w5_outer --out-dir comparison_routing
 python scripts/compare_models.py --groups dae_lam0.1w5 dae_lam1w5_inner dae_lam1w5 --out-dir comparison_ablation
 python scripts/compare_models.py --results results/models_skip --groups unet_lam0 unet_lam1w5 unet_lam1
