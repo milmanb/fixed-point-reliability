@@ -110,3 +110,30 @@ def test_disagreement_is_attached_to_each_members_own_images():
     assert out.loc[out["model"] == "b_seed0", "dis"].isna().all()  # no second seed
     assert out.loc[out["condition"] == other.label, "dis"].isna().all()  # not re-observed
     assert "dis" not in per_image  # the input is not modified
+
+
+def test_sure_follows_steins_formula_on_the_noise_rows():
+    """sure = d_mse - sigma^2 + 2 sigma^2 div; other families get no sure."""
+    x = torch.rand((6, 1, 28, 28), generator=torch.Generator().manual_seed(0))
+    conditions = [c for c in CONDITIONS if c.label in ("noise(sigma=0.2)", "pixel_mask(drop=0.5)")]
+    table = per_image_signals({"half": lambda z: 0.5 * z}, x, torch.zeros(6, dtype=torch.long),
+                              probes=2, conditions=conditions, verbose=False)
+    noise = table[table["family"] == "noise"]
+    var = 0.2 ** 2
+    assert len(noise) == 6
+    np.testing.assert_allclose(noise["sure"], noise["d_mse"] - var + 2 * var * noise["div"], rtol=1e-6)
+    assert table.loc[table["family"] != "noise", "sure"].isna().all()
+
+
+def test_observations_are_seeded_by_the_seed_and_the_condition_label():
+    """The recipe the committed dumps were drawn with, for both corruption grids."""
+    import zlib
+
+    from fpr.evaluation import natural_conditions
+    gen = torch.Generator().manual_seed(1)
+    for conditions, side in ((CONDITIONS, 28), (natural_conditions(), 128)):
+        x = torch.rand((3, 1, side, side), generator=gen)
+        for condition in conditions:
+            y, _ = observe(condition, x, 5)
+            expected, _ = condition(x, torch.Generator().manual_seed(5 + zlib.crc32(condition.label.encode())))
+            assert torch.equal(y, expected), condition.label

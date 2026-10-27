@@ -51,9 +51,12 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--pca-k", type=int, nargs="+", default=[16, 64, 256])
     parser.add_argument("--example-index", type=int, default=0, help="test image shown in the example grid")
-    parser.add_argument("--out", type=Path, default=REPO_ROOT / "results" / "smoke_projectors")
+    parser.add_argument("--out", type=Path, default=Path("results/smoke_projectors"),
+                        help="output folder, relative to the repository")
     parser.add_argument("--no-per-image", action="store_true", help="skip the per-image CSV dump")
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.out = REPO_ROOT / args.out
+    return args
 
 
 def build_projectors(x_train, pca_ks):

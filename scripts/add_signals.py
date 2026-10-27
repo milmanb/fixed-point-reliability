@@ -35,11 +35,11 @@ NEW = ("g2", "g3", "q", "dis")
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", required=True)
-    parser.add_argument("--pattern", required=True)
-    parser.add_argument("--projectors", nargs="*", default=[])
-    parser.add_argument("--threads", type=int, default=6)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--folder", required=True, help="result folder whose per_image.csv.gz gets the columns")
+    parser.add_argument("--pattern", required=True, help="checkpoints of the dump's models, e.g. \"dae_*.pt\"")
+    parser.add_argument("--projectors", nargs="*", default=[], help="projectors in the dump (radial, pcaK)")
+    parser.add_argument("--threads", type=int, default=6, help="CPU threads for torch")
     parser.add_argument("--out", default=None, help="default: overwrite <folder>/per_image.csv.gz")
     return parser.parse_args()
 

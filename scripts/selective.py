@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from fpr.data import REPO_ROOT
+from fpr.data import REPO_ROOT, per_image_dump
 from fpr.ensemble import model_group
 from fpr.plotting import style_axes
 from fpr.selective import risk_coverage_curve, summarize
@@ -40,15 +40,8 @@ def main():
     out = REPO_ROOT / args.out
     out.mkdir(parents=True, exist_ok=True)
 
-    frames = []
-    for folder in args.results:
-        path = REPO_ROOT / folder / "per_image.csv.gz"
-        if path.exists():
-            frames.append(pd.read_csv(path))
-    if not frames:
-        raise SystemExit("no per_image.csv.gz found: download the dumps with "
-                         "`python scripts/download_dumps.py`, or run evaluate_models.py first")
-    per_image = pd.concat(frames, ignore_index=True)
+    # Every requested dump must exist: a missing one would silently drop its models from the outputs.
+    per_image = pd.concat([pd.read_csv(per_image_dump(folder)) for folder in args.results], ignore_index=True)
     per_image = per_image[per_image["model"].str.contains("_seed")].copy()
     per_image["group"] = per_image["model"].map(model_group)
     if args.groups:

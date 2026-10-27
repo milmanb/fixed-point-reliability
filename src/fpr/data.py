@@ -7,7 +7,9 @@ from torchvision.datasets import FashionMNIST
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # gzip stores the write time in its header unless told otherwise. With a fixed time, rewriting a
-# dump with the same rows gives the same bytes, and the SHA-256 checks of download_dumps.py hold.
+# dump with the same rows gives the same bytes. The v1.0 dumps of results/models, models_skip and
+# smoke_projectors predate this and keep their write times, so a regenerated copy of those differs
+# from the digest pinned in download_dumps.py in the gzip header even when every row matches.
 DUMP_COMPRESSION = {"method": "gzip", "mtime": 0}
 DUMP_SOURCES = {  # result folder -> the script that writes its dump (README step)
     "results/smoke_projectors": "scripts/smoke_projectors.py (README, step 1)",

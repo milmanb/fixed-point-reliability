@@ -317,3 +317,143 @@ def test_report_table_reads_the_pretrained_folder_only_when_present(tmp_path, mo
     assert report_table.folders() == (*report_table.FOLDERS, "results/pretrained")
     models = pd.Series(["dae_lam0_seed0", "radial", "pca64", "dncnn_b", "restormer"])
     assert report_table.reported(models).tolist() == [True, False, False, True, True]
+
+
+def test_calibration_scores_the_worst_quartile_of_the_held_out_half():
+    from sklearn.metrics import roc_auc_score
+    calibrate = _script("calibrate")
+    rng = np.random.default_rng(0)
+    n = 400
+    frame = pd.DataFrame({"image": np.arange(n), "condition": np.repeat(["a", "b"], n // 2),
+                          "family": np.repeat(["noise", "blur"], n // 2), "e": rng.gamma(2.0, size=n)})
+    for signal in calibrate.SIGNALS:
+        frame[signal] = frame["e"] + rng.normal(size=n)
+    table = calibrate.evaluate_model(frame).set_index(["signal", "setting"])
+    held = frame[frame["image"] % 2 == 1]
+    worst = held["e"] >= np.quantile(held["e"], 0.75)
+    assert table.loc[("g", "raw"), "auroc"] == pytest.approx(roc_auc_score(worst, held["g"]))
+
+
+@pytest.mark.parametrize("name", ["conformal", "selective"])
+def test_scripts_stop_when_a_requested_dump_is_missing(tmp_path, monkeypatch, name):
+    """A missing dump must stop the script, not drop its models from the outputs."""
+    import sys
+
+    import fpr.data
+    script = _script(name)
+    monkeypatch.setattr(fpr.data, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(script, "REPO_ROOT", tmp_path)
+    (tmp_path / "results" / "models").mkdir(parents=True)
+    pd.DataFrame({"model": ["dae_lam0_seed0"], "e": [0.1]}).to_csv(
+        tmp_path / "results" / "models" / "per_image.csv.gz", index=False)
+    monkeypatch.setattr(sys, "argv", [f"{name}.py", "--out", "results/out"])
+    with pytest.raises(SystemExit, match="models_skip"):
+        script.main()
+    assert not any((tmp_path / "results" / "out").glob("*"))
+
+
+def test_quick_check_recall_follows_the_flagged_rule_of_table_1():
+    """compare_models.blind_spot_table (the README's recall_g) and report_table.flagged_share
+    (Table 1, Fig. 2) apply one rule: both quartiles over all levels, constant signals skipped."""
+    compare_models, report_table = _script("compare_models"), _script("report_table")
+    rng = np.random.default_rng(0)
+    families = np.repeat(["noise", "blur", "pixel_mask", "box_mask"], 25)
+    frames = []
+    for seed in range(2):
+        e = rng.gamma(2.0, size=100)
+        frames.append(pd.DataFrame({"model": f"dae_lam0_seed{seed}", "family": families, "e": e,
+                                    "g": e + rng.normal(size=100), "d": rng.normal(size=100),
+                                    "r_A": 1.0}))
+    per_image = pd.concat(frames, ignore_index=True)
+    table = compare_models.blind_spot_table(per_image, ["dae_lam0"]).set_index("family")
+    for family in ("pixel_mask", "box_mask"):
+        for signal in ("g", "d"):
+            expected = report_table.flagged_share(per_image, family, signal).mean()
+            assert table.loc[family, f"recall_{signal}"] == pytest.approx(expected)
+    assert table["recall_r_A"].isna().all()  # a constant signal has no top quartile
+
+
+def test_table_1_takes_error_and_residual_from_the_summaries(tmp_path, monkeypatch):
+    """report_table.main end to end on two tiny result folders: e and g are the summary means
+    (not e_in), the flagged share follows flagged_share, and the LaTeX table is written."""
+    import sys
+
+    import fpr.data
+    report_table = _script("report_table")
+    monkeypatch.setattr(fpr.data, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(report_table, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["report_table.py"])
+    (tmp_path / "report").mkdir()
+    rng = np.random.default_rng(0)
+    families = np.repeat(["noise", "pixel_mask", "box_mask"], 20)
+    for folder, group in (("models", "dae_lam0"), ("models_skip", "unet_lam0")):
+        out = tmp_path / "results" / folder
+        out.mkdir(parents=True)
+        dumps, summaries, metrics = [], [], []
+        for model in (f"{group}_seed0", f"{group}_seed1"):
+            e = rng.gamma(2.0, size=60)
+            dumps.append(pd.DataFrame({"model": model, "family": families, "e": e,
+                                       "g": e + rng.normal(size=60), "dis": rng.normal(size=60)}))
+            summaries.append(pd.DataFrame({"model": model, "condition": ["c1", "c2"], "e": [0.1, 0.3],
+                                           "e_in": [0.5, 0.7], "g": [0.01, 0.03]}))
+            for signal in ("g", "d", "r_A", "dis", "g2", "g@level"):
+                metrics += [{"scope": "condition", "group": level, "model": model, "target": "e",
+                             "signal": signal, "spearman": 0.5, "partial": 0.4, "auroc": 0.6}
+                            for level in ("noise(sigma=0.1)", "pixel_mask(drop=0.5)")]
+                metrics.append({"scope": "all", "group": "all", "model": model, "target": "e",
+                                "signal": signal, "spearman": 0.3, "partial": 0.2, "auroc": 0.7})
+        pd.concat(dumps).to_csv(out / "per_image.csv.gz", index=False)
+        pd.concat(summaries).to_csv(out / "summary.csv", index=False)
+        pd.DataFrame(metrics).to_csv(out / "metrics.csv", index=False)
+    report_table.main()
+    table = pd.read_csv(tmp_path / "results" / "report_table.csv").set_index("architecture")
+    assert table.loc["bottleneck", "error"] == pytest.approx(0.2)
+    assert table.loc["bottleneck", "residual"] == pytest.approx(0.02)
+    assert table.loc["skip", "rho_g"] == pytest.approx(0.5) and table.loc["skip", "pooled_g"] == pytest.approx(0.3)
+    dumps = pd.read_csv(tmp_path / "results" / "models" / "per_image.csv.gz")
+    expected = report_table.flagged_share(dumps, "pixel_mask", "g").mean()
+    assert table.loc["bottleneck", "flagged_pixel_g"] == pytest.approx(expected, abs=1e-4)
+    assert (tmp_path / "report" / "table_main.tex").read_text().startswith("\\setlength")
+
+
+def test_bsd68_numbers_take_stable_but_wrong_from_the_clipped_dump(tmp_path, monkeypatch):
+    """report_numbers.pretrained_numbers on synthetic BSD68 folders: the stable-but-wrong counts come
+    from the clipped dump, the unclipped box share from the unclipped one, the blur numbers from the summary."""
+    import fpr.data
+    report_numbers = _script("report_numbers")
+    monkeypatch.setattr(fpr.data, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(report_numbers, "REPO_ROOT", tmp_path)
+    rng = np.random.default_rng(0)
+    families = np.repeat(["noise", "blur", "pixel_mask", "box_mask"], 25)
+    models = ("dncnn_b", "restormer")
+    blur = [f"blur(std={std:g})" for std in (0.5, 1, 1.5, 2)]
+    dumps = {}
+    for folder in ("pretrained", "pretrained_noclip"):
+        out = tmp_path / "results" / folder
+        out.mkdir(parents=True)
+        frames = []
+        for model in models:
+            e = rng.gamma(2.0, size=100)
+            frames.append(pd.DataFrame({"model": model, "family": families, "e": e,
+                                        "g": e + rng.normal(scale=2.0, size=100)}))
+        dumps[folder] = pd.concat(frames, ignore_index=True)
+        dumps[folder].to_csv(out / "per_image.csv.gz", index=False)
+        pd.DataFrame([{"scope": "condition", "target": "e", "signal": "g", "model": model, "group": level,
+                       "spearman": 0.4, "spearman_lo": 0.3, "spearman_hi": 0.5}
+                      for model in models for level in blur]).to_csv(out / "metrics.csv", index=False)
+    pd.DataFrame([{"model": model, "condition": level, "e": 0.1 * (k + 1), "e_in": 0.2 * (k + 1),
+                   "g": 0.01 / (k + 1)} for model in models for k, level in enumerate(blur)]
+                 ).to_csv(tmp_path / "results" / "pretrained" / "summary.csv", index=False)
+    numbers = {}
+    report_numbers.pretrained_numbers(numbers)
+    clipped = {m: len(stable_but_wrong(rows)) for m, rows in dumps["pretrained"].groupby("model")}
+    unclipped = {m: len(stable_but_wrong(rows)) for m, rows in dumps["pretrained_noclip"].groupby("model")}
+    assert clipped != unclipped  # the synthetic dumps tell the two folders apart
+    assert numbers["pretrained_stable_but_wrong"]["values"] == clipped
+    assert numbers["pretrained_stable_but_wrong"]["rows"] == 100
+    shares = report_numbers.flagged_share(dumps["pretrained_noclip"], "box_mask", "g")
+    assert numbers["pretrained_unclipped_flagged_box_share"]["values"] == pytest.approx(shares.to_dict())
+    assert numbers["pretrained_blur_error_share_of_input"]["max"] == pytest.approx(0.5)
+    assert numbers["pretrained_blur_error_growth"]["values"]["dncnn_b"] == pytest.approx(4.0)
+    assert numbers["pretrained_blur_g_change"]["values"]["restormer"] == pytest.approx(-0.75)
+    assert numbers["pretrained_within_level_interval_halfwidth"]["values"]["dncnn_b"] == pytest.approx(0.1)

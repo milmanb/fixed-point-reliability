@@ -43,7 +43,8 @@ def parse_args():
                         help="checkpoint directory, relative to the repository")
     parser.add_argument("--pattern", nargs="+", default=["dae_*.pt"],
                         help="one or more checkpoint globs, e.g. dae_lam0_*.pt dae_lam1w5_*.pt")
-    parser.add_argument("--projectors", nargs="*", default=["radial", "pca64"])
+    parser.add_argument("--projectors", nargs="*", default=["radial", "pca64"],
+                        help="exact projectors to evaluate too (radial, pcaK); a bare --projectors evaluates none")
     parser.add_argument("--n-eval", type=int, default=10_000)
     parser.add_argument("--n-boot", type=int, default=1000)
     parser.add_argument("--probes", type=int, default=4, help="Hutchinson probes for div")

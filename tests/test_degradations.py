@@ -98,3 +98,11 @@ def test_corruption_grid_matches_the_report():
         "pixel_mask(drop=0.25)", "pixel_mask(drop=0.5)", "pixel_mask(drop=0.75)",
         "box_mask(size=8)", "box_mask(size=14)"]
     assert all(c.sigma == 0.02 for c in CONDITIONS if c.family != "noise")
+
+
+@pytest.mark.parametrize("std", [0.5, 1.0, 1.5, 2.0])
+def test_blur_kernel_is_the_normalized_gaussian(std):
+    radius = max(1, math.ceil(3 * std))
+    t = torch.arange(-radius, radius + 1, dtype=torch.float64)
+    expected = torch.exp(-t ** 2 / (2 * std ** 2))
+    torch.testing.assert_close(gaussian_kernel1d(std), expected / expected.sum())

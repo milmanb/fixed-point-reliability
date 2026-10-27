@@ -79,7 +79,8 @@ def main():
     plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman", "DejaVu Serif"],
                          "mathtext.fontset": "stix", "pdf.fonttype": 42})
     x = load_fashion_mnist("test", dtype=torch.float64)[0][:10000]
-    # Drawn at the printed size of one report column.
+    # Drawn one report column wide; the report places it at 0.86 of the column, so the 8 pt titles and
+    # 7.5 pt labels print at about 7 and 6.5 pt.
     fig, axes = plt.subplots(2, 4, figsize=(3.35, 1.95))
     for i, (architecture, model, row) in enumerate(picks()):
         for j, image in enumerate(restore(model, row, x)):

@@ -88,3 +88,9 @@ def test_each_routing_has_its_own_gradient():
     assert gradients["inner"] == pytest.approx(0.7 * mean_abs, rel=1e-12)
     assert gradients["outer"] == pytest.approx(-0.3 * mean_abs, rel=1e-12)
     assert gradients["both"] == pytest.approx(0.4 * mean_abs, rel=1e-12)
+
+
+def test_reconstruction_loss_is_the_mean_absolute_error():
+    from fpr.losses import reconstruction_loss
+    fy = torch.tensor([[1.0, -2.0], [3.0, -4.0]])
+    assert reconstruction_loss(fy, torch.zeros(2, 2)).item() == 2.5  # a squared error would give 7.5

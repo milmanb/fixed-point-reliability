@@ -103,3 +103,12 @@ def test_finite_differences_match_forward_mode_on_a_curved_map():
     for key in ("div", "g_lin"):
         assert np.all(np.abs(jvp[key]) > 0.01), key
         assert np.allclose(fd[key], jvp[key], rtol=1e-3, atol=0), key
+
+
+def test_contraction_ratio_is_kept_for_tiny_residuals():
+    """q = g2/g is defined whenever g exceeds 1e-12, so a nearly idempotent model keeps it."""
+    x = _images(4, 0)
+    c = 1 - 1e-6
+    out = compute_signals(lambda z: c * z, x, x, lambda z: z, iterate_steps=2)
+    assert (out["g"] > 1e-12).all() and (out["g"] < 1e-5).all()
+    np.testing.assert_allclose(out["q"], c, rtol=1e-6)

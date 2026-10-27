@@ -15,7 +15,7 @@ import json
 import pandas as pd
 
 from fpr.conformal import evaluate_signals, shift_coverage, sure_self_calibrate
-from fpr.data import REPO_ROOT
+from fpr.data import REPO_ROOT, per_image_dump
 from fpr.ensemble import model_group
 
 SIGNALS = ("g", "d", "r_A", "dis", "g2", "q")
@@ -39,15 +39,8 @@ def main():
     out = REPO_ROOT / args.out
     out.mkdir(parents=True, exist_ok=True)
 
-    frames = []
-    for folder in args.results:
-        path = REPO_ROOT / folder / "per_image.csv.gz"
-        if path.exists():
-            frames.append(pd.read_csv(path))
-    if not frames:
-        raise SystemExit("no per_image.csv.gz found: download the dumps with "
-                         "`python scripts/download_dumps.py`, or run evaluate_models.py first")
-    per_image = pd.concat(frames, ignore_index=True)
+    # Every requested dump must exist: a missing one would silently drop its models from the outputs.
+    per_image = pd.concat([pd.read_csv(per_image_dump(folder)) for folder in args.results], ignore_index=True)
     models = args.models or [m for m in per_image["model"].unique() if "_seed" in m]
 
     coverage_rows, shift_rows, sure_rows = [], [], []

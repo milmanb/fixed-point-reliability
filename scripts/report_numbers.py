@@ -30,7 +30,7 @@ PRETRAINED = ("dncnn_b", "restormer")
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--out", default="results/report_numbers.json")
+    parser.add_argument("--out", default="results/report_numbers.json", help="output file, relative to the repository")
     return parser.parse_args()
 
 

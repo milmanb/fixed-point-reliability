@@ -150,3 +150,14 @@ def test_non_finite_input_is_rejected():
         rank_metrics({"s": np.where(e > 0.5, np.nan, e)}, e, n_boot=0)
     with pytest.raises(ValueError, match="error"):
         rank_metrics({"s": e}, np.where(e > 0.5, np.inf, e), n_boot=0)
+
+
+def test_intervals_are_the_2_5th_and_97_5th_percentiles_of_the_resamples(monkeypatch):
+    from fpr import metrics
+    calls = []
+    original = metrics._percentile
+    monkeypatch.setattr(metrics, "_percentile", lambda values, q: calls.append(q) or original(values, q))
+    rng = np.random.default_rng(0)
+    e = rng.gamma(2.0, size=200)
+    rank_metrics({"s": e + rng.normal(size=200)}, e, n_boot=50, control=rng.normal(size=200))
+    assert sorted(set(calls)) == [2.5, 97.5]

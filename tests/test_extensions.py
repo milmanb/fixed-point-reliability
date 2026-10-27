@@ -340,3 +340,11 @@ def test_disagreement_of_three_members():
     y = torch.zeros(5, 1, 4, 4)
     members = [lambda z, c=c: torch.full_like(z, c) for c in (0.0, 1.0, 2.0)]
     assert np.allclose(disagreement(members, y), 2.0 / 3.0)
+
+
+def test_isotonic_fit_reverses_an_anti_correlated_signal():
+    """increasing="auto": a signal that falls as the error grows is used reversed, not flattened."""
+    from fpr.conformal import isotonic_fit_predict
+    signal = np.arange(10.0)
+    error = 10.0 - signal
+    np.testing.assert_allclose(isotonic_fit_predict(signal, error, signal), error)
