@@ -1,5 +1,6 @@
 """Tests for the helpers in scripts/ that merge result folders and build the report's tables."""
 
+import http.client
 import importlib.util
 import json
 
@@ -7,7 +8,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from fpr import download
 from fpr.data import REPO_ROOT
+from fpr.evaluation import stable_but_wrong
 
 
 def _script(name):
@@ -118,6 +121,33 @@ def test_download_checks_the_digest_and_keeps_identical_files(tmp_path):
     assert not list((tmp_path / "new").glob("*"))
 
 
+def test_download_leaves_no_partial_file_when_the_transfer_breaks(tmp_path, monkeypatch):
+    class Broken:
+        """A response that sends some bytes, then fails."""
+
+        def __init__(self, error):
+            self.error, self.sent = error, False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self, *args):
+            if self.sent:
+                raise self.error
+            self.sent = True
+            return b"the first bytes"
+
+    target = tmp_path / "dumps" / "per_image.csv.gz"
+    for error, expected in ((http.client.IncompleteRead(b""), SystemExit), (KeyboardInterrupt(), KeyboardInterrupt)):
+        monkeypatch.setattr(download.urllib.request, "urlopen", lambda url, timeout, error=error: Broken(error))
+        with pytest.raises(expected):
+            download.fetch("https://example.org/per_image.csv.gz", target, "0" * 64)
+        assert not list(target.parent.glob("*"))  # neither the target nor a .part file
+
+
 def test_add_signals_appends_its_record_to_run_info(tmp_path):
     add_signals = _script("add_signals")
     path = tmp_path / "run_info.json"
@@ -196,13 +226,15 @@ def test_blind_spot_shares_follow_the_flagged_rule(tmp_path):
 
 
 def test_stable_but_wrong_takes_both_percentiles_over_all_levels():
-    report_numbers = _script("report_numbers")
-    rows = pd.DataFrame({"e": np.arange(20.0), "g": np.r_[np.full(10, 5.0), np.arange(10.0)]})
-    picked = report_numbers.stable_but_wrong(rows)
-    # Top-10% error: rows 18 and 19 (e >= 17.1); their g (8 and 9) is not below the median (5).
-    assert picked.empty
-    rows.loc[19, "g"] = 0.0
-    assert report_numbers.stable_but_wrong(rows).index.tolist() == [19]
+    e = np.arange(20.0)
+    picked = stable_but_wrong(pd.DataFrame({"e": e, "g": e[::-1]}))
+    assert picked.index.tolist() == [17, 18, 19]  # error ranks 18 to 20 of 20, the lowest g
+    assert {"e_pct", "g_pct"} <= set(picked.columns)
+    g = e.copy()
+    g[19] = 10.0  # just above the median of g (9.5): not stable
+    assert stable_but_wrong(pd.DataFrame({"e": e, "g": g})).empty
+    g[19] = 8.5  # rank 10 of 20, the 50th percentile
+    assert stable_but_wrong(pd.DataFrame({"e": e, "g": g})).index.tolist() == [19]
 
 
 def test_selective_risk_scores_only_complete_varying_signals():
@@ -280,6 +312,8 @@ def test_report_table_reads_the_pretrained_folder_only_when_present(tmp_path, mo
     assert report_table.folders() == report_table.FOLDERS
     (tmp_path / "results" / "pretrained").mkdir(parents=True)
     (tmp_path / "results" / "pretrained" / "metrics.csv").write_text("model\n")
+    assert report_table.folders() == report_table.FOLDERS  # the committed files alone are not enough
+    (tmp_path / "results" / "pretrained" / "per_image.csv.gz").write_bytes(b"")
     assert report_table.folders() == (*report_table.FOLDERS, "results/pretrained")
     models = pd.Series(["dae_lam0_seed0", "radial", "pca64", "dncnn_b", "restormer"])
     assert report_table.reported(models).tolist() == [True, False, False, True, True]

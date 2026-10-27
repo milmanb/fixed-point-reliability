@@ -64,7 +64,10 @@ def test_add_signals_completes_a_dump_and_records_the_run(tmp_path, monkeypatch)
          "--iterate-steps", 1, "--no-metrics", "--device", "cpu", "--out", tmp_path)
     before = pd.read_csv(tmp_path / "per_image.csv.gz")
     assert not {"g2", "g3", "q", "dis"} & set(before.columns)
+    # No gzip time stamp, so a rewrite with the same rows gives the same bytes and digest.
+    assert (tmp_path / "per_image.csv.gz").read_bytes()[4:8] == bytes(4)
     _run("add_signals", monkeypatch, "--folder", tmp_path, "--pattern", "dae_lam0_seed*.pt", "--threads", 1)
+    assert (tmp_path / "per_image.csv.gz").read_bytes()[4:8] == bytes(4)
     after = pd.read_csv(tmp_path / "per_image.csv.gz")
     assert {"g2", "g3", "q", "dis"} <= set(after.columns) and after[["g2", "g3", "q", "dis"]].notna().all().all()
     assert after[["g", "d", "e"]].equals(before[["g", "d", "e"]])  # the stored values are kept
@@ -74,6 +77,8 @@ def test_add_signals_completes_a_dump_and_records_the_run(tmp_path, monkeypatch)
 
 
 def test_checks_reproduce_the_reported_relations():
+    if not (REPO_ROOT / "checkpoints" / "dae_lam1_seed0.pt").exists():
+        pytest.skip("needs checkpoints/dae_lam1_seed0.pt, the run that collapsed")
     checks = _script("checks")
     initialization = checks.initialization_check(n=64, seeds=1)
     assert (initialization["skip"]["output_spread_over_inputs"]

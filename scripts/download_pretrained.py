@@ -8,7 +8,7 @@ data/ is git-ignored. Each file is checked against its SHA-256 digest before it 
 place. The Restormer digest is the one its host publishes; the BSD68 files were checked against
 their git hashes at the pinned commit, and the DnCNN-B weights against the paper's BSD68 PSNR
 (src/fpr/pretrained.py). The BSD68 images come from the Berkeley Segmentation Dataset, whose
-images are for research and educational use; they are not redistributed here.
+terms allow non-commercial research and educational use. Nothing here is redistributed.
 
     python scripts/download_pretrained.py
 """

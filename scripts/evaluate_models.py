@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from fpr.data import REPO_ROOT, load_fashion_mnist
+from fpr.data import DUMP_COMPRESSION, REPO_ROOT, load_fashion_mnist
 from fpr.ensemble import attach_disagreement, model_group
 from fpr.evaluation import CONDITIONS, per_image_signals, score
 from fpr.models import load_restorer
@@ -288,7 +288,8 @@ def main():
     if not args.from_per_image:
         summary.to_csv(out / "summary.csv", index=False, float_format="%.6g")
         if not args.no_per_image:
-            per_image.to_csv(out / "per_image.csv.gz", index=False, float_format="%.6g")
+            per_image.to_csv(out / "per_image.csv.gz", index=False, float_format="%.6g",
+                             compression=DUMP_COMPRESSION)
     if metrics is not None:
         metrics.to_csv(out / "metrics.csv", index=False, float_format="%.4f")
     (out / "run_info.json").write_text(json.dumps(run_info, indent=2))

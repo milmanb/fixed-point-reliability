@@ -1,6 +1,7 @@
 """Checked downloads: a file is moved into place only if its SHA-256 digest matches."""
 
 import hashlib
+import http.client
 import shutil
 import urllib.request
 
@@ -25,9 +26,12 @@ def fetch(url, target, expected, force=False):
     try:
         with urllib.request.urlopen(url, timeout=60) as response, open(partial, "wb") as file:
             shutil.copyfileobj(response, file)
-    except OSError as error:  # URLError, HTTPError and timeouts are all OSErrors
+    except (OSError, http.client.HTTPException) as error:  # network errors, timeouts, cut transfers
         partial.unlink(missing_ok=True)
         raise SystemExit(f"could not download {url}: {error}") from None
+    except BaseException:  # e.g. Ctrl-C: leave no partial file behind
+        partial.unlink(missing_ok=True)
+        raise
     if sha256(partial) != expected:
         partial.unlink()
         raise SystemExit(f"{url} does not match its SHA-256 digest")

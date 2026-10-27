@@ -3,7 +3,7 @@
 For each family, the share of its worst-quartile errors that a signal flags (its top quartile),
 with both quartiles taken over all 13 levels of one model, as in the flagged columns of Table 1.
 A random score flags 25%. Models without the idempotence penalty; mean over the three seeds, and
-the whiskers span the seeds. When results/pretrained exists (scripts/evaluate_pretrained.py), a
+the whiskers span the seeds. When the dump results/pretrained/per_image.csv.gz exists, a
 third panel shows the residual of the two pretrained denoisers on BSD68 crops (one run each).
 Reads the per-image dumps and writes results/blind_spots.csv, results/blind_spots.pdf (for the
 report) and results/blind_spots.png.
@@ -104,8 +104,10 @@ def main():
     argparse.ArgumentParser(description=__doc__,
                             formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     sources = dict(ARCHITECTURES)
-    if (REPO_ROOT / "results" / "pretrained" / "metrics.csv").exists():
+    if (REPO_ROOT / "results" / "pretrained" / "per_image.csv.gz").exists():
         sources |= PRETRAINED
+    else:
+        print("note: results/pretrained/per_image.csv.gz is missing, so the figure leaves out the BSD68 panel")
     table = pd.DataFrame([row for architecture, (folder, group) in sources.items()
                           for row in family_shares(architecture, folder, group)])
     out = REPO_ROOT / "results" / "blind_spots"

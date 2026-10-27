@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from fpr.data import REPO_ROOT, load_fashion_mnist
+from fpr.data import DUMP_COMPRESSION, REPO_ROOT, load_fashion_mnist
 from fpr.ensemble import disagreement, model_group
 from fpr.evaluation import CONDITIONS, observe
 from fpr.models import load_restorer
@@ -115,7 +115,8 @@ def main():
     for column in NEW:
         stored[column] = new[column]
     out = REPO_ROOT / args.out if args.out else folder / "per_image.csv.gz"
-    stored.to_csv(out, index=False, float_format="%.6g")
+    stored.to_csv(out, index=False, float_format="%.6g",
+                  compression=DUMP_COMPRESSION if out.suffix == ".gz" else "infer")
     info = {"mode": "add_signals", "script": "scripts/add_signals.py", "signals": list(NEW),
             "models": list(models), "pattern": args.pattern, "projectors": args.projectors,
             "dis_groups": sorted(dis_checked), "threads": args.threads,

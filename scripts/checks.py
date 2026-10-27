@@ -75,7 +75,7 @@ def initialization_check(n=256, seeds=3):
 
     Tests the proposed explanation of the collapse under lambda_id = 1: a constant map is already
     idempotent, so a network that starts almost constant is pulled toward it. The skip model starts
-    far less constant than the bottleneck model and still collapses (see the report, Sec. 3.3).
+    far less constant than the bottleneck model and still collapses (see the README's findings).
     """
     x, _ = load_fashion_mnist("test", dtype=torch.float32)
     y, _ = observe(CONDITIONS[1], x[:n].double(), 0)

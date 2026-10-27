@@ -4,9 +4,10 @@ Both are blind Gaussian denoisers trained on natural images (src/fpr/pretrained.
 whether the residual's behaviour on Fashion-MNIST carries over to standard models and data. The 68
 BSD68 test images, held out from both training sets, are cut into six 128 x 128 crops each, and
 every crop is corrupted at the 13 levels of the main grid (box sides scaled to the crop, blur
-reflected at its border). Signals, the per-image dump and the rank metrics are those of
-evaluate_models.py; the bootstrap resamples whole source images, also within a level, since the
-six crops of an image are not independent. Writes per_image.csv.gz, summary.csv, metrics.csv and
+reflected at its border). Signals and rank metrics are computed as in evaluate_models.py, without
+the first-order signals and the scores of the squared error. The bootstrap resamples whole source
+images, also within a level, since the six crops of an image are not independent. Writes
+per_image.csv.gz, summary.csv, metrics.csv and
 run_info.json to results/pretrained. Outputs are clipped to [0, 1], as when they are saved as
 images; --no-clip keeps the raw outputs (results/pretrained_noclip), since the clip can turn
 outputs that leave [0, 1] into exact fixed points.
@@ -17,7 +18,7 @@ outputs that leave [0, 1] into exact fixed points.
 """
 
 import argparse
-import hashlib
+import importlib.metadata
 import json
 import platform
 import sys
@@ -28,7 +29,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from fpr.data import REPO_ROOT, load_bsd68_crops
+from fpr.data import DUMP_COMPRESSION, REPO_ROOT, load_bsd68_crops
+from fpr.download import sha256
 from fpr.evaluation import natural_conditions, per_image_signals, score
 from fpr.pretrained import MODELS, load_denoiser
 from fpr.signals import SIGNALS
@@ -59,8 +61,12 @@ def parse_args():
     return args
 
 
-def sha256(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def deepinv_version():
+    """The installed deepinv version, which Restormer's architecture comes from (None if absent)."""
+    try:
+        return importlib.metadata.version("deepinv")
+    except importlib.metadata.PackageNotFoundError:
+        return None
 
 
 def main():
@@ -94,10 +100,10 @@ def main():
         "seconds": {"signals": round(t_signals - t0, 1),
                     "total": round(time.perf_counter() - t0, 1)},
         "versions": {"python": platform.python_version(), "torch": torch.__version__,
-                     "numpy": np.__version__, "pandas": pd.__version__},
+                     "numpy": np.__version__, "pandas": pd.__version__, "deepinv": deepinv_version()},
     }
     summary.to_csv(out / "summary.csv", index=False, float_format="%.6g")
-    per_image.to_csv(out / "per_image.csv.gz", index=False, float_format="%.6g")
+    per_image.to_csv(out / "per_image.csv.gz", index=False, float_format="%.6g", compression=DUMP_COMPRESSION)
     metrics.to_csv(out / "metrics.csv", index=False, float_format="%.4f")
     (out / "run_info.json").write_text(json.dumps(run_info, indent=2))
 

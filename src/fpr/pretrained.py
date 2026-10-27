@@ -13,9 +13,10 @@ as for the Fashion-MNIST models.
 
 scripts/download_pretrained.py fetches the weights into data/pretrained/. Outputs are clipped to
 [0, 1] by default, as when they are saved as images (Denoiser, clip=False turns this off). On the
-68 full BSD68 images with Gaussian noise of
-sigma = 15, 25, 50 (/255), these wrappers give a PSNR of 31.61, 29.16, 26.21 dB (DnCNN-B) and
-31.93, 29.50, 26.60 dB (Restormer); the papers report 31.61, 29.16, 26.23 and 31.95, 29.51, 26.62.
+68 full BSD68 images, with Gaussian noise of sigma = 15, 25, 50 (/255) drawn as in the authors'
+test scripts, these wrappers give a PSNR of 31.62, 29.16, 26.23 dB (DnCNN-B) and 31.95, 29.51,
+26.62 dB (Restormer). The papers report 31.61, 29.16, 26.23 and 31.95, 29.51, 26.62
+(scripts/check_pretrained.py, results/pretrained/psnr.csv).
 """
 
 import torch
@@ -49,8 +50,9 @@ def load_dncnn(path):
 class ReflectPadded(nn.Module):
     """Restormer as its authors test it: reflect-pad to a multiple of 8, run, crop.
 
-    deepinv's own forward pads by replication, which lowers the BSD68 PSNR of these weights by up
-    to 1.6 dB at full image size; with reflection they match the paper.
+    deepinv's own forward pads by replication, which lowers the BSD68 PSNR of these weights at full
+    image size (rows restormer_replicate of results/pretrained/psnr.csv). With reflection they match
+    the paper.
     """
 
     def __init__(self, net):
@@ -64,9 +66,16 @@ class ReflectPadded(nn.Module):
 
 
 def load_restormer(path):
-    from deepinv.models import Restormer  # optional dependency, needed only here
+    try:
+        from deepinv.models import Restormer  # optional dependency, needed only here (tested: 0.5.0)
+    except ImportError:
+        raise SystemExit('Restormer needs deepinv: pip install -e ".[pretrained]"') from None
 
-    net = Restormer(in_channels=1, out_channels=1, pretrained=None)
+    # The authors' configuration (Denoising/Options/GaussianGrayDenoising_Restormer.yml), stated so
+    # that a change of deepinv's defaults cannot change the network silently.
+    net = Restormer(in_channels=1, out_channels=1, dim=48, num_blocks=(4, 6, 6, 8),
+                    num_refinement_blocks=4, heads=(1, 2, 4, 8), ffn_expansion_factor=2.66, bias=False,
+                    LayerNorm_type="BiasFree", dual_pixel_task=False, pretrained=None)
     net.load_state_dict(torch.load(path, map_location="cpu", weights_only=True)["params"])
     return ReflectPadded(net)
 

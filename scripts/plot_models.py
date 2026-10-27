@@ -24,7 +24,7 @@ import torch  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 
 from fpr.data import REPO_ROOT, load_fashion_mnist, per_image_dump  # noqa: E402
-from fpr.evaluation import CONDITIONS, observe  # noqa: E402
+from fpr.evaluation import CONDITIONS, observe, stable_but_wrong  # noqa: E402
 from fpr.models import load_restorer  # noqa: E402
 from fpr.plotting import INK, INK_SECONDARY, SEQUENTIAL, family_scatter, pretty_condition  # noqa: E402
 
@@ -45,9 +45,8 @@ def parse_args():
 
 
 def select_failures(frame, count, seed):
-    """Random rows with error in the top 10% and g below the median, both over all conditions."""
-    frame = frame.assign(e_pct=frame["e"].rank(pct=True), g_pct=frame["g"].rank(pct=True))
-    candidates = frame[(frame["e_pct"] >= 0.9) & (frame["g_pct"] <= 0.5)]
+    """Random stable-but-wrong rows: error in the top 10% and g below the median, over all conditions."""
+    candidates = stable_but_wrong(frame)
     return candidates.sample(n=min(count, len(candidates)), random_state=seed), candidates, len(frame)
 
 
@@ -55,7 +54,7 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, com
     conditions = {c.label: c for c in CONDITIONS}
     error_cmap = LinearSegmentedColormap.from_list("error", SEQUENTIAL)
     if compact:
-        # Drawn at its printed size in the report (2.55 in wide), so the 6-6.5 pt labels print as set.
+        # Drawn at its printed size (2.55 in wide), so the 6-6.5 pt labels print as set.
         row_names = ["clean", "input", "output"]
         figsize, caption_size, label_size = (2.55, 1.98), 6, 6.5
     else:
@@ -96,7 +95,7 @@ def plot_failures(rows, restorer, x, seed, path, model, candidates, n_total, com
     shares = candidates["condition"].value_counts(normalize=True).head(3)
     composition = "; ".join(f"{share:.0%} {pretty_condition(condition)}" for condition, share in shares.items())
     if compact:
-        # The caption of the figure carries the selection rule in the report.
+        # No title: a caption beside the figure carries the selection rule.
         fig.tight_layout(pad=0.2, h_pad=0.3, w_pad=0.2)
     else:
         fig.suptitle(f"{model}: stable but wrong\n"

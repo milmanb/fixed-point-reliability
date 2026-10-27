@@ -6,19 +6,29 @@ import torch
 from torchvision.datasets import FashionMNIST
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# gzip stores the write time in its header unless told otherwise. With a fixed time, rewriting a
+# dump with the same rows gives the same bytes, and the SHA-256 checks of download_dumps.py hold.
+DUMP_COMPRESSION = {"method": "gzip", "mtime": 0}
+DUMP_SOURCES = {  # result folder -> the script that writes its dump (README step)
+    "results/smoke_projectors": "scripts/smoke_projectors.py (README, step 1)",
+    "results/models": "scripts/evaluate_models.py (README, step 3)",
+    "results/models_skip": "scripts/evaluate_models.py (README, step 3)",
+    "results/pretrained": "scripts/evaluate_pretrained.py (README, step 4)",
+    "results/pretrained_noclip": "scripts/evaluate_pretrained.py --no-clip (README, step 4)",
+}
 
 
 def per_image_dump(folder):
     """Path of a result folder's per-image dump; exits with instructions if it is missing.
 
-    The dumps are git-ignored. scripts/download_dumps.py fetches the committed results' dumps,
-    and scripts/evaluate_models.py recreates them (hours).
+    The dumps are git-ignored. scripts/download_dumps.py fetches the committed results' dumps, and
+    the scripts of DUMP_SOURCES recreate them (an hour to several hours).
     """
     path = REPO_ROOT / folder / "per_image.csv.gz"
     if not path.exists():
+        source = DUMP_SOURCES.get(Path(folder).as_posix(), "the script that wrote this folder")
         raise SystemExit(f"{Path(folder) / 'per_image.csv.gz'} is missing: download the dumps with "
-                         "`python scripts/download_dumps.py`, or recreate them with "
-                         "scripts/evaluate_models.py (README, step 3)")
+                         f"`python scripts/download_dumps.py`, or recreate them with {source}")
     return path
 
 

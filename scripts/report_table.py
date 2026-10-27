@@ -3,7 +3,7 @@
 table_main.tex: one row per model variant (architecture x training). Within-level statistics are
 the median over the 13 corruption levels for each seed, then the mean over seeds; the seed range
 is kept too. The two pretrained denoisers of results/pretrained (scripts/evaluate_pretrained.py,
-BSD68 crops) follow as single runs, when that folder exists.
+BSD68 crops) follow as single runs, when that folder's per-image dump exists.
 
 results/report_coverage.csv: conformal coverage and selective risk, from results/conformal and
 results/selective, which the README quotes. Skipped when those folders are missing.
@@ -39,9 +39,9 @@ PRETRAINED_MODELS = ("dncnn_b", "restormer")
 
 
 def folders():
-    if (REPO_ROOT / PRETRAINED / "metrics.csv").exists():
+    if (REPO_ROOT / PRETRAINED / "per_image.csv.gz").exists():  # the dump; the rest is committed
         return (*FOLDERS, PRETRAINED)
-    print(f"note: {PRETRAINED} is missing, so the tables leave out DnCNN-B and Restormer "
+    print(f"note: {PRETRAINED}/per_image.csv.gz is missing, so the tables leave out DnCNN-B and Restormer "
           "(scripts/download_dumps.py fetches its dump; scripts/evaluate_pretrained.py recreates it)")
     return FOLDERS
 

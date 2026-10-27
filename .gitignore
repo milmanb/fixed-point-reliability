@@ -11,7 +11,7 @@ venv/
 data/
 
 # Large per-image dumps; download them with scripts/download_dumps.py or regenerate them with
-# scripts/evaluate_models.py and scripts/smoke_projectors.py
+# scripts/smoke_projectors.py, scripts/evaluate_models.py and scripts/evaluate_pretrained.py
 results/**/per_image*
 # Output of the README's quick checks
 results/smoke_quick/

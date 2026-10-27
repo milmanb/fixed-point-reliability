@@ -46,6 +46,14 @@ def test_box_mask_removes_exactly_size_squared_pixels(x):
     assert (removed == 64).all()
 
 
+def test_box_mask_can_touch_every_border():
+    x = torch.zeros((400, 1, 6, 6), dtype=torch.float64)
+    _, A = BoxMask(2, sigma=0.0)(x, torch.Generator().manual_seed(11))
+    box = (A(torch.ones_like(x)) == 0)[:, 0]
+    rows, cols = box.any(dim=2), box.any(dim=1)  # (400, 6): rows and columns each box covers
+    assert rows[:, 0].any() and rows[:, -1].any() and cols[:, 0].any() and cols[:, -1].any()
+
+
 def _batch(seed, n=64):
     return torch.rand((n, 1, 28, 28), generator=torch.Generator().manual_seed(seed), dtype=torch.float64)
 

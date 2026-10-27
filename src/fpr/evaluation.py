@@ -44,6 +44,15 @@ def natural_conditions(size=128):
     ]
 
 
+def stable_but_wrong(frame):
+    """The rows of one model with error in the top 10% and g below its median ("stable but wrong").
+
+    Both percentiles are ranks over all rows of `frame` (all levels), kept as e_pct and g_pct.
+    """
+    frame = frame.assign(e_pct=frame["e"].rank(pct=True), g_pct=frame["g"].rank(pct=True))
+    return frame[(frame["e_pct"] >= 0.9) & (frame["g_pct"] <= 0.5)]
+
+
 def _map(work, items, jobs):
     """Map `work` over `items` in a process pool, falling back to serial if the pool breaks.
 

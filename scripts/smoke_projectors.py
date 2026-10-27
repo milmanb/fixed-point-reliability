@@ -28,7 +28,7 @@ import pandas as pd  # noqa: E402
 import torch  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 
-from fpr.data import REPO_ROOT, load_fashion_mnist  # noqa: E402
+from fpr.data import DUMP_COMPRESSION, REPO_ROOT, load_fashion_mnist  # noqa: E402
 from fpr.evaluation import CONDITIONS, observe  # noqa: E402
 from fpr.metrics import rank_metrics  # noqa: E402
 from fpr.plotting import INK, INK_SECONDARY, NA_FILL, SERIES, style_axes  # noqa: E402
@@ -274,7 +274,8 @@ def main():
     summary.to_csv(args.out / "summary.csv", index=False, float_format="%.6g")
     metrics.to_csv(args.out / "metrics.csv", index=False, float_format="%.4f")
     if not args.no_per_image:
-        per_image.to_csv(args.out / "per_image.csv.gz", index=False, float_format="%.6g")
+        per_image.to_csv(args.out / "per_image.csv.gz", index=False, float_format="%.6g",
+                         compression=DUMP_COMPRESSION)
     plot_examples(examples, names, args.out / "examples.png")
     plot_scatter(per_image, names, args.out / "scatter.png", seed=args.seed)
     plot_spearman_heatmap(metrics, names, args.out / "spearman_heatmap.png")
