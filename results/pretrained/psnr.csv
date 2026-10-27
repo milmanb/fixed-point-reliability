@@ -1,0 +1,7 @@
+model,sigma,psnr,published
+dncnn_b,15,31.6091,31.6100
+dncnn_b,25,29.1556,29.1600
+dncnn_b,50,26.2141,26.2300
+restormer,15,31.9347,31.9500
+restormer,25,29.4990,29.5100
+restormer,50,26.5995,26.6200

@@ -30,6 +30,20 @@ CONDITIONS = [
 ]
 
 
+def natural_conditions(size=128):
+    """The 13 levels of CONDITIONS for size x size crops of natural images.
+
+    Box sides keep their share of the side (8/28 and 14/28: 37 and 64 pixels for size 128), and
+    blur reflects at the crop border; noise levels, blur widths and pixel masks are unchanged.
+    """
+    return [
+        *(GaussianNoise(sigma) for sigma in (0.1, 0.2, 0.3, 0.5)),
+        *(GaussianBlur(std, padding="reflect") for std in (0.5, 1.0, 1.5, 2.0)),
+        *(PixelMask(drop) for drop in (0.25, 0.5, 0.75)),
+        *(BoxMask(round(side * size / 28)) for side in (8, 14)),
+    ]
+
+
 def _map(work, items, jobs):
     """Map `work` over `items` in a process pool, falling back to serial if the pool breaks.
 
@@ -118,7 +132,7 @@ def _signals_for_model(item, x, labels, threads=None, **kwargs):
 
 
 def score(per_image, signals, target="e", n_boot=1000, seed=0, severity_baseline=True, control="b",
-          jobs=1):
+          jobs=1, cluster="image", cluster_levels=False):
     """Rank metrics per condition, pooled per corruption family, and pooled over all conditions.
 
     A signal enters a group only if it is defined on every row of the group (`sure` exists for
@@ -126,9 +140,11 @@ def score(per_image, signals, target="e", n_boot=1000, seed=0, severity_baseline
     signal over its corruption level. It keeps the differences between levels and removes all
     per-image information, so it measures how much of a pooled score is severity detection.
     If the column `control` exists, partial Spearman correlations given it are added.
+    The bootstrap of pooled groups resamples the values of the column `cluster` (whole images);
+    cluster_levels=True does so per condition too, for rows that share a source (image crops).
     """
     columns = [c for c in per_image.columns
-               if c in {"condition", "model", "image", target, control, *signals}]
+               if c in {"condition", "model", cluster, target, control, *signals}]
     tasks = []
     for (condition, _), frame in per_image.groupby(["condition", "model"], sort=False):
         tasks.append((frame[columns], "condition", condition))
@@ -139,17 +155,20 @@ def score(per_image, signals, target="e", n_boot=1000, seed=0, severity_baseline
         tasks.append((frame[columns], "all", "all"))
 
     work = partial(_score_group, signals=signals, target=target, n_boot=n_boot, seed=seed,
-                   severity_baseline=severity_baseline, control=control)
+                   severity_baseline=severity_baseline, control=control, cluster=cluster,
+                   cluster_levels=cluster_levels)
     results = _map(work, tasks, jobs)
     return pd.DataFrame([row for rows in results for row in rows])
 
 
-def _score_group(task, signals, target, n_boot, seed, severity_baseline, control):
+def _score_group(task, signals, target, n_boot, seed, severity_baseline, control, cluster="image",
+                 cluster_levels=False):
     frame, scope, group = task
     present = [s for s in signals if s in frame and frame[s].notna().all()]
     if not present:
         return []
-    clusters = None if scope == "condition" else frame["image"].to_numpy()
+    clustered = scope != "condition" or cluster_levels
+    clusters = frame[cluster].to_numpy() if clustered else None
     error = frame[target].to_numpy()
     z = frame[control].to_numpy() if control in frame else None
     results = rank_metrics({s: frame[s].to_numpy() for s in present}, error,

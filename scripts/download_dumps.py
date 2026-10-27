@@ -1,19 +1,18 @@
 """Download the per-image dumps behind the committed results from the v1.0 GitHub release.
 
-The analysis scripts read these dumps, which are git-ignored (185 MB in total). Recreating them
-with scripts/evaluate_models.py and scripts/smoke_projectors.py takes hours; with them in place,
-every analysis command in the README reproduces the committed outputs. Each file is checked
+The analysis scripts read these dumps, which are git-ignored (186 MB in total). Recreating them
+with scripts/evaluate_models.py, scripts/smoke_projectors.py and scripts/evaluate_pretrained.py
+takes hours; with them in place, every analysis command in the README reproduces the committed
+outputs. Each file is checked
 against its SHA-256 digest before it is moved into place.
 
     python scripts/download_dumps.py
 """
 
 import argparse
-import hashlib
-import shutil
-import urllib.request
 
 from fpr.data import REPO_ROOT
+from fpr.download import fetch, sha256  # noqa: F401  (sha256 is part of this script's interface)
 
 RELEASE = "https://github.com/milmanb/fixed-point-reliability/releases/download/v1.0"
 DUMPS = {  # release asset -> (result folder, SHA-256 of the file)
@@ -23,6 +22,10 @@ DUMPS = {  # release asset -> (result folder, SHA-256 of the file)
         ("results/models_skip", "90392271015404239040f6631d00190e2f8530328e69ec67b2149d859bb2ac3d"),
     "smoke_projectors_per_image.csv.gz":
         ("results/smoke_projectors", "5e51663a6bae249e020667c8270ce91f6c473af9e368880e62c40efb69ab8246"),
+    "pretrained_per_image.csv.gz":
+        ("results/pretrained", "28c240f0a4d26d0cf4f3113af979510718c1c3984f568e0db8e1ae42f4ddde55"),
+    "pretrained_noclip_per_image.csv.gz":
+        ("results/pretrained_noclip", "db5d3ce08adbf4778320fe61252ef921ddba690b47731984c4eea1594f0dfabd"),
 }
 
 
@@ -32,36 +35,6 @@ def parse_args():
     parser.add_argument("--force", action="store_true", help="replace dumps that differ from the release")
     parser.add_argument("--url", default=RELEASE, help="where the release assets are")
     return parser.parse_args()
-
-
-def sha256(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as file:
-        for block in iter(lambda: file.read(1 << 20), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def fetch(url, target, expected, force=False):
-    """Download `url` to `target` unless an identical file is there; returns what was done."""
-    if target.exists():
-        if sha256(target) == expected:
-            return "present"
-        if not force:
-            raise SystemExit(f"{target} differs from the release; rerun with --force to replace it")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    partial = target.with_name(target.name + ".part")
-    try:
-        with urllib.request.urlopen(url, timeout=60) as response, open(partial, "wb") as file:
-            shutil.copyfileobj(response, file)
-    except OSError as error:  # URLError, HTTPError and timeouts are all OSErrors
-        partial.unlink(missing_ok=True)
-        raise SystemExit(f"could not download {url}: {error}") from None
-    if sha256(partial) != expected:
-        partial.unlink()
-        raise SystemExit(f"{url} does not match its SHA-256 digest")
-    partial.replace(target)
-    return "downloaded"
 
 
 def main():

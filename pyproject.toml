@@ -29,6 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
+pretrained = ["deepinv>=0.5"]  # the Restormer architecture, for scripts/evaluate_pretrained.py
 
 [project.urls]
 Repository = "https://github.com/milmanb/fixed-point-reliability"

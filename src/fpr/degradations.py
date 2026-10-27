@@ -29,20 +29,28 @@ def gaussian_kernel1d(std, dtype=torch.float64):
     return kernel / kernel.sum()
 
 
-def gaussian_blur(z, std):
-    """Separable Gaussian blur with zero padding.
+def gaussian_blur(z, std, padding="zeros"):
+    """Separable Gaussian blur with zero padding, or with reflection at the border.
 
     With a symmetric kernel and zero padding the operator matrix is symmetric,
     which keeps adjoints trivial if data-consistency steps are added later.
-    Fashion-MNIST backgrounds are black, so zero padding matches the data.
+    Fashion-MNIST backgrounds are black, so zero padding matches the data. Crops of
+    natural images use padding="reflect", so their borders do not darken.
     """
     kernel = gaussian_kernel1d(std, dtype=z.dtype).to(z.device)
     radius = (kernel.numel() - 1) // 2
     channels = z.shape[1]
+    if padding == "reflect":
+        z = F.pad(z, (radius, radius, radius, radius), mode="reflect")
+        pad_w = pad_h = 0
+    elif padding == "zeros":
+        pad_w = pad_h = radius
+    else:
+        raise ValueError(f"padding must be 'zeros' or 'reflect', got {padding!r}")
     z = F.conv2d(z, kernel.view(1, 1, 1, -1).expand(channels, 1, 1, -1),
-                 padding=(0, radius), groups=channels)
+                 padding=(0, pad_w), groups=channels)
     return F.conv2d(z, kernel.view(1, 1, -1, 1).expand(channels, 1, -1, 1),
-                    padding=(radius, 0), groups=channels)
+                    padding=(pad_h, 0), groups=channels)
 
 
 @dataclass(frozen=True)
@@ -66,10 +74,15 @@ class GaussianNoise:
 
 @dataclass(frozen=True)
 class GaussianBlur:
-    """Deblurring: A = Gaussian blur of width `std`, plus weak Gaussian noise."""
+    """Deblurring: A = Gaussian blur of width `std`, plus weak Gaussian noise.
+
+    `padding` is "zeros" (Fashion-MNIST) or "reflect" (crops of natural images); the label leaves
+    it out, so both grids draw the same noise seeds.
+    """
 
     std: float
     sigma: float = 0.02
+    padding: str = "zeros"
     family = "blur"
 
     @property
@@ -82,7 +95,7 @@ class GaussianBlur:
 
     def __call__(self, x, gen):
         def A(z):
-            return gaussian_blur(z, self.std)
+            return gaussian_blur(z, self.std, self.padding)
 
         return A(x) + self.sigma * _randn(x, gen), A
 

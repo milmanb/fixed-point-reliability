@@ -1,0 +1,55 @@
+{
+  "args": {
+    "models": [
+      "dncnn_b",
+      "restormer"
+    ],
+    "size": 128,
+    "n_boot": 1000,
+    "seed": 0,
+    "iterate_steps": 2,
+    "device": "cuda",
+    "out": "results/pretrained"
+  },
+  "conditions": [
+    "noise(sigma=0.1)",
+    "noise(sigma=0.2)",
+    "noise(sigma=0.3)",
+    "noise(sigma=0.5)",
+    "blur(std=0.5)",
+    "blur(std=1)",
+    "blur(std=1.5)",
+    "blur(std=2)",
+    "pixel_mask(drop=0.25)",
+    "pixel_mask(drop=0.5)",
+    "pixel_mask(drop=0.75)",
+    "box_mask(size=37)",
+    "box_mask(size=64)"
+  ],
+  "models": [
+    "dncnn_b",
+    "restormer"
+  ],
+  "weights": {
+    "dncnn_b": {
+      "file": "pretrained/dncnn/dncnn_gray_blind.pth",
+      "sha256": "cc2ac7fa2f248a7f7a3da414a848326634511ec8b5adb7799e857ed788067bfe"
+    },
+    "restormer": {
+      "file": "pretrained/restormer/gaussian_gray_denoising_blind.pth",
+      "sha256": "4d3ab68b4e0e205c37c8cd3d8bb049d951baa6461e3b4dde6bb02b7f1f34deeb"
+    }
+  },
+  "crops": 408,
+  "source_images": 68,
+  "seconds": {
+    "signals": 2226.5,
+    "total": 2238.6
+  },
+  "versions": {
+    "python": "3.13.14",
+    "torch": "2.12.0+cu130",
+    "numpy": "2.4.4",
+    "pandas": "3.0.5"
+  }
+}
