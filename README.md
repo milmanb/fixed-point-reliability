@@ -5,15 +5,24 @@ Final project, Modern Computer Vision (MCV), Technion, 2026. Proposed as "Calibr
 Reference-Free Reliability Signals for Learned Image Projectors".\
 Itay Shorian, Michael Bazkor, Boaz Cohen, Bar Milman, Assaf Fleischer.
 
-The report's LaTeX source is in `report/`; a compiled PDF is attached to the
-[v1.0 release](https://github.com/milmanb/fixed-point-reliability/releases/tag/v1.0).
+The report:
+[stable_but_wrong_report.pdf](https://github.com/milmanb/fixed-point-reliability/releases/download/v1.0/stable_but_wrong_report.pdf),
+attached to the [v1.0 release](https://github.com/milmanb/fixed-point-reliability/releases/tag/v1.0).
+Its LaTeX source is in `report/`.
+
+In short: a small fixed-point residual $g = \lvert f(f(y)) - f(y) \rvert$ is weak evidence of a
+correct restoration. For two small Fashion-MNIST denoisers it ranks errors within a corruption
+level, but each has an unseen corruption whose wrong outputs are stable, and training for
+idempotence makes $g$ a worse signal. For two pretrained denoisers on natural images it ranks
+errors within a level even less well. The main blind spot reproduces in 2 to 3 minutes on a laptop
+CPU ([quick check](#quick-check-of-the-main-blind-spot)).
 
 ## Question
 
 Idempotent Generative Networks (IGN) and their follow-ups train maps with
-$f(f(y)) \approx f(y)$. A tempting reading is that an output that is a fixed point
-is also a correct reconstruction. We test whether this holds, and whether other
-signals computed without the clean image are better per-image warnings.
+$f(f(y)) \approx f(y)$, and related methods use the fixed-point residual as a confidence score.
+We test whether a small residual means a correct output, and whether other signals computed
+without the clean image warn better.
 
 Setting: clean image $x$, known operator $A_s$, observation $y = A_s x + n$.
 All signals are per-image mean absolute values over pixels.
@@ -56,72 +65,84 @@ images, with outputs clipped to $[0, 1]$ (step 4).
 | DnCNN-B, BSD68 | 0.100 | 0.003 | 0.45 | 0.36 | 0.31 | 0.69 | 0.88 | -0.79 | 0.58 | -- | 52% | 1% |
 | Restormer, BSD68 | 0.091 | 0.002 | 0.19 | 0.26 | 0.07 | 0.75 | 0.95 | -0.34 | 0.61 | -- | 99% | 1% |
 
+The report groups the results below into three findings: the blind spots (items 2, 6 and 7), the
+effect of training for idempotence (3 and 4) and the need for baselines (5). Item 1 explains why a
+residual can be blind.
+
 1. **Exact projectors carry no residual information.** The residual is zero for any exact
    projector, whatever the error. A first-order expansion gives
    $g \approx \lvert J_f(y)(f(y)-y) \rvert$: the Jacobian removes the displacement, which is
    normal to the fixed-point set. Measured: $g < 2\cdot10^{-15}$, linearized term $\le 10^{-12}$.
 2. **Each architecture has a blind spot, and they differ.** The bottleneck model's residual
    flags 18% of its worst pixel-mask errors, fewer than a random score. The skip model's
-   residual ranks errors better at 11 of 13 levels, but flags under 1% of its worst box-mask
-   errors. In both cases the outputs are stable but wrong under an operator unseen in training.
+   residual ranks errors better than the bottleneck model's at 11 of 13 levels, but flags under
+   1% of its worst box-mask errors. In both cases the outputs are stable but wrong under an
+   operator unseen in training.
 3. **Training for idempotence makes the residual a worse signal** in both architectures
    (within-level 0.70 to 0.62 and 0.86 to 0.63, no overlap between seeds), and lowers every
    score of $g$ in the table except the box-mask flagged share, while mean error changes little.
    $\lambda_{id} = 0.1$ leaves the within-level $\rho$ unchanged. All three gradient routings
-   lower the within-level $\rho$; only the routes through the outer application also lose
+   lower the within-level $\rho$. Only the routes through the outer application also lose
    partial $\rho$ and the pixel-mask flagged share, and they lose more pooled $\rho$ (0.06 and
    0.05, against 0.02 for the inner route alone).
 4. **Without warm-up both architectures collapse** to constant images: the per-pixel median
    image (validation error 0.2106, the same as that image's) and a black image (0.2885, the mean
-   pixel value). At initialization the skip model is far less constant than the bottleneck
-   model (output spread $8\cdot10^{-3}$ against $5\cdot10^{-6}$; clean images 0.27), so a start
-   as constant as the bottleneck's is not required (`results/checks.json`,
-   `results/report_numbers.json`).
-5. **Calibration per level** lifts pooled $\rho$ from 0.00-0.55 to 0.85-0.94, but a predictor
-   that returns each level's mean error already reaches 0.73-0.84 (`results/calibration*`).
+   pixel value). At initialization the skip model's output varies far more across inputs than the
+   bottleneck model's (output spread $8\cdot10^{-3}$ against $5\cdot10^{-6}$, clean images 0.27),
+   and a start as constant as the bottleneck's is therefore not needed for the collapse
+   (`results/checks.json`, `results/report_numbers.json`).
+5. **Calibration per level** lifts pooled $\rho$ from 0.00-0.55 to 0.85-0.94 over the seven
+   trained settings and the signals $g$, $d$ and $r_A$, but a predictor that returns each level's
+   mean error already reaches 0.73-0.84 (`results/calibration*`). The report quotes the two models
+   at $\lambda_{id} = 0$: 0.89-0.94, against 0.77 and 0.84.
 6. **Conformal error bars and disagreement inherit the blind spots.** A conformal bound on $g$
    holds its nominal 90% coverage over all images but covers only 61% of the bottleneck model's
    pixel-mask images and 74% and 76% of the skip model's pixel- and box-mask images, and 48% and
    16% of the other eleven levels when calibrated on the two in-range noise levels
-   ($\sigma$ = 0.1 and 0.2; `results/conformal`). Ensemble disagreement ranks better within a
+   ($\sigma$ = 0.1 and 0.2, `results/conformal`). Ensemble disagreement ranks better within a
    level, except for the skip model at $\lambda_{id} = 0$, but misses the same corruption families
    as $g$ (`results/blind_spots.csv`).
-7. **On natural images, the residual ranks the errors of two standard denoisers less well still.**
+7. **On natural images, the residual ranks the errors of two standard denoisers even less well.**
    DnCNN-B and Restormer on 408 crops of the BSD68 images (step 4), with outputs clipped to
-   $[0, 1]$: within a level, median $\rho$ = 0.45 and 0.19 (0.43 and 0.11 without the clip;
-   per-level intervals about $\pm 0.12$). Both leave blurred images almost as they are: their
+   $[0, 1]$: within a level, median $\rho$ = 0.45 and 0.19 (0.43 and 0.11 without the clip), with
+   per-level intervals of about $\pm 0.12$. Both leave blurred images almost as they are: their
    error is 78-91% of the input's and grows 2.7-fold from width 0.5 to 2, while $g$ falls by 25%
    and 11% (the same without the clip). Box masks hold 8% and 16% of their worst errors, and $g$
    flags 1% of them. For Restormer this depends on the clip, which sets its negative outputs inside
-   the box to zero on both passes: without the clip, $g$ flags 94% of these errors (DnCNN-B: 1%).
+   the box to zero on both passes. Without the clip, $g$ flags 94% of these errors (DnCNN-B: 1%).
    Pooled over levels, $g$ reaches $\rho$ = 0.69 and 0.75 (AUROC 0.88 and 0.95), but its level
    medians alone reach 0.74 and 0.71. Outputs that are stable and wrong in the sense of the
    report's Fig. 1b (top-10% error, below-median $g$) are rare for both: 16 and 2 of 5,304
-   (`results/pretrained`, `results/pretrained_noclip`).
+   (`results/pretrained`, `results/pretrained_noclip`, `results/report_numbers.json`).
 
 ![Blind spots per corruption family (the report's Fig. 2)](results/blind_spots.png)
+
+*Share of each family's worst-quartile errors that a signal flags ($\lambda_{id} = 0$, mean and
+range over seeds, dashed line: chance). The BSD68 panel shows the residual of the two pretrained
+denoisers, with clipped outputs. Blur holds 0% and 0.3% of their worst errors, and its bars are
+empty.*
 
 ![Stable but wrong: one test image per architecture, with the second pass (the report's Fig. 1b)](results/examples.png)
 
 ## Setup
 
-Python 3.10+ (tested with Python 3.13, PyTorch 2.12, NumPy 2.4, pandas 3.0 and scikit-learn
-1.8). Install PyTorch for your platform first (https://pytorch.org), then:
+Python 3.10+ (tested with Python 3.13, PyTorch 2.12, NumPy 2.4, pandas 3.0, scikit-learn 1.8
+and, for step 4, deepinv 0.5). Install PyTorch for your platform first (https://pytorch.org),
+then:
 
 ```bash
 pip install -e ".[dev]"
 pytest
 ```
 
-PyTorch older than 2.4 needs `numpy<2`; otherwise every tensor-to-numpy conversion fails with
-"Numpy is not available". Fashion-MNIST is downloaded to `data/` on first use.
+Fashion-MNIST is downloaded to `data/` on first use.
 
-The 23 trained checkpoints are in `checkpoints/`, so step 2 below is optional, and step 0
-downloads the per-image results that the analyses read, so step 3 is optional too.
+The 23 trained checkpoints are in `checkpoints/`, and step 2 below is optional. Step 0 downloads
+the per-image results that the analyses read, which makes steps 3 and 4 optional too.
 
 ## Reproduce
 
-### Quick check of the main blind spot (about 2 minutes)
+### Quick check of the main blind spot
 
 ```bash
 python scripts/evaluate_models.py --pattern "dae_lam0_seed*.pt" --projectors --n-eval 1000 --n-boot 50 \
@@ -129,9 +150,10 @@ python scripts/evaluate_models.py --pattern "dae_lam0_seed*.pt" --projectors --n
 python scripts/compare_models.py --results results/quick --groups dae_lam0
 ```
 
-This evaluates the three bottleneck checkpoints on the first 1,000 test images (a bare
-`--projectors` skips the projectors). Among other tables, the second command prints each
-family's share of the worst-quartile errors and the share of them that each signal flags
+This evaluates the three bottleneck checkpoints on the first 1,000 test images, in 2 to 3 minutes
+on a laptop CPU (a bare `--projectors` skips the projectors). Among other tables, the second
+command prints each family's share of the worst-quartile errors and the share of them that each
+signal flags
 (`recall_g`): pixel masks hold about 60% of the worst errors and $g$ flags about 19% of them
 (18% on all 10,000 images, below the 25% of a random score), against 74% for box masks.
 
@@ -142,9 +164,9 @@ python scripts/download_dumps.py
 ```
 
 The evaluations write one row per image, level and model to `results/*/per_image.csv.gz`.
-These dumps are git-ignored (185 MB in total). The script fetches the ones behind the committed
-results from the v1.0 release and checks their SHA-256 digests; with them, the commands under
-"Analyses and figures" reproduce the committed tables and figures without step 3.
+These dumps are git-ignored (186 MB in total). The script fetches the ones behind the committed
+results from the v1.0 release and checks their SHA-256 digests. With them, the commands under
+"Analyses and figures" reproduce the committed tables and figures without steps 3 and 4.
 
 ### 1. Smoke check on exact projectors (proposal, Sec. 5)
 
@@ -165,17 +187,17 @@ random box masks, 13 levels in total, on the 10,000 Fashion-MNIST test images.
 Outputs in `results/smoke_projectors/` (the full run): `summary.csv` (signal and error means
 per condition), `metrics.csv` (Spearman and AUROC with CIs, per condition, pooled per
 corruption family, and pooled over everything), figures, and `run_info.json`. The quick run
-writes to its own folder, so it leaves the committed full run in place.
+writes to its own folder and leaves the committed full run in place.
 
 #### Results (10,000 test images, 1,000 bootstrap resamples)
 
 The check reproduces, but it holds by construction. An exact projector satisfies
-$P(P(y)) = P(y)$ for every input, so $g$ is zero up to round-off on every image and
+$P(P(y)) = P(y)$ for every input, and $g$ is therefore zero up to round-off on every image and
 every corruption, while the error is not. A constant signal cannot rank images:
 $\rho(g, e)$ is undefined and the AUROC is 0.5 everywhere. The hypothesis can only be
 tested on learned, approximately idempotent models.
 
-"Within level" is the median [min, max] over the 13 corruption levels; "pooled" mixes
+"Within level" is the median [min, max] over the 13 corruption levels. "Pooled" mixes
 all levels and corruption types.
 
 | projector | max $g$ | mean $e$ | $\rho(d, e)$ within level | $\rho(r_A, e)$ within level | AUROC $d$ / $r_A$ within level | pooled $\rho$ $d$ / $r_A$ |
@@ -191,7 +213,7 @@ Observations:
 
 1. Displacement and measurement residual rank errors well within a fixed corruption
    level when the fixed-point set is tight (`pca16`, `nn`), and worse when it is loose
-   (`pca256`; `identity` gives $d \equiv 0$).
+   (`pca256`, and `identity` gives $d \equiv 0$).
 2. A badly shaped fixed-point set can reverse the signal: for `radial`,
    $\rho(d, e) = -0.46$ at noise $\sigma = 0.2$.
 3. Rankings weaken as corruption grows: `pca16` under noise goes from $\rho = 0.98$
@@ -216,7 +238,7 @@ bootstrap.
 
 ### 2. Train the denoising autoencoders (optional)
 
-Every configuration in the report; run each line with `--seed 0`, `1` and `2` unless noted.
+Every configuration in the report. Run each line with `--seed 0`, `1` and `2` unless noted.
 
 ```bash
 # bottleneck model (checkpoints dae_*)
@@ -239,13 +261,13 @@ decay per step, batch 256). The last 5,000 training images are used for validati
 time, $\sigma = 0.1, 0.2$ are in distribution, $\sigma = 0.3, 0.5$ are held-out noise levels,
 and blur and masks are unseen operators. Checkpoints go to `checkpoints/` and training curves to
 `results/train/`. The three `dae_lam0` checkpoints were trained on a GPU by an earlier version
-of the script, which did not record the device; all other runs trained on CPU, as in the
+of the script, which did not record the device. All other runs trained on CPU, as in the
 commands above.
 
 With $\lambda_{id} = 1$ from the first step, every seed collapses within one epoch to a
 constant output, the per-pixel median image: validation error 0.2107 after one epoch and
-0.2106 at epoch 15, equal to that image's, with $g$ about $10^{-6}$. Seed 0 ran all 15 epochs;
-seeds 1 and 2 were stopped after two (logs in `results/train/logs/`). `--lambda-warmup 5`
+0.2106 at epoch 15, equal to that image's, with $g$ about $10^{-6}$. Seed 0 ran all 15 epochs,
+and seeds 1 and 2 were stopped after two (logs in `results/train/logs/`). `--lambda-warmup 5`
 ramps $\lambda_{id}$ from 0 over five epochs and avoids it.
 
 ### 3. Evaluate models (optional with step 0)
@@ -258,7 +280,7 @@ python scripts/evaluate_models.py --pattern "unet_*.pt" --projectors --ensemble 
     --device cpu --jobs 4 --threads 2 --out results/models_skip
 ```
 
-In addition to $g$, $d$ and $r_A$, the evaluation computes first-order signals on the
+Besides $g$, $d$ and $r_A$, the evaluation computes first-order signals on the
 noise levels: the divergence $\mathrm{div} = \tfrac{1}{D}\mathrm{tr}(J_f(y))$ (Hutchinson
 estimate with finite differences), the linearized residual $\lvert J_f(y)(f(y) - y) \rvert$, and
 Stein's unbiased risk estimate $\mathrm{SURE} = d_{mse} - \sigma^2 + 2\sigma^2 \mathrm{div}$.
@@ -266,19 +288,19 @@ Signals are scored per corruption level, pooled per family, and pooled over all 
 Two baselines guard against scores that do not reflect model failures:
 
 - `b`, the mean brightness of $y$. Under masking and strong blur the error grows with the
-  amount of content in the image, so brightness alone ranks errors well (Spearman up to
+  amount of content in the image, and brightness alone therefore ranks errors well (Spearman up to
   0.97 within a pixel-mask level). Partial Spearman correlations given $b$ show what each
   signal adds beyond brightness.
 - `<signal>@level`, the median of a signal over its corruption level. In pooled scores it
   measures how much of the ranking is severity detection.
 
-`--ensemble` adds the cross-seed disagreement signal; it needs every seed of a group in the same
-run, so do not combine it with `--append` for a subset of seeds. `--no-metrics` writes the
+`--ensemble` adds the cross-seed disagreement signal. It needs every seed of a group in the same
+run and should not be combined with `--append` for a subset of seeds. `--no-metrics` writes the
 per-image dump without the bootstrap scoring. `--from-per-image` scores an existing dump and
 merges the scores into `metrics.csv` (only the listed signals with `--signals`). `--append` adds
 models to an earlier evaluation in the same folder. A full `--ensemble` evaluation computes every
 column. The committed dumps were evaluated before $g_2$, $g_3$, $q$ and dis existed and got them
-from `scripts/add_signals.py`, as recorded in `run_info.json`; these commands apply only to such
+from `scripts/add_signals.py`, as recorded in `run_info.json`. These commands apply only to such
 dumps (on a dump that has the columns, `add_signals.py` stops):
 
 ```bash
@@ -290,7 +312,9 @@ python scripts/evaluate_models.py --from-per-image --signals dis g2 g3 q --out r
 
 #### Analyses and figures
 
-Seconds to a minute each; all but `checks.py` and `explore_sure.py` read the per-image dumps.
+Seconds to two minutes each. All but `checks.py` and `explore_sure.py` read the per-image dumps.
+The figures of the report use Times New Roman when it is installed (else DejaVu Serif), and they
+match the committed files byte for byte only with the same font.
 
 ```bash
 python scripts/calibrate.py                                                  # results/calibration
@@ -303,7 +327,7 @@ python scripts/report_table.py                                               # T
 python scripts/plot_models.py --model dae_lam0_seed0                         # results/models/figures
 python scripts/plot_models.py --model dae_lam0_seed0 --compact --examples 5  # five bottleneck examples
 python scripts/plot_examples.py                                              # the report's Fig. 1b
-python scripts/plot_blind_spots.py                                           # the report's Fig. 2 (with step 4)
+python scripts/plot_blind_spots.py                                           # the report's Fig. 2 (BSD68 panel: dump of step 0 or 4)
 python scripts/plot_models.py --model dae_lam1w5_seed0
 python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5
 python scripts/compare_models.py --groups dae_lam0 dae_lam1w5 dae_lam1 --scatter-groups dae_lam0 dae_lam1w5 \
@@ -318,9 +342,9 @@ python scripts/explore_sure.py                                               # p
 
 ![Ranking quality per condition](results/models/comparison/rho_by_condition.png)
 
-The run without warm-up (green) collapsed to a constant image, so its $d$ and $r_A$ measure
-how far each observation is from that image and rank the error almost perfectly; Table 1 omits
-it.
+The run without warm-up (green) collapsed to a constant image. Its $d$ and $r_A$ therefore
+measure how far each observation is from that image and rank the error almost perfectly. Table 1
+omits it.
 
 ![Fixed-point residual vs. error](results/models/comparison/g_vs_error.png)
 
@@ -332,26 +356,36 @@ it.
 
 ```bash
 pip install -e ".[pretrained]"                   # deepinv, for the Restormer architecture
-python scripts/download_pretrained.py            # two weight files and the 68 BSD68 images (115 MB)
-python scripts/check_pretrained.py               # PSNR on full BSD68 images against the papers (5 minutes)
-python scripts/evaluate_pretrained.py            # about 45 minutes on a 4 GB laptop GPU
+python scripts/download_pretrained.py            # two weight files and the 68 BSD68 images (114 MB)
+python scripts/check_pretrained.py               # PSNR against the papers: 10 minutes on a GPU, 2 to 3 hours on a CPU
+python scripts/evaluate_pretrained.py            # 40 to 45 minutes on a 4 GB laptop GPU, half a day on a CPU
 python scripts/evaluate_pretrained.py --no-clip  # the same with unclipped outputs
 ```
 
 DnCNN-B [17] and Restormer [16] are blind Gaussian denoisers trained on natural images, with
-noise up to $\sigma = 55/255$ and $50/255$; their pretrained weights are used as published. The
+noise up to $\sigma = 55/255$ and $50/255$. Their pretrained weights are used as published. The
 68 BSD68 images [8], held out from both training sets, are cut into six $128\times128$ crops
 each, and every crop is corrupted at the 13 levels of the main grid. Box sides keep their share of
-the image side (37 and 64 pixels); blur widths stay in pixels and reflect at the crop border.
-`scripts/check_pretrained.py` confirms that the wrappers in `src/fpr/pretrained.py` reproduce the
-papers' BSD68 PSNR (`results/pretrained/psnr.csv`; DnCNN-B: 31.61, 29.16, 26.21 dB at
-$\sigma$ = 15, 25, 50, against 31.61, 29.16, 26.23; Restormer: 31.93, 29.50, 26.60 against
-31.95, 29.51, 26.62). Restormer is run with reflection padding, as its authors test it; deepinv's
-default replication padding lowers its full-image PSNR by up to 1.6 dB. Outputs are clipped to
-$[0, 1]$, as when they are saved as images; `--no-clip` keeps the raw outputs
-(`results/pretrained_noclip`). The bootstrap resamples whole source images, since the six crops of
-an image are not independent. `scripts/report_table.py` and `scripts/plot_blind_spots.py` add the
-clipped results to Table 1 and Fig. 2.
+the image side (37 and 64 pixels). Blur widths stay in pixels and reflect at the crop border.
+`scripts/check_pretrained.py` adds noise as the authors' test scripts do and confirms that the
+wrappers in `src/fpr/pretrained.py` reproduce the papers' BSD68 PSNR within 0.01 dB
+(`results/pretrained/psnr.csv`: DnCNN-B 31.62, 29.16, 26.23 dB at $\sigma$ = 15, 25, 50, against
+31.61, 29.16, 26.23, and Restormer 31.95, 29.51, 26.62, as published). Restormer is run with
+reflection padding, as its authors test it. With deepinv's default replication padding its mean
+PSNR is 0.7 to 1.7 dB lower (rows `restormer_replicate`). Outputs are clipped to $[0, 1]$, as when
+they are saved as images, and `--no-clip` keeps the raw outputs (`results/pretrained_noclip`). The
+bootstrap resamples whole source images, since the six crops of an image are not independent.
+`scripts/report_table.py` and `scripts/plot_blind_spots.py` add the clipped results to Table 1 and
+Fig. 2.
+
+The weights and images are downloaded, not redistributed. The DnCNN-B weights are
+`dncnn_gray_blind.pth` from the [KAIR](https://github.com/cszn/KAIR) release v1.0 (MIT license).
+The Restormer weights are the authors' `gaussian_gray_denoising_blind.pth`
+([Restormer](https://github.com/swz30/Restormer), MIT license), from deepinv's copy on Hugging
+Face, and the architecture comes from the [deepinv](https://github.com/deepinv/deepinv) library
+(BSD 3-Clause license). The BSD68 images come from the [DnCNN](https://github.com/cszn/DnCNN)
+repository. They belong to the Berkeley Segmentation Dataset, whose terms allow non-commercial
+research and educational use.
 
 ### 5. Build the report
 
@@ -363,13 +397,13 @@ cd report && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex m
 
 ```
 src/fpr/
-  data.py          Fashion-MNIST and BSD68-crop loading; paths of the per-image dumps
+  data.py          Fashion-MNIST and BSD68-crop loading, paths of the per-image dumps
   download.py      downloads checked against SHA-256 digests
   pretrained.py    pretrained DnCNN-B and Restormer, for the natural-image check
   degradations.py  operators A_s: noise, blur, pixel mask, box mask
   projectors.py    exact projectors: identity, radial, PCA, nearest neighbour
   models.py        bottleneck and skip-connection autoencoders, checkpoint loading
-  losses.py        reconstruction loss; idempotence loss with inner/outer/both routing
+  losses.py        reconstruction loss, idempotence loss with inner/outer/both routing
   signals.py       g, g_k, q, d, r_A, the offline error e, first-order signals (div, g_lin)
   ensemble.py      cross-seed disagreement dis
   conformal.py     split conformal bounds, the shift test, SURE self-calibration
@@ -378,29 +412,29 @@ src/fpr/
   evaluation.py    shared corruption grid, per-image signals, scoring
   plotting.py      shared figure style
 scripts/
-  download_dumps.py    fetches the per-image dumps of the committed results (v1.0 release)
+  download_dumps.py       fetches the per-image dumps of the committed results (v1.0 release)
   download_pretrained.py  fetches the pretrained denoisers' weights and the BSD68 images
   evaluate_pretrained.py  DnCNN-B and Restormer on BSD68 crops (results/pretrained)
-  check_pretrained.py  PSNR of the pretrained denoisers on full BSD68 images
-  smoke_projectors.py  exact-projector experiment
-  train_dae.py         training (architecture, lambda_id, warm-up, routing)
-  evaluate_models.py   per-image signals and scores (--jobs, --append, --ensemble, --from-per-image)
-  add_signals.py       adds g2, g3, q and dis to a stored per-image dump (as done for the results)
-  compare_models.py    tables and figures comparing model groups
-  plot_models.py       per-model figures, including the stable-but-wrong examples
-  plot_blind_spots.py  share of each family's worst errors flagged by g and dis (the report's Fig. 2)
-  plot_examples.py     one stable-but-wrong test image per architecture (the report's Fig. 1b)
-  calibrate.py         isotonic calibration per level or per family
-  conformal.py         coverage and width of conformal error bars
-  selective.py         risk-coverage curves and selective risk
-  checks.py            collapse, finite-difference accuracy, initialization
-  report_table.py      Table 1 (results/report_table.csv, report/table_main.tex) and results/report_coverage.csv
-  report_numbers.py    report numbers no other file holds (results/report_numbers.json)
-  explore_sure.py      SURE vs. displacement on exact projectors (exploration)
-checkpoints/           trained models
-report/                LaTeX source and bibliography of the report
-tests/                 unit tests (pytest)
-results/               result tables and figures (per-image dumps are git-ignored)
+  check_pretrained.py     PSNR of the pretrained denoisers on full BSD68 images
+  smoke_projectors.py     exact-projector experiment
+  train_dae.py            training (architecture, lambda_id, warm-up, routing)
+  evaluate_models.py      per-image signals and scores (--jobs, --append, --ensemble, --from-per-image)
+  add_signals.py          adds g2, g3, q and dis to a stored per-image dump (as done for the results)
+  compare_models.py       tables and figures comparing model groups
+  plot_models.py          per-model figures, including the stable-but-wrong examples
+  plot_blind_spots.py     share of each family's worst errors flagged by g and dis (the report's Fig. 2)
+  plot_examples.py        one stable-but-wrong test image per architecture (the report's Fig. 1b)
+  calibrate.py            isotonic calibration per level or per family
+  conformal.py            coverage and width of conformal error bars
+  selective.py            risk-coverage curves and selective risk
+  checks.py               collapse, finite-difference accuracy, initialization
+  report_table.py         Table 1 (results/report_table.csv, report/table_main.tex) and results/report_coverage.csv
+  report_numbers.py       report numbers no other file holds (results/report_numbers.json)
+  explore_sure.py         SURE vs. displacement on exact projectors (exploration)
+checkpoints/              trained models
+report/                   LaTeX source and bibliography of the report
+tests/                    unit tests (pytest)
+results/                  result tables and figures (per-image dumps are git-ignored)
 ```
 
 ## Contents
@@ -431,7 +465,7 @@ The report's bibliography, numbered as in the report.
 3. N. Durasov, N. Dorndorf, H. Le and P. Fua, "ZigZag: Universal Sampling-free Uncertainty Estimation Through Two-Step Inference," Transactions on Machine Learning Research, 2024 (arXiv:2211.11435).
 4. N. Durasov et al., "IT³: Idempotent Test-Time Training," ICML 2025.
 5. J. M. Everink, B. T. Amougou and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," SSVM 2025 (arXiv:2502.05127).
-6. K. Hamidieh, V. Thost, W. Gerych, M. Yurochkin and M. Ghassemi, "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," ICLR 2026 (arXiv:2604.17112).
+6. K. Hamidieh et al., "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," ICLR 2026 (arXiv:2604.17112).
 7. L. Huang et al., "Cycle-Consistency-Based Uncertainty Quantification of Neural Networks in Inverse Imaging Problems," Intelligent Computing 2, 2023 (arXiv:2305.12852).
 8. D. Martin, C. Fowlkes, D. Tal and J. Malik, "A Database of Human Segmented Natural Images and its Application to Evaluating Segmentation Algorithms and Measuring Ecological Statistics," ICCV 2001.
 9. A. Radhakrishnan, M. Belkin and C. Uhler, "Overparameterized Neural Networks Implement Associative Memory," PNAS 117(44), 2020 (arXiv:1909.12362).
