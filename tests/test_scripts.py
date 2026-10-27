@@ -168,8 +168,7 @@ def test_coverage_table_averages_the_conformal_and_selective_results(tmp_path, m
     assert (row["width_g"], row["width_marginal"], row["width_severity"]) == (0.2, 0.3, 0.1)
     assert (row["cov_pixel_g"], row["cov_box_g"], row["shift_g"]) == (0.6, 0.95, 0.5)
     assert (row["aurc_g"], row["aurc_dis"]) == (0.45, 0.5) and np.isnan(row["cov_pixel_dis"])
-    tex = (tmp_path / "report" / "table_coverage.tex").read_text()
-    assert r"bottleneck, $\lid{=}0$ & 0.200 & 0.100 & 0.60 & 0.95 & 0.50 & 0.45 & 0.50 \\" in tex
+    assert not (tmp_path / "report" / "table_coverage.tex").exists()  # the report has no Table 2
 
 
 def test_blind_spot_shares_follow_the_flagged_rule(tmp_path):
@@ -188,6 +187,12 @@ def test_blind_spot_shares_follow_the_flagged_rule(tmp_path):
     g = table[table["signal"] == "g"].set_index("family")
     assert g.loc["pixel_mask", "flagged"] == 0.0 and g.loc["pixel_mask", "worst_quartile_share"] == 1.0
     assert g.loc["box_mask", "worst_quartile_share"] == 0.0 and (g["seeds"] == 2).all()
+    # A pretrained denoiser: one run, no seed suffix and no disagreement column.
+    single = pd.DataFrame(rows).query("model == 'dae_lam0_seed0'").drop(columns="dis")
+    single.assign(model="dncnn_b").to_csv(tmp_path / "per_image.csv.gz", index=False)
+    table = pd.DataFrame(plot_blind_spots.family_shares("DnCNN-B", tmp_path, "dncnn_b"))
+    assert set(table["signal"]) == {"g"} and (table["seeds"] == 1).all() and len(table) == 4
+    assert table.set_index("family").loc["pixel_mask", "flagged"] == 0.0
 
 
 def test_stable_but_wrong_takes_both_percentiles_over_all_levels():
@@ -252,6 +257,8 @@ def test_report_table_rows_and_percent_formatting():
                 "flagged_pixel_g": 0.0, "flagged_box_g": 0.61},
         base | {"architecture": "skip", "training": "lambda 1, no warm-up",
                 "flagged_pixel_g": np.nan, "flagged_box_g": np.nan},
+        base | {"architecture": "DnCNN-B", "training": "pretrained",
+                "flagged_pixel_g": 0.3, "flagged_box_g": 0.02},
     ])
     lines = report_table.latex_rows(table).splitlines()
     bottleneck = next(line for line in lines if line.startswith("bottleneck"))
@@ -261,3 +268,18 @@ def test_report_table_rows_and_percent_formatting():
     assert skip.startswith(r"skip, $\lid{=}1$ &")
     assert skip.endswith(r"& 0\% & 61\% \\")
     assert not any("no warm-up" in line for line in lines)
+    pretrained = lines.index(next(line for line in lines if line.startswith("DnCNN-B")))
+    assert lines[pretrained - 1] == r"\midrule" and lines[pretrained + 1] == r"\bottomrule"
+    assert lines[pretrained].startswith("DnCNN-B, BSD68 & 0.123 &")
+    assert lines[pretrained].endswith(r"& -- & 30\% & 2\% \\")
+
+
+def test_report_table_reads_the_pretrained_folder_only_when_present(tmp_path, monkeypatch):
+    report_table = _script("report_table")
+    monkeypatch.setattr(report_table, "REPO_ROOT", tmp_path)
+    assert report_table.folders() == report_table.FOLDERS
+    (tmp_path / "results" / "pretrained").mkdir(parents=True)
+    (tmp_path / "results" / "pretrained" / "metrics.csv").write_text("model\n")
+    assert report_table.folders() == (*report_table.FOLDERS, "results/pretrained")
+    models = pd.Series(["dae_lam0_seed0", "radial", "pca64", "dncnn_b", "restormer"])
+    assert report_table.reported(models).tolist() == [True, False, False, True, True]

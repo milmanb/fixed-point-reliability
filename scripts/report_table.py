@@ -2,10 +2,11 @@
 
 table_main.tex: one row per model variant (architecture x training). Within-level statistics are
 the median over the 13 corruption levels for each seed, then the mean over seeds; the seed range
-is kept too.
+is kept too. The two pretrained denoisers of results/pretrained (scripts/evaluate_pretrained.py,
+BSD68 crops) follow as single runs, when that folder exists.
 
-table_coverage.tex: conformal coverage and selective risk, from results/conformal and
-results/selective. Skipped when those folders are missing.
+results/report_coverage.csv: conformal coverage and selective risk, from results/conformal and
+results/selective, which the README quotes. Skipped when those folders are missing.
 
     python scripts/report_table.py
 """
@@ -30,13 +31,30 @@ VARIANTS = [  # (group, architecture, training)
     ("unet_lam0", "skip", "none"),
     ("unet_lam1w5", "skip", "lambda 1"),
     ("unet_lam1", "skip", "lambda 1, no warm-up"),
+    ("dncnn_b", "DnCNN-B", "pretrained"),
+    ("restormer", "Restormer", "pretrained"),
 ]
+PRETRAINED = "results/pretrained"
+PRETRAINED_MODELS = ("dncnn_b", "restormer")
+
+
+def folders():
+    if (REPO_ROOT / PRETRAINED / "metrics.csv").exists():
+        return (*FOLDERS, PRETRAINED)
+    print(f"note: {PRETRAINED} is missing, so the tables leave out DnCNN-B and Restormer "
+          "(scripts/download_dumps.py fetches its dump; scripts/evaluate_pretrained.py recreates it)")
+    return FOLDERS
+
+
+def reported(models):
+    """The trained autoencoders (one seed each) and the pretrained denoisers; not the projectors."""
+    return models.str.contains("_seed") | models.isin(PRETRAINED_MODELS)
 
 
 def load(name):
-    frames = [pd.read_csv(REPO_ROOT / folder / name) for folder in FOLDERS]
+    frames = [pd.read_csv(REPO_ROOT / folder / name) for folder in folders()]
     frame = pd.concat(frames, ignore_index=True)
-    frame = frame[frame["model"].str.contains("_seed")]
+    frame = frame[reported(frame["model"])]
     # In metrics.csv "group" is the corruption level, so the model group gets its own column.
     return frame.assign(model_group=frame["model"].map(model_group))
 
@@ -79,10 +97,10 @@ def main():
                             formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     metrics = load("metrics.csv")
     summary = load("summary.csv")
-    paths = [per_image_dump(folder) for folder in FOLDERS]
+    paths = [per_image_dump(folder) for folder in folders()]
     per_image = pd.concat([pd.read_csv(path, usecols=per_image_columns(path)) for path in paths],
                           ignore_index=True)
-    per_image = per_image[per_image["model"].str.contains("_seed")]
+    per_image = per_image[reported(per_image["model"])]
 
     statistics = {
         "rho_g": per_seed_median(metrics, "g", "spearman"),
@@ -132,12 +150,6 @@ def main():
     coverage_table()
 
 
-GROUP_LABELS = {"dae_lam0": r"bottleneck, $\lid{=}0$",
-                "dae_lam1w5": r"bottleneck, $\lid{=}1$",
-                "unet_lam0": r"skip, $\lid{=}0$",
-                "unet_lam1w5": r"skip, $\lid{=}1$"}
-
-
 def coverage_table(groups=("dae_lam0", "dae_lam1w5", "unet_lam0", "unet_lam1w5")):
     """Conformal coverage (pooled, per family, under shift) and selective risk."""
     conformal_dir = REPO_ROOT / "results" / "conformal"
@@ -145,7 +157,7 @@ def coverage_table(groups=("dae_lam0", "dae_lam1w5", "unet_lam0", "unet_lam1w5")
     needed = [conformal_dir / "coverage.csv", conformal_dir / "coverage_family.csv",
               conformal_dir / "shift.csv", selective_dir / "selective.csv"]
     if not all(p.exists() for p in needed):
-        print("skipping table_coverage.tex: run scripts/conformal.py and scripts/selective.py")
+        print("skipping report_coverage.csv: run scripts/conformal.py and scripts/selective.py")
         return
 
     pooled = pd.read_csv(conformal_dir / "coverage.csv")
@@ -155,7 +167,7 @@ def coverage_table(groups=("dae_lam0", "dae_lam1w5", "unet_lam0", "unet_lam1w5")
 
     missing = [g for g in groups if g not in set(pooled["model_group"])]
     if missing:
-        print(f"warning: no conformal results for {missing}; table_coverage.tex leaves them out")
+        print(f"warning: no conformal results for {missing}; report_coverage.csv leaves them out")
     rows = []
     for group in groups:
         pooled_g = pooled[(pooled["model_group"] == group)]
@@ -183,31 +195,10 @@ def coverage_table(groups=("dae_lam0", "dae_lam1w5", "unet_lam0", "unet_lam1w5")
     table = pd.DataFrame(rows)
     table.to_csv(REPO_ROOT / "results" / "report_coverage.csv", index=False, float_format="%.4f")
 
-    def num(value, digits=2):
-        return "--" if pd.isna(value) else f"{value:.{digits}f}"
-
-    lines = [
-        r"\setlength{\tabcolsep}{3.5pt}",
-        r"\begin{tabular}{@{}lccccccc@{}}",
-        r"\toprule",
-        r"& \multicolumn{2}{c}{width} & \multicolumn{3}{c}{coverage, $g$}"
-        r" & \multicolumn{2}{c}{nAURC} \\",
-        r"\cmidrule(lr){2-3} \cmidrule(lr){4-6} \cmidrule(l){7-8}",
-        r"model & $g$ & level & pixel & box & shift & $g$ & $\mathrm{dis}$ \\",
-        r"\midrule",
-    ]
-    for _, row in table.iterrows():
-        cells = [GROUP_LABELS.get(row["group"], row["group"]),
-                 num(row["width_g"], 3), num(row["width_severity"], 3),
-                 num(row["cov_pixel_g"]), num(row["cov_box_g"]),
-                 num(row["shift_g"]), num(row["aurc_g"]), num(row["aurc_dis"])]
-        lines.append(" & ".join(cells) + r" \\")
-    lines += [r"\bottomrule", r"\end{tabular}"]
-    (REPO_ROOT / "report" / "table_coverage.tex").write_text("\n".join(lines) + "\n")
     pd.set_option("display.width", 220)
     print("\nCoverage and selective risk")
     print(table.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
-    print("Wrote report/table_coverage.tex")
+    print("Wrote results/report_coverage.csv")
 
 
 def latex_rows(table):
@@ -216,7 +207,7 @@ def latex_rows(table):
     Columns: model, e, g, within/noise/partial/pooled/AUROC for g, within for d, r_A and dis,
     flagged pixel/box for g. The runs without a warm-up collapse to a constant map, so every
     ranking is degenerate; they stay in results/report_table.csv but not in the report's table,
-    where the text gives their error and residual.
+    where the text gives their error and residual. The pretrained denoisers follow after a rule.
     """
     def number(value, digits=2):
         return "--" if pd.isna(value) else f"{value:.{digits}f}".replace("-", "$-$")
@@ -238,19 +229,26 @@ def latex_rows(table):
         r" & within & pixel & box \\",
         r"\midrule",
     ]
+    def row_cells(label, row):
+        cells = [label, number(row["error"], 3), number(row["residual"], 3)]
+        cells += [number(row[c]) for c in ("rho_g", "rho_g_noise", "partial_g", "pooled_g",
+                                           "auroc_g", "rho_d", "rho_rA", "rho_dis")]
+        cells += [percent(row["flagged_pixel_g"]), percent(row["flagged_box_g"])]
+        return " & ".join(cells) + r" \\"
+
     for architecture in ("bottleneck", "skip"):
         rows = table[(table["architecture"] == architecture)
                      & ~table["training"].str.contains("no warm-up")]
         for _, row in rows.iterrows():
-            # "lambda 1, inner only" -> "$\lid{=}1$, inner only", as in Table 2's labels
+            # "lambda 1, inner only" -> "$\lid{=}1$, inner only"
             training = re.sub(r"lambda ([0-9.]+)", r"$\\lid{=}\1$",
                               row["training"].replace("none", "lambda 0"))
-            cells = [f"{architecture}, {training}", number(row["error"], 3),
-                     number(row["residual"], 3)]
-            cells += [number(row[c]) for c in ("rho_g", "rho_g_noise", "partial_g", "pooled_g",
-                                               "auroc_g", "rho_d", "rho_rA", "rho_dis")]
-            cells += [percent(row["flagged_pixel_g"]), percent(row["flagged_box_g"])]
-            lines.append(" & ".join(cells) + r" \\")
+            lines.append(row_cells(f"{architecture}, {training}", row))
+    pretrained = table[table["training"] == "pretrained"]
+    if not pretrained.empty:
+        lines.append(r"\midrule")
+        for _, row in pretrained.iterrows():
+            lines.append(row_cells(f"{row['architecture']}, BSD68", row))
     lines += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(lines) + "\n"
 

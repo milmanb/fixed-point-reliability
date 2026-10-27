@@ -15,3 +15,11 @@ skip,unet_lam0,pixel_mask,g,0.6824,0.6755,0.6908,3,0.5686
 skip,unet_lam0,pixel_mask,dis,0.5696,0.5680,0.5709,3,0.5686
 skip,unet_lam0,box_mask,g,0.0041,0.0034,0.0046,3,0.1715
 skip,unet_lam0,box_mask,dis,0.0123,0.0120,0.0126,3,0.1715
+DnCNN-B,dncnn_b,noise,g,1.0000,1.0000,1.0000,1,0.2956
+DnCNN-B,dncnn_b,blur,g,,,,1,0.0000
+DnCNN-B,dncnn_b,pixel_mask,g,0.5199,0.5199,0.5199,1,0.6267
+DnCNN-B,dncnn_b,box_mask,g,0.0097,0.0097,0.0097,1,0.0777
+Restormer,restormer,noise,g,0.4186,0.4186,0.4186,1,0.0649
+Restormer,restormer,blur,g,0.0000,0.0000,0.0000,1,0.0030
+Restormer,restormer,pixel_mask,g,0.9932,0.9932,0.9932,1,0.7738
+Restormer,restormer,box_mask,g,0.0095,0.0095,0.0095,1,0.1584
