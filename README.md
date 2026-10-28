@@ -135,7 +135,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Fashion-MNIST [14] (MIT license, © 2017 Zalando SE) is downloaded to `data/` on first use. The
+Fashion-MNIST [15] (MIT license, © 2017 Zalando SE) is downloaded to `data/` on first use. The
 scripts read and write `data/` and `results/` inside the repository, so install it in editable
 mode (`-e`), as above.
 
@@ -368,7 +368,7 @@ python scripts/evaluate_pretrained.py --no-clip  # the same with unclipped outpu
 
 DnCNN-B [17] and Restormer [16] are blind Gaussian denoisers trained on natural images, with
 noise up to $\sigma = 55/255$ and $50/255$. Their pretrained weights are used as published. The
-68 BSD68 images [8], held out from both training sets, are cut into six $128\times128$ crops
+68 BSD68 images [9], held out from both training sets, are cut into six $128\times128$ crops
 each, and every crop is corrupted at the 13 levels of the main grid. Box sides keep their share of
 the image side (37 and 64 pixels). Blur widths stay in pixels and reflect at the crop border.
 `scripts/check_pretrained.py` adds noise as the authors' test scripts do and confirms that the
@@ -471,14 +471,14 @@ The report's bibliography, numbered as in the report.
 5. J. M. Everink, B. T. Amougou and M. Pereyra, "Self-supervised Conformal Prediction for Uncertainty Quantification in Imaging Problems," SSVM 2025 (arXiv:2502.05127).
 6. K. Hamidieh et al., "Complementing Self-Consistency with Cross-Model Disagreement for Uncertainty Quantification," ICLR 2026 (arXiv:2604.17112).
 7. L. Huang et al., "Cycle-Consistency-Based Uncertainty Quantification of Neural Networks in Inverse Imaging Problems," Intelligent Computing 2, 2023 (arXiv:2305.12852).
-8. D. Martin, C. Fowlkes, D. Tal and J. Malik, "A Database of Human Segmented Natural Images and its Application to Evaluating Segmentation Algorithms and Measuring Ecological Statistics," ICCV 2001.
-9. A. Radhakrishnan, M. Belkin and C. Uhler, "Overparameterized Neural Networks Implement Associative Memory," PNAS 117(44), 2020 (arXiv:1909.12362).
-10. S. Ramani, T. Blu and M. Unser, "Monte-Carlo SURE: A Black-Box Optimization of Regularization Parameters for General Denoising Algorithms," IEEE Transactions on Image Processing 17(9), 2008.
-11. A. Shocher et al., "Idempotent Generative Network," ICLR 2024.
-12. C. M. Stein, "Estimation of the Mean of a Multivariate Normal Distribution," Annals of Statistics 9(6), 1981.
-13. J. Teneggi, M. Tivnan, J. W. Stayman and J. Sulam, "How to Trust Your Diffusion Model: A Convex Optimization Approach to Conformal Risk Control," ICML 2023.
-14. H. Xiao, K. Rasul and R. Vollgraf, "Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms," arXiv:1708.07747, 2017.
-15. S. Zaman, C. Liu and K. Chiu, "Score-based Idempotent Distillation of Diffusion Models," arXiv:2509.21470, 2025.
+8. B. Lakshminarayanan, A. Pritzel and C. Blundell, "Simple and Scalable Predictive Uncertainty Estimation using Deep Ensembles," NeurIPS 2017 (arXiv:1612.01474).
+9. D. Martin, C. Fowlkes, D. Tal and J. Malik, "A Database of Human Segmented Natural Images and its Application to Evaluating Segmentation Algorithms and Measuring Ecological Statistics," ICCV 2001.
+10. A. Radhakrishnan, M. Belkin and C. Uhler, "Overparameterized Neural Networks Implement Associative Memory," PNAS 117(44), 2020 (arXiv:1909.12362).
+11. S. Ramani, T. Blu and M. Unser, "Monte-Carlo SURE: A Black-Box Optimization of Regularization Parameters for General Denoising Algorithms," IEEE Transactions on Image Processing 17(9), 2008.
+12. A. Shocher et al., "Idempotent Generative Network," ICLR 2024.
+13. C. M. Stein, "Estimation of the Mean of a Multivariate Normal Distribution," Annals of Statistics 9(6), 1981.
+14. J. Teneggi, M. Tivnan, J. W. Stayman and J. Sulam, "How to Trust Your Diffusion Model: A Convex Optimization Approach to Conformal Risk Control," ICML 2023.
+15. H. Xiao, K. Rasul and R. Vollgraf, "Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms," arXiv:1708.07747, 2017.
 16. S. W. Zamir, A. Arora, S. Khan, M. Hayat, F. S. Khan and M.-H. Yang, "Restormer: Efficient Transformer for High-Resolution Image Restoration," CVPR 2022 (arXiv:2111.09881).
 17. K. Zhang, W. Zuo, Y. Chen, D. Meng and L. Zhang, "Beyond a Gaussian Denoiser: Residual Learning of Deep CNN for Image Denoising," IEEE Transactions on Image Processing 26(7), 2017 (arXiv:1608.03981).
 
