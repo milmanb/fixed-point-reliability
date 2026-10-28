@@ -274,7 +274,7 @@ about $10^{-6}$. Seed 0 ran all 15 epochs, and seeds 1 and 2 were stopped after 
 0.2885, the mean pixel value. `--lambda-warmup 5` ramps $\lambda_{id}$ from 0 over five epochs
 and avoids the collapse.
 
-### 3. Evaluate models (optional with step 0)
+### 3. Evaluate models (not needed after step 0)
 
 ```bash
 # bottleneck checkpoints (dae_*.pt) plus the radial and pca64 projectors -> results/models (hours)
@@ -356,7 +356,7 @@ omits it.
 
 ![Stable but wrong outputs](results/models/figures/failures_dae_lam0_seed0.png)
 
-### 4. Standard denoisers on natural images (optional with step 0)
+### 4. Standard denoisers on natural images (not needed after step 0)
 
 ```bash
 pip install -e ".[pretrained]"                   # deepinv, for the Restormer architecture
